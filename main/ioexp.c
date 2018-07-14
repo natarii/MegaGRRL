@@ -76,13 +76,11 @@ bool IoExp_Setup() {
             ESP_LOGE(TAG, "Register %02x write failed !!", MCP23017_Config[i]);
             return false;
         }
-        //vTaskDelay(pdMS_TO_TICKS(100));
         uint8_t v = IoExp_ReadRegister(MCP23017_Config[i]);
         if (v != MCP23017_Config[i+1]) {
             ESP_LOGE(TAG, "Register %02x verify failed !!\nWrote %02x, read %02x", MCP23017_Config[i], MCP23017_Config[i+1], v);
             return false;
         }
-        //vTaskDelay(pdMS_TO_TICKS(100));
     }
     I2cMgr_Release(false);
     ESP_LOGI(TAG, "MCP23017 configured !!");
