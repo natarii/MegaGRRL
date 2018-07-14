@@ -1,6 +1,7 @@
 #include "esp_log.h"
 #include "ioexp.h"
 #include "i2c.h"
+#include "taskmgr.h"
 
 static const char* TAG = "IoExpander";
 static const uint8_t MCP23017_Config[] = {
@@ -18,7 +19,7 @@ static const uint8_t MCP23017_Config[] = {
     0x04,0b01111111,    //GPINTENA for all bits except 7
     0x06,0x00,          //DEFVALA doesn't actually matter
     0x08,0b00000000,    //INTCONA compare against previous value
-    0x0c,0b00000000,    //GPPUA all disabled
+    0x0c,0b10000000,    //GPPUA enable for bit 7 to avoid false triggering
 
     0x01,0b00001100,    //IODIRB
     0x03,0b00001000,    //IPOLB
@@ -85,5 +86,38 @@ bool IoExp_Setup() {
     I2cMgr_Release(false);
     ESP_LOGI(TAG, "MCP23017 configured !!");
 
+    ESP_LOGI(TAG, "Configuring interrupt...");
+    gpio_config_t intconf;
+    intconf.intr_type = GPIO_PIN_INTR_POSEDGE;
+    intconf.mode = GPIO_MODE_INPUT;
+    intconf.pull_down_en = 0;
+    intconf.pull_up_en = 0;
+    intconf.pin_bit_mask = 1ULL<<PIN_IOEXP_INT;
+    gpio_config(&intconf);
+
+    ESP_LOGI(TAG, "OK !!");
     return true;
+}
+
+static void IRAM_ATTR IoExp_Isr(void* arg) {
+    vTaskNotifyGiveFromISR(Taskmgr_Handles[TASK_IOEXP], NULL);
+}
+
+void IoExp_Main() {
+    ESP_LOGI(TAG, "Task start");
+    ESP_LOGI(TAG, "Adding ISR handler...");
+    gpio_install_isr_service(0);
+    gpio_isr_handler_add(PIN_IOEXP_INT, IoExp_Isr, (void*)PIN_IOEXP_INT);
+
+    ESP_LOGI(TAG, "Starting polling...");
+    while (1) {
+        ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(250)); //wait for notification, and poll every 250ms when no notifs
+        if (!I2cMgr_Seize(false, pdMS_TO_TICKS(100))) {
+            ESP_LOGE(TAG, "Couldn't seize bus !!");
+            continue;
+        }
+        uint8_t intcapa = IoExp_ReadRegister(0x10);
+        I2cMgr_Release(false);
+        ESP_LOGI(TAG, "polled %02x", intcapa);
+    }
 }
