@@ -11,4 +11,9 @@
 #define PIN_OLED_DATA   27
 #define PIN_OLED_RST    99999
 
+#define PIN_I2C_CLK     16
+#define PIN_I2C_DATA    17
+
+#define PIN_IOEXP_INT   35
+
 #endif
