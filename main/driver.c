@@ -28,6 +28,7 @@ uint8_t Driver_SrBuf[2] = {0xff,0x00}; //buffer to transmit to the shift registe
 QueueHandle_t Driver_CommandQueue; //queue of incoming vgm data
 QueueHandle_t Driver_PcmQueue; //queue of attached pcm data (if any)
 EventGroupHandle_t Driver_CommandEvents; //driver status flags
+EventGroupHandle_t Driver_QueueEvents; //queue status flags
 
 //we abuse the esp32's spi hardware to drive the shift registers
 spi_bus_config_t Driver_SpiBusConfig = {
@@ -116,39 +117,6 @@ void Driver_Output() { //output data to shift registers
     disp_spi_transfer_data(Driver_SpiDevice, (uint8_t*)&Driver_SrBuf, NULL, 2, 0);
 }
 
-void Driver_FmOut2(uint8_t Port, uint8_t Register, uint8_t Value) {
-    if (Port == 0) {
-        Driver_SrBuf[0] &= ~SR_BIT_A1; //clear A1
-    } else if (Port == 1) {
-        Driver_SrBuf[0] |= SR_BIT_A1; //set A1
-    }
-    Driver_SrBuf[0] &= ~SR_BIT_A0; //clear A0
-    Driver_Output();
-    Driver_Sleep(9);//
-    Driver_SrBuf[0] &= ~SR_BIT_FM_CS; // /cs low
-    Driver_Output();
-    Driver_Sleep(9);//
-    Driver_SrBuf[0] &= ~SR_BIT_WR; // /wr low
-    Driver_SrBuf[1] = Register;
-    Driver_Output();
-    Driver_Sleep(9);//
-    Driver_SrBuf[0] |= SR_BIT_WR; // /wr high
-    Driver_Output();
-    Driver_Sleep(9);
-    Driver_SrBuf[0] |= SR_BIT_A0; //set A0
-    Driver_Output();
-    Driver_Sleep(9);//
-    Driver_SrBuf[0] &= ~SR_BIT_WR; // /wr low
-    Driver_SrBuf[1] = Value;
-    Driver_Output();
-    Driver_Sleep(9);//
-    Driver_SrBuf[0] |= SR_BIT_WR; // /wr high
-    Driver_Output();
-    Driver_Sleep(9);
-    Driver_SrBuf[0] |= SR_BIT_FM_CS; // /cs high
-    Driver_Output();
-    Driver_Sleep(9);//
-}
 void Driver_PsgOut(uint8_t Data) {
     Driver_SrBuf[0] &= ~SR_BIT_PSG_CS;
     Driver_SrBuf[0] &= ~SR_BIT_WR;
@@ -162,8 +130,7 @@ void Driver_PsgOut(uint8_t Data) {
     Driver_Output();
     Driver_Sleep(10);
 }
-uint8_t penis[2] = {0,0};
-uint8_t penis2 = 0;
+
 void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
     if (Port == 0) {
         Driver_SrBuf[0] &= ~SR_BIT_A1; //clear A1
