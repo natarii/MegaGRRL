@@ -2,7 +2,6 @@
 #define AGR_I2C_H
 
 #include "freertos/FreeRTOS.h"
-#include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "driver/i2c.h"
 
