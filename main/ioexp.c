@@ -27,6 +27,7 @@ static const uint8_t MCP23017_Config[] = {
     0x07,0x00,          //DEFVALB
     0x09,0x00,          //INTCONB
     0x0d,0b00000000,    //GPPUB
+    0x15,0b00000000,    //OLATB
 };
 
 bool IoExp_WriteRegister(uint8_t Register, uint8_t Value) {
@@ -116,8 +117,20 @@ void IoExp_Main() {
             ESP_LOGE(TAG, "Couldn't seize bus !!");
             continue;
         }
-        uint8_t intcapa = IoExp_ReadRegister(0x10);
+        uint8_t intcapa = IoExp_ReadRegister(0x10); //INTCAPA
+        intcapa |= IoExp_ReadRegister(0x12); //GPIOA
         I2cMgr_Release(false);
+        if (intcapa > 0) {
+            I2cMgr_Seize(false, pdMS_TO_TICKS(100));
+            for (uint32_t b=0;b<100;b++) {
+                uint8_t c = b/10;
+                IoExp_WriteRegister(0x15, 0b11100000); //OLATB
+                vTaskDelay(pdMS_TO_TICKS(c));
+                IoExp_WriteRegister(0x15, 0b10000000); //OLATB
+                vTaskDelay(pdMS_TO_TICKS(10-c));
+            }
+            I2cMgr_Release(false);
+        }
         ESP_LOGI(TAG, "polled %02x", intcapa);
     }
 }
