@@ -16,4 +16,7 @@
 
 #define PIN_IOEXP_INT   35
 
+#define PIN_BAT_SENSE    34
+#define PIN_BAT_SENSE_EN 5
+
 #endif
