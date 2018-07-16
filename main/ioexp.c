@@ -2,6 +2,7 @@
 #include "ioexp.h"
 #include "i2c.h"
 #include "taskmgr.h"
+#include "mallocs.h"
 
 static const char* TAG = "IoExpander";
 static const uint8_t MCP23017_Config[] = {
@@ -31,12 +32,14 @@ static const uint8_t MCP23017_Config[] = {
 };
 
 uint8_t IoExp_OLATB = 0b00000000;
+static uint8_t PORTAQueueBuf[IOEXP_PORTA_QUEUE_SIZE * sizeof(PORTAQueueItem_t)];
+QueueHandle_t IoExp_PORTAQueue = NULL;
+static StaticQueue_t IoExp_PORTAStaticQueue;
 
 bool IoExp_WriteRegister(uint8_t Register, uint8_t Value) {
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd, (I2C_ADDR_IOEXP<<1)|I2C_MASTER_WRITE, true);
-    uint16_t w = (Register<<8) | Value;
     i2c_master_write_byte(cmd, Register, true);
     i2c_master_write_byte(cmd, Value, true);
     i2c_master_stop(cmd);
@@ -46,7 +49,6 @@ bool IoExp_WriteRegister(uint8_t Register, uint8_t Value) {
 }
 
 uint8_t IoExp_ReadRegister(uint8_t Register) {
-    //TODO: handle errors from i2c_master_cmd_begin
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd, (I2C_ADDR_IOEXP<<1)|I2C_MASTER_WRITE, true);
@@ -55,7 +57,11 @@ uint8_t IoExp_ReadRegister(uint8_t Register) {
     esp_err_t ret;
     ret = i2c_master_cmd_begin(I2C_NUM_0, cmd, pdMS_TO_TICKS(100));
     i2c_cmd_link_delete(cmd);
-    
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Register %02x read command fail !!", Register);
+        return 0;
+    }
+
     cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd, (I2C_ADDR_IOEXP<<1)|I2C_MASTER_READ, true);
@@ -64,6 +70,10 @@ uint8_t IoExp_ReadRegister(uint8_t Register) {
     i2c_master_stop(cmd);
     ret = i2c_master_cmd_begin(I2C_NUM_0, cmd, pdMS_TO_TICKS(100));
     i2c_cmd_link_delete(cmd);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Register %02x read data fail !!", Register);
+        return 0;
+    }
     return buf;
 }
 
@@ -98,6 +108,13 @@ bool IoExp_Setup() {
     intconf.pin_bit_mask = 1ULL<<PIN_IOEXP_INT;
     gpio_config(&intconf);
 
+    ESP_LOGI(TAG, "Setting up PORTA queue...");
+    IoExp_PORTAQueue = xQueueCreateStatic(IOEXP_PORTA_QUEUE_SIZE, sizeof(PORTAQueueItem_t), &PORTAQueueBuf[0], &IoExp_PORTAStaticQueue);
+    if (IoExp_PORTAQueue == NULL) {
+        ESP_LOGE(TAG, "PORTA queue create fail !!");
+        return false;
+    }
+
     ESP_LOGI(TAG, "OK !!");
     return true;
 }
@@ -108,32 +125,30 @@ static void IRAM_ATTR IoExp_Isr(void* arg) {
 
 void IoExp_Main() {
     ESP_LOGI(TAG, "Task start");
+
     ESP_LOGI(TAG, "Adding ISR handler...");
     gpio_install_isr_service(0);
     gpio_isr_handler_add(PIN_IOEXP_INT, IoExp_Isr, (void*)PIN_IOEXP_INT);
 
     ESP_LOGI(TAG, "Starting polling...");
     while (1) {
-        ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(250)); //wait for notification, and poll every 250ms when no notifs
+        ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1000)); //wait for notification, and poll periodically when no notifs
+        
         if (!I2cMgr_Seize(false, pdMS_TO_TICKS(100))) {
             ESP_LOGE(TAG, "Couldn't seize bus !!");
             continue;
         }
-        uint8_t intcapa = IoExp_ReadRegister(0x10); //INTCAPA
-        intcapa |= IoExp_ReadRegister(0x12); //GPIOA
+        uint8_t reg = IoExp_ReadRegister(0x10); //INTCAPA
+        reg |= IoExp_ReadRegister(0x12);        //GPIOA
         I2cMgr_Release(false);
-        if (intcapa > 0) {
-            I2cMgr_Seize(false, pdMS_TO_TICKS(100));
-            for (uint32_t b=0;b<100;b++) {
-                uint8_t c = b/10;
-                IoExp_WriteRegister(0x15, 0b11100000); //OLATB
-                vTaskDelay(pdMS_TO_TICKS(c));
-                IoExp_WriteRegister(0x15, 0b10000000); //OLATB
-                vTaskDelay(pdMS_TO_TICKS(10-c));
-            }
-            I2cMgr_Release(false);
+
+        PORTAQueueItem_t event;
+        event.Timestamp = xTaskGetTickCount();
+        event.PORTA = reg;
+
+        if (xQueueSend(IoExp_PORTAQueue, &event, 0) != pdTRUE) {
+            ESP_LOGE(TAG, "PORTA queue over !!");
         }
-        ESP_LOGI(TAG, "polled %02x", intcapa);
     }
 }
 

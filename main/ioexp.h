@@ -1,7 +1,16 @@
 #ifndef AGR_IOEXP_H
 #define AGR_IOEXP_H
+#include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
 
 #define I2C_ADDR_IOEXP 0b0100000
+
+typedef struct PORTAQueueItem {
+    TickType_t Timestamp;
+    uint8_t PORTA;
+} PORTAQueueItem_t;
+
+extern QueueHandle_t IoExp_PORTAQueue;
 
 bool IoExp_Setup();
 void IoExp_Main();
