@@ -36,8 +36,6 @@ bool I2cMgr_Setup() {
         return false;
     }
 
-    vTaskDelay(250/portTICK_PERIOD_MS);
-
     ESP_LOGI(TAG, "I2C up !!");
 
     return true;
