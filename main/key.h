@@ -35,11 +35,7 @@ typedef struct KeyState {
 #define KEY_REPEAT_DELAY 750
 #define KEY_HOLD_DELAY 750
 
-KeyState_t KeyStates[KEY_COUNT];
-
 extern void(*KeyMgr_Listener)(uint8_t, uint8_t);
-
-extern void* KeyMgr_Listeners[KEYMGR_MAX_LISTENERS];
 
 bool KeyMgr_Setup();
 void KeyMgr_Main();
