@@ -22,7 +22,7 @@
 
 extern QueueHandle_t Driver_CommandQueue;
 extern QueueHandle_t Driver_PcmQueue;
-extern EventGroupHandle_t Driver_PlayEvents;
+extern EventGroupHandle_t Driver_CommandEvents;
 extern EventGroupHandle_t Driver_QueueEvents;
 
 bool Driver_Setup();

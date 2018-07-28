@@ -19,11 +19,11 @@ uint8_t Driver_SrBuf[2] = {0xff,0x00}; //buffer to transmit to the shift registe
 
 //bits on the control shift reg
 #define SR_BIT_PSG_CS   0x01 // PSG /CS
-#define SR_BIT_WR       0x02 // /WR
-#define SR_BIT_FM_CS    0x04 // FM /CS
+#define SR_BIT_WR       0x04 // /WR
+#define SR_BIT_FM_CS    0x20 // FM /CS
 #define SR_BIT_A0       0x08 // A0 (only used by FM)
 #define SR_BIT_A1       0x10 // A1 (only used by FM)
-#define SR_BIT_IC       0x20 // /IC (only used by FM)
+#define SR_BIT_IC       0x02 // /IC (only used by FM)
 
 QueueHandle_t Driver_CommandQueue; //queue of incoming vgm data
 QueueHandle_t Driver_PcmQueue; //queue of attached pcm data (if any)
@@ -120,7 +120,11 @@ void Driver_Output() { //output data to shift registers
 void Driver_PsgOut(uint8_t Data) {
     Driver_SrBuf[0] &= ~SR_BIT_PSG_CS;
     Driver_SrBuf[0] &= ~SR_BIT_WR;
-    Driver_SrBuf[1] = Data;
+    //Driver_SrBuf[1] = Data;
+    Driver_SrBuf[1] = 0;
+    for (uint8_t i=0;i<=7;i++) {
+        Driver_SrBuf[1] |= ((Data>>(7-i))&1)<<i;
+    }
     Driver_Output();
     Driver_Sleep(20);
     Driver_SrBuf[0] |= SR_BIT_WR;
@@ -235,7 +239,7 @@ void Driver_Main() {
 
                     uint8_t peeked;
                     xQueuePeek(Driver_CommandQueue, &peeked, 0); //peek at first command in the queue
-                    uint8_t cmdlen = Vgm_CommandLength(peeked); //look up the length of this command + attached data
+                    uint8_t cmdlen = VgmCommandLength(peeked); //look up the length of this command + attached data
                     if (waiting >= cmdlen) { //if the entire command + data is in the queue
                         bool ret = Driver_RunCommand(cmdlen);
                         if (!ret) {
@@ -247,10 +251,14 @@ void Driver_Main() {
                     } else { //not enough data in queue - underrun
                         xEventGroupSetBits(Driver_QueueEvents, DRIVER_EVENT_COMMAND_UNDERRUN);
                         queueeventbits |= DRIVER_EVENT_COMMAND_UNDERRUN;
+                        printf("UNDER\n");
+                        fflush(stdout);
                     }
                 } else { //no data at all in queue - underrun
                     xEventGroupSetBits(Driver_QueueEvents, DRIVER_EVENT_COMMAND_UNDERRUN);
                     queueeventbits |= DRIVER_EVENT_COMMAND_UNDERRUN;
+                        printf("UNDER\n");
+                        fflush(stdout);
                 }
             } else {
                 //not time for next sample yet
