@@ -1,3 +1,6 @@
+#include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
+#include "freertos/task.h"
 #include "esp_log.h"
 #include "ioexp.h"
 #include "i2c.h"
@@ -5,6 +8,7 @@
 #include "mallocs.h"
 
 static const char* TAG = "IoExpander";
+uint8_t IoExp_OLATB = 0b00010001; //hack for display backlight and amp remove me
 static const uint8_t MCP23017_Config[] = {
     0x0a,0b01100010,    /* banking off, since that's the default and we don't know if this is POR or just esp reset
                          * INT pin mirroring on
@@ -28,10 +32,9 @@ static const uint8_t MCP23017_Config[] = {
     0x07,0x00,          //DEFVALB
     0x09,0x00,          //INTCONB
     0x0d,0b00000000,    //GPPUB
-    0x15,0b00000000,    //OLATB
+    0x15,0b00010001,    //OLATB //hack for display backlight remove me
 };
 
-uint8_t IoExp_OLATB = 0b00000000;
 static uint8_t PORTAQueueBuf[IOEXP_PORTA_QUEUE_SIZE * sizeof(PORTAQueueItem_t)];
 QueueHandle_t IoExp_PORTAQueue = NULL;
 static StaticQueue_t IoExp_PORTAStaticQueue;
@@ -115,6 +118,8 @@ bool IoExp_Setup() {
         return false;
     }
 
+    vTaskDelay(pdMS_TO_TICKS(100)); //settle
+
     ESP_LOGI(TAG, "OK !!");
     return true;
 }
@@ -190,4 +195,39 @@ bool IoExp_WriteLeds(bool FlashlightStatus, bool Led1Status, bool Led2Status) {
 
 bool IoExp_WriteLedsBin(uint8_t ThreeBits) {
     return IoExp_WriteLeds(ThreeBits&1, (ThreeBits>>1)&1, (ThreeBits>>2)&1);
+}
+
+bool IoExp_PowerControl(bool HoldPower) {
+    uint8_t n = (HoldPower<<1) | (IoExp_OLATB & 0xfd);
+    if (!I2cMgr_Seize(false, pdMS_TO_TICKS(1000))) {
+        ESP_LOGE(TAG, "Couldn't seize bus !!");
+        return false;
+    }
+    if (!IoExp_WriteRegister(0x15, n)) {
+        ESP_LOGE(TAG, "OLATB write fail !!");
+        return false;
+    }
+    I2cMgr_Release(false);
+    IoExp_OLATB = n;
+    return true;
+}
+
+bool IoExp_AmpControl(bool AmpPower) {
+    if (!I2cMgr_Seize(false, pdMS_TO_TICKS(1000))) {
+        ESP_LOGE(TAG, "Couldn't seize bus !!");
+        return false;
+    }
+    uint8_t n = IoExp_OLATB;
+    if (AmpPower) {
+        n &= 0b11111110;
+    } else {
+        n |= 1;
+    }
+    if (!IoExp_WriteRegister(0x15, n)) {
+        ESP_LOGE(TAG, "OLATB write fail !!");
+        return false;
+    }
+    I2cMgr_Release(false);
+    IoExp_OLATB = n;
+    return true;
 }
