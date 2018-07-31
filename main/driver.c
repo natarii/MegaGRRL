@@ -8,6 +8,7 @@
 #include "esp_pm.h"
 #include "vgm.h"
 #include "pins.h"
+#include "dacstream.h"
 
 static const char* TAG = "Driver";
 
@@ -46,12 +47,22 @@ spi_device_interface_config_t Driver_SpiDeviceConfig = {
 };
 spi_device_handle_t Driver_SpiDevice;
 
+//vgm / 2612 pcm stuff
 uint32_t Driver_Sample = 0;     //current sample number
-uint32_t Driver_VgmSample = 0;  //current sample we are at in vgm
 uint64_t Driver_Cycle = 0;      //current cycle number
 uint32_t Driver_Cc = 0;         //current cycle from the api - just keep it off the stack
 uint32_t Driver_LastCc = 0;     //copy of the above var
 uint32_t Driver_NextSample = 0; //sample number at which the next command needs to be run
+
+//dacstream specific
+uint32_t DacStreamSeq = 0;              //sequence no of the current stream
+uint32_t DacStreamLastSeqPlayed = 0;    //last seq successfully played
+uint8_t DacStreamId = 0;                //index of the currently playing dacstream. should maybe consider using a pointer to the queue instead of keeping this around
+bool DacStreamActive = false;           //actively playing a stream?
+uint32_t DacStreamSampleRate = 0;       //stream current sample rate
+uint32_t DacStreamSampleTime = 0;       //stream sample timer
+uint8_t DacStreamPort = 0;              //chip port to write to
+uint8_t DacStreamCommand = 0;           //chip command to use
 
 bool Driver_Setup() {
     //create the queues and event groups
@@ -120,7 +131,7 @@ void Driver_Output() { //output data to shift registers
 void Driver_PsgOut(uint8_t Data) {
     Driver_SrBuf[0] &= ~SR_BIT_PSG_CS;
     Driver_SrBuf[0] &= ~SR_BIT_WR;
-    //Driver_SrBuf[1] = Data;
+    //data bus is reversed for the psg because it made pcb layout easier
     Driver_SrBuf[1] = 0;
     for (uint8_t i=0;i<=7;i++) {
         Driver_SrBuf[1] |= ((Data>>(7-i))&1)<<i;
@@ -158,6 +169,15 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
     Driver_Output();
     Driver_Sleep(12); //tWWW per datasheet is 83 clocks, at 7.67mhz that's about 11us
 }
+uint8_t Driver_SeqToSlot(uint32_t seq) {
+    for (uint8_t i=0;i<DACSTREAM_PRE_COUNT;i++) {
+        if (!DacStreamEntries[i].SlotFree && DacStreamEntries[i].Seq == seq) {
+            return i;
+        }
+    }
+    ESP_LOGE(TAG, "Dacstream sync error - failed to find entry for seq %d !!", seq);
+    return 0xff;
+}
 bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the queue. command length as a parameter just to avoid looking it up a second time
     uint8_t cmd[CommandLength]; //buffer for command + attached data
     
@@ -186,6 +206,34 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
         xQueueReceive(Driver_PcmQueue, &sample, 0);
         Driver_FmOut(0, 0x2a, sample);
         Driver_NextSample += cmd[0] & 0x0f;
+    } else if (cmd[0] == 0x93 || cmd[0] == 0x95) { //dac stream start
+        DacStreamSeq++;
+        if (DacStreamLastSeqPlayed > 0) {
+            for (uint32_t s=DacStreamLastSeqPlayed;s<DacStreamSeq;s++) {
+                uint8_t id = Driver_SeqToSlot(s);
+                if (id != 0xff) {
+                    DacStreamEntries[id].SlotFree = true;
+                }
+            }
+        }
+        uint8_t id;
+        id = Driver_SeqToSlot(DacStreamSeq);
+        if (id == 0xff) {
+            ESP_LOGW(TAG, "DacStreamEntries under !!");
+        } else {
+            DacStreamId = id;
+            DacStreamSampleRate = DacStreamEntries[DacStreamId].SampleRate;
+            DacStreamPort = DacStreamEntries[DacStreamId].ChipPort;
+            DacStreamCommand = DacStreamEntries[DacStreamId].ChipCommand;
+            DacStreamSampleTime = xthal_get_ccount();
+            ESP_LOGD(TAG, "playing %d q size %d", DacStreamSeq, uxQueueMessagesWaiting(DacStreamEntries[DacStreamId].Queue));
+            DacStreamLastSeqPlayed = DacStreamSeq;
+            DacStreamActive = true;
+        }
+    } else if (cmd[0] == 0x94) { //dac stream stop
+        DacStreamActive = false;
+    } else if (cmd[0] == 0x92) { //set sample rate
+        if (DacStreamActive) memcpy(&DacStreamSampleRate, &cmd[1], sizeof(uint32_t));
     } else {
         return false;
     }
@@ -209,7 +257,6 @@ void Driver_Main() {
             Driver_Sleep(100000);
             
             //reset all internal vars
-            Driver_VgmSample = 0;
             Driver_Sample = 0;
             Driver_Cycle = 0;
             Driver_LastCc = Driver_Cc = xthal_get_ccount();
@@ -225,6 +272,8 @@ void Driver_Main() {
             Driver_Cycle += (Driver_Cc - Driver_LastCc);
             Driver_LastCc = Driver_Cc;
             Driver_Sample = Driver_Cycle / DRIVER_CYCLES_PER_SAMPLE;
+            
+            //vgm stuff
             if (Driver_Sample >= Driver_NextSample) { //time to move on to the next sample
                 uint32_t waiting = uxQueueMessagesWaiting(Driver_CommandQueue);
                 if (waiting > 0) { //is any data available?
@@ -257,11 +306,29 @@ void Driver_Main() {
                 } else { //no data at all in queue - underrun
                     xEventGroupSetBits(Driver_QueueEvents, DRIVER_EVENT_COMMAND_UNDERRUN);
                     queueeventbits |= DRIVER_EVENT_COMMAND_UNDERRUN;
-                        printf("UNDER\n");
-                        fflush(stdout);
+                    printf("UNDER\n");
+                    fflush(stdout);
                 }
             } else {
                 //not time for next sample yet
+            }
+
+            //dacstream stuff
+            if (DacStreamActive) {
+                //todo: gracefully handle the end of a stream
+                //can't just go by bytes played because some play modes are based on time
+                //decide whether those are worth implementing
+                if (uxQueueMessagesWaiting(DacStreamEntries[DacStreamId].Queue)) {
+                    if (xthal_get_ccount() - DacStreamSampleTime >= (DRIVER_CLOCK_RATE/DacStreamSampleRate)) {
+                        uint8_t sample;
+                        xQueueReceive(DacStreamEntries[DacStreamId].Queue, &sample, 0);
+                        Driver_FmOut(DacStreamPort, DacStreamCommand, sample);
+                        DacStreamSampleTime += (DRIVER_CLOCK_RATE/DacStreamSampleRate);
+                    }
+                } else {
+                    //ESP_LOGW(TAG, "DacStream under, stopping !!");
+                    //DacStreamActive = false;
+                }
             }
         } else {
             //not running
