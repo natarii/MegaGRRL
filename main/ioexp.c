@@ -140,7 +140,7 @@ void IoExp_Main() {
         ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1000)); //wait for notification, and poll periodically when no notifs
         
         if (!I2cMgr_Seize(false, pdMS_TO_TICKS(100))) {
-            ESP_LOGE(TAG, "Couldn't seize bus !!");
+            ESP_LOGW(TAG, "Couldn't seize bus !!");
             continue;
         }
         uint8_t reg = IoExp_ReadRegister(0x10); //INTCAPA
