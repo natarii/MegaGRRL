@@ -61,6 +61,7 @@ enum VgmDeviceType {
 };
 
 typedef struct {
+    //all offsets are absolute positions
     uint32_t EofOffset;
     uint32_t Version;
     uint32_t Gd3Offset;
@@ -91,7 +92,8 @@ typedef struct {
     uint32_t RomSize;
 } VgmDataBlockStruct_t;
 
-uint8_t Vgm_CommandLength(uint8_t Command);
-bool Vgm_CommandIsFixedSize(uint8_t Command);
+uint8_t VgmCommandLength(uint8_t Command);
+bool VgmCommandIsFixedSize(uint8_t Command);
+bool VgmParseHeader(FILE *f, VgmInfoStruct_t *info);
 
 #endif
