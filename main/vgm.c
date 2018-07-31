@@ -86,6 +86,8 @@ bool VgmParseHeader(FILE *f, VgmInfoStruct_t *info) {
     fseek(f, 0x34, SEEK_SET);
     fread(&info->DataOffset, 4, 1, f);
     info->DataOffset += 0x34;
+  } else {
+    info->DataOffset = 0x40;
   }
 
   if (info->Version >= 160 && info->DataOffset > 0x7c) {
