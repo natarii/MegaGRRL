@@ -72,6 +72,16 @@ void KeyMgr_Main() {
                 if (now - KeyStates[bit].TsLastRepeat >= KEY_REPEAT_INTERVAL) {
                     if (KeyMgr_Listener != NULL) KeyMgr_Listener(bit, KEY_EVENT_PRESS | KEY_EVENT_REPEAT);
                     KeyStates[bit].TsLastRepeat = now;
+                    if (bit == KEY_BACK && now - KeyStates[bit].TsDown >= 2500) {
+                        IoExp_AmpControl(false);
+                        /*do shutdown stuff*/
+                        vTaskDelay(pdMS_TO_TICKS(250));
+                        IoExp_PowerControl(false);
+                        vTaskDelay(pdMS_TO_TICKS(250));
+                        //if we're still alive, we must be on usb power...
+                        ESP_LOGE(TAG, "Reset by holding back !!");
+                        esp_restart();
+                    }
                 }
             }
         }
