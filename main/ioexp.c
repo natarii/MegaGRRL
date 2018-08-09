@@ -231,3 +231,13 @@ bool IoExp_AmpControl(bool AmpPower) {
     IoExp_OLATB = n;
     return true;
 }
+
+bool IoExp_ChargeStatus() {
+    if (!I2cMgr_Seize(false, pdMS_TO_TICKS(1000))) {
+        ESP_LOGE(TAG, "Couldn't seize bus !!");
+        return false;
+    }
+    uint8_t r = IoExp_ReadRegister(0x13);
+    I2cMgr_Release(false);
+    return (r & 0b100) == 0;
+}
