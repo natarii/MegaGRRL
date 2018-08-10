@@ -10,7 +10,7 @@ bool Clkgen_Setup() {
     return true;
 }
 
-bool Clkgen_SetFrequency(uint8_t Clkgen, uint32_t Frequency) {
+bool Clkgen_SetFrequency(uint8_t Clkgen, bool OutputEnabled, uint32_t Frequency) {
     if (!I2cMgr_Seize(false, pdMS_TO_TICKS(1000))) {
         ESP_LOGE(TAG, "Couldn't seize bus !!");
         return false;
@@ -23,7 +23,7 @@ bool Clkgen_SetFrequency(uint8_t Clkgen, uint32_t Frequency) {
     oct =  floor(t);
     t = 2048.0f - (2078.0f*(float)pow(2,10+oct))/(float)Frequency;
     dac = round(t);
-    uint16_t out = 0b10; //noninverting on, inverting off
+    uint16_t out = OutputEnabled?0b10:0b11; //0b10 = noninverting on, inverting off, 0b11 = shutdown
     out |= dac << 2;
     out |= oct << 12;
 

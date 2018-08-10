@@ -7,6 +7,6 @@
 #define CLKGEN_FM   0
 
 bool Clkgen_Setup();
-bool Clkgen_SetFrequency(uint8_t Clkgen, uint32_t Frequency);
+bool Clkgen_SetFrequency(uint8_t Clkgen, bool OutputEnabled, uint32_t Frequency);
 
 #endif
