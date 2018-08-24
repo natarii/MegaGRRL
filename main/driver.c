@@ -63,6 +63,9 @@ uint32_t DacStreamSampleRate = 0;       //stream current sample rate
 uint32_t DacStreamSampleTime = 0;       //stream sample timer
 uint8_t DacStreamPort = 0;              //chip port to write to
 uint8_t DacStreamCommand = 0;           //chip command to use
+uint32_t DacStreamSamplesPlayed = 0;    //how many samples played so far
+uint8_t DacStreamLengthMode = 0;
+uint32_t DacStreamDataLength = 0;
 
 bool Driver_Setup() {
     //create the queues and event groups
@@ -129,6 +132,7 @@ void Driver_Output() { //output data to shift registers
 }
 
 void Driver_PsgOut(uint8_t Data) {
+
     Driver_SrBuf[0] &= ~SR_BIT_PSG_CS;
     Driver_SrBuf[0] &= ~SR_BIT_WR;
     //data bus is reversed for the psg because it made pcb layout easier
@@ -228,6 +232,9 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
             DacStreamSampleTime = xthal_get_ccount();
             ESP_LOGD(TAG, "playing %d q size %d", DacStreamSeq, uxQueueMessagesWaiting(DacStreamEntries[DacStreamId].Queue));
             DacStreamLastSeqPlayed = DacStreamSeq;
+            DacStreamSamplesPlayed = 0;
+            DacStreamLengthMode = DacStreamEntries[DacStreamId].LengthMode;
+            DacStreamDataLength = DacStreamEntries[DacStreamId].DataLength;
             DacStreamActive = true;
         }
     } else if (cmd[0] == 0x94) { //dac stream stop
@@ -324,9 +331,14 @@ void Driver_Main() {
                         xQueueReceive(DacStreamEntries[DacStreamId].Queue, &sample, 0);
                         Driver_FmOut(DacStreamPort, DacStreamCommand, sample);
                         DacStreamSampleTime += (DRIVER_CLOCK_RATE/DacStreamSampleRate);
+                        DacStreamSamplesPlayed++;
+                        if (DacStreamSamplesPlayed == DacStreamDataLength && (DacStreamLengthMode == 0 || DacStreamLengthMode == 3)) {
+                            ESP_LOGI(TAG, "DacStream stopping at end");
+                            DacStreamActive = false;
+                        }
                     }
                 } else {
-                    //ESP_LOGW(TAG, "DacStream under, stopping !!");
+                    ESP_LOGW(TAG, "DacStream sample queue under !! pos %d length %d", DacStreamSamplesPlayed, DacStreamDataLength);
                     //DacStreamActive = false;
                 }
             }
