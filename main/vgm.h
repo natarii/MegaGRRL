@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include "freertos/FreeRTOS.h"
+#include "esp_system.h"
 
 enum VgmDeviceType {
   VGM_DEVICE_SN76489,
@@ -95,5 +96,6 @@ typedef struct {
 uint8_t VgmCommandLength(uint8_t Command);
 bool VgmCommandIsFixedSize(uint8_t Command);
 bool VgmParseHeader(FILE *f, VgmInfoStruct_t *info);
+bool VgmParseDataBlock(FILE *f, VgmDataBlockStruct_t *block);
 
 #endif

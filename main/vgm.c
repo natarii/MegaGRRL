@@ -119,3 +119,17 @@ bool VgmParseDevices(FILE *f, VgmInfoStruct_t *info, VgmDeviceStruct_t *devices)
 bool VgmParseDataBlocks(FILE *f, VgmInfoStruct_t *info, VgmDataBlockStruct_t *blocks) {
   return false;
 }
+
+bool VgmParseDataBlock(FILE *f, VgmDataBlockStruct_t *block) {
+  fseek(f,1,SEEK_CUR); //skip 0x66
+  fread(&block->Type,1,1,f);
+  fread(&block->Size,4,1,f);
+  block->Offset = ftell(f);
+  if (feof(f)) {
+    ESP_LOGE(TAG, "Eof parsing datablock !!");
+    return false;
+  }
+  fseek(f,block->Size,SEEK_CUR); //skip to end of block
+  ESP_LOGI(TAG, "Parsed datablock: type %02x size %d", block->Type, block->Size);
+  return true;
+}
