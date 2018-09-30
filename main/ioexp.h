@@ -2,6 +2,7 @@
 #define AGR_IOEXP_H
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
+#include "esp_system.h"
 
 #define I2C_ADDR_IOEXP 0b0100000
 

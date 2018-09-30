@@ -137,14 +137,17 @@ void IoExp_Main() {
 
     ESP_LOGI(TAG, "Starting polling...");
     while (1) {
-        ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1000)); //wait for notification, and poll periodically when no notifs
-        
+        bool notified = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1000)) > 0; //wait for notification, and poll periodically when no notifs
+        if (notified) ESP_LOGE(TAG, "notified !!");
         if (!I2cMgr_Seize(false, pdMS_TO_TICKS(100))) {
             ESP_LOGW(TAG, "Couldn't seize bus !!");
             continue;
         }
-        uint8_t reg = IoExp_ReadRegister(0x10); //INTCAPA
-        reg |= IoExp_ReadRegister(0x12);        //GPIOA
+        
+        uint8_t intcapa = IoExp_ReadRegister(0x10); //INTCAPA
+        uint8_t reg = IoExp_ReadRegister(0x12);     //GPIOA
+        if (notified) reg |= intcapa;
+
         I2cMgr_Release(false);
 
         PORTAQueueItem_t event;
