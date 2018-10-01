@@ -40,7 +40,7 @@ spi_bus_config_t Driver_SpiBusConfig = {
     .quadhd_io_num=-1
 };
 spi_device_interface_config_t Driver_SpiDeviceConfig = {
-    .clock_speed_hz=10000000, /*incredibly loud green hill zone music plays*/
+    .clock_speed_hz=26600000, /*incredibly loud green hill zone music plays*/
     .mode=0,
     .spics_io_num=PIN_DRIVER_SHSTO,
     .queue_size=10
@@ -117,6 +117,15 @@ bool Driver_Setup() {
     //and now output initial values
     disp_spi_transfer_data(Driver_SpiDevice, (uint8_t*)&Driver_SrBuf, NULL, 2, 0);
 
+    /*ESP_LOGW(TAG, "Benchmarking FmOut");
+    uint32_t s = xthal_get_ccount();
+    for (uint8_t i=0;i<255;i++) {
+        Driver_FmOut(0,0,0);
+    }
+    uint32_t e = xthal_get_ccount();
+    e = (e-s)/255;
+    ESP_LOGW(TAG, "Average write latency %d clocks", e);*/
+
     ESP_LOGI(TAG, "Ready");
     return true;
 }
@@ -171,7 +180,7 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
     Driver_SrBuf[0] |= SR_BIT_WR; // /wr high
     Driver_SrBuf[0] |= SR_BIT_FM_CS; // /cs high
     Driver_Output();
-    Driver_Sleep(12); //tWWW per datasheet is 83 clocks, at 7.67mhz that's about 11us
+    Driver_Sleep(5);
 }
 uint8_t Driver_SeqToSlot(uint32_t seq) {
     for (uint8_t i=0;i<DACSTREAM_PRE_COUNT;i++) {

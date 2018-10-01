@@ -2,6 +2,7 @@
 #define AGR_DRIVER_H
 
 #include <stdlib.h>
+#include "esp_system.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
@@ -24,6 +25,7 @@ extern QueueHandle_t Driver_CommandQueue;
 extern QueueHandle_t Driver_PcmQueue;
 extern EventGroupHandle_t Driver_CommandEvents;
 extern EventGroupHandle_t Driver_QueueEvents;
+extern uint8_t DacStreamId;
 
 bool Driver_Setup();
 void Driver_Main();
