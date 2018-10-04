@@ -1,0 +1,36 @@
+#ifndef AGR_LOADER_H
+#define AGR_LOADER_H
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include "esp_system.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/queue.h"
+#include "freertos/event_groups.h"
+#include "vgm.h"
+
+enum {
+    LOADER_RUNNING = 0x01,
+    LOADER_STOPPED = 0x02,
+    LOADER_START_REQUEST = 0x04,
+    LOADER_STOP_REQUEST = 0x08,
+};
+
+enum {
+    LOADER_BUF_EMPTY = 0x01,
+    LOADER_BUF_FULL = 0x02,
+    LOADER_BUF_OK = 0x04,
+    LOADER_BUF_LOW = 0x08,
+};
+
+extern EventGroupHandle_t Loader_Status;
+extern EventGroupHandle_t Loader_BufStatus;
+
+bool Loader_Setup();
+void Loader_Main();
+bool Loader_Stop();
+bool Loader_Start(FILE *File, FILE *PcmFile, VgmInfoStruct_t *info);
+
+#endif
