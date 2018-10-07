@@ -26,6 +26,8 @@ extern QueueHandle_t Driver_PcmQueue;
 extern EventGroupHandle_t Driver_CommandEvents;
 extern EventGroupHandle_t Driver_QueueEvents;
 extern uint8_t DacStreamId;
+extern volatile uint32_t Driver_CpuPeriod;
+extern volatile uint32_t Driver_CpuUsage;
 
 bool Driver_Setup();
 void Driver_Main();

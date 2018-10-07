@@ -31,6 +31,9 @@ QueueHandle_t Driver_PcmQueue; //queue of attached pcm data (if any)
 EventGroupHandle_t Driver_CommandEvents; //driver status flags
 EventGroupHandle_t Driver_QueueEvents; //queue status flags
 
+volatile uint32_t Driver_CpuPeriod = 0;
+volatile uint32_t Driver_CpuUsage = 0;
+
 //we abuse the esp32's spi hardware to drive the shift registers
 spi_bus_config_t Driver_SpiBusConfig = {
     .miso_io_num=-1,
@@ -239,7 +242,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
             DacStreamPort = DacStreamEntries[DacStreamId].ChipPort;
             DacStreamCommand = DacStreamEntries[DacStreamId].ChipCommand;
             DacStreamSampleTime = xthal_get_ccount();
-            ESP_LOGD(TAG, "playing %d q size %d", DacStreamSeq, uxQueueMessagesWaiting(DacStreamEntries[DacStreamId].Queue));
+            ESP_LOGD(TAG, "playing %d q size %d rate %d", DacStreamSeq, uxQueueMessagesWaiting(DacStreamEntries[DacStreamId].Queue), DacStreamSampleRate);
             DacStreamLastSeqPlayed = DacStreamSeq;
             DacStreamSamplesPlayed = 0;
             DacStreamLengthMode = DacStreamEntries[DacStreamId].LengthMode;
@@ -249,12 +252,24 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
     } else if (cmd[0] == 0x94) { //dac stream stop
         DacStreamActive = false;
     } else if (cmd[0] == 0x92) { //set sample rate
-        if (DacStreamActive) memcpy(&DacStreamSampleRate, &cmd[1], sizeof(uint32_t));
+        if (DacStreamActive) {
+            DacStreamSampleRate = *(uint32_t*)&cmd[2];
+            ESP_LOGD(TAG, "Dacstream samplerate updated to %d", DacStreamSampleRate);
+        } else {
+            ESP_LOGD(TAG, "Not updating dacstream samplerate, not playing");
+        }
+    } else if (cmd[0] == 0x4f) { //gamegear psg stereo
+        ESP_LOGW(TAG, "Game Gear PSG stereo not implemented !!");
     } else {
+        ESP_LOGE(TAG, "driver unknown command %02x !!", cmd[0]);
         return false;
     }
     return true;
 }
+
+uint32_t Driver_BusyStart = 0;
+//uint32_t Driver_BusyEnd = 0;
+
 void Driver_Main() {
     //driver task. never pet watchdog or come up for air at all - nothing else is running on CPU1.
     ESP_LOGI(TAG, "Task start");
@@ -263,19 +278,10 @@ void Driver_Main() {
         uint8_t commandeventbits = xEventGroupGetBits(Driver_CommandEvents);
         uint8_t queueeventbits = xEventGroupGetBits(Driver_QueueEvents);
         if (commandeventbits & DRIVER_EVENT_START_REQUEST) {
-
-            //HACK BAD RESET
-            Driver_SrBuf[0] ^= SR_BIT_IC;
-            Driver_Output();
-            Driver_Sleep(100000);
-            Driver_SrBuf[0] |= SR_BIT_IC;
-            Driver_Output();
-            Driver_Sleep(100000);
-            
             //reset all internal vars
             Driver_Sample = 0;
             Driver_Cycle = 0;
-            Driver_LastCc = Driver_Cc = xthal_get_ccount();
+            Driver_LastCc = Driver_Cc;
             Driver_NextSample = 0;
 
             //update status flags
@@ -283,14 +289,31 @@ void Driver_Main() {
             xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_RUNNING);
             commandeventbits &= ~DRIVER_EVENT_START_REQUEST;
             commandeventbits |= DRIVER_EVENT_RUNNING;
-        }
-        if (commandeventbits & DRIVER_EVENT_RUNNING) {
+        } else if (commandeventbits & DRIVER_EVENT_RESET_REQUEST) {
+            Driver_SrBuf[0] ^= SR_BIT_IC;
+            Driver_Output();
+            Driver_Sleep(100000);
+            Driver_SrBuf[0] |= SR_BIT_IC;
+            Driver_Output();
+            Driver_Sleep(100000);
+            Driver_PsgOut(0b10011111);
+            Driver_PsgOut(0b10111111);
+            Driver_PsgOut(0b11011111);
+            Driver_PsgOut(0b11111111);
+            xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_RESET_REQUEST);
+            commandeventbits &= ~DRIVER_EVENT_RESET_REQUEST;
+        } else if (commandeventbits & DRIVER_EVENT_STOP_REQUEST) {
+            xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_RUNNING);
+            xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_STOP_REQUEST);
+            commandeventbits &= ~(DRIVER_EVENT_RUNNING | DRIVER_EVENT_STOP_REQUEST);
+        } else if (commandeventbits & DRIVER_EVENT_RUNNING) {
             Driver_Cycle += (Driver_Cc - Driver_LastCc);
             Driver_LastCc = Driver_Cc;
             Driver_Sample = Driver_Cycle / DRIVER_CYCLES_PER_SAMPLE;
             
             //vgm stuff
             if (Driver_Sample >= Driver_NextSample) { //time to move on to the next sample
+                Driver_BusyStart = xthal_get_ccount();
                 uint32_t waiting = uxQueueMessagesWaiting(Driver_CommandQueue);
                 if (waiting > 0) { //is any data available?
                     //update half-empty event bit
@@ -308,7 +331,7 @@ void Driver_Main() {
                     if (waiting >= cmdlen) { //if the entire command + data is in the queue
                         bool ret = Driver_RunCommand(cmdlen);
                         if (!ret) {
-                            printf("ERR");
+                            printf("ERR command run fail");
                             fflush(stdout);
                             xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_ERROR);
                             commandeventbits |= DRIVER_EVENT_ERROR;
@@ -316,15 +339,16 @@ void Driver_Main() {
                     } else { //not enough data in queue - underrun
                         xEventGroupSetBits(Driver_QueueEvents, DRIVER_EVENT_COMMAND_UNDERRUN);
                         queueeventbits |= DRIVER_EVENT_COMMAND_UNDERRUN;
-                        printf("UNDER\n");
+                        printf("UNDER data\n");
                         fflush(stdout);
                     }
                 } else { //no data at all in queue - underrun
                     xEventGroupSetBits(Driver_QueueEvents, DRIVER_EVENT_COMMAND_UNDERRUN);
                     queueeventbits |= DRIVER_EVENT_COMMAND_UNDERRUN;
-                    printf("UNDER\n");
+                    printf("UNDER none\n");
                     fflush(stdout);
                 }
+                Driver_CpuUsage += (xthal_get_ccount() - Driver_BusyStart);
             } else {
                 //not time for next sample yet
             }
@@ -334,6 +358,7 @@ void Driver_Main() {
                 //todo: gracefully handle the end of a stream
                 //can't just go by bytes played because some play modes are based on time
                 //decide whether those are worth implementing
+                Driver_BusyStart = xthal_get_ccount();
                 if (uxQueueMessagesWaiting(DacStreamEntries[DacStreamId].Queue)) {
                     if (xthal_get_ccount() - DacStreamSampleTime >= (DRIVER_CLOCK_RATE/DacStreamSampleRate)) {
                         uint8_t sample;
@@ -350,6 +375,7 @@ void Driver_Main() {
                     ESP_LOGW(TAG, "DacStream sample queue under !! pos %d length %d", DacStreamSamplesPlayed, DacStreamDataLength);
                     //DacStreamActive = false;
                 }
+                Driver_CpuUsage += (xthal_get_ccount() - Driver_BusyStart);
             }
         } else {
             //not running
