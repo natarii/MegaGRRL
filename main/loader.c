@@ -163,8 +163,8 @@ bool Loader_Start(FILE *File, FILE *PcmFile, VgmInfoStruct_t *info) {
         return false;
     }
 
-    Loader_File = File; //fdopen(dup(fileno(f)), "r");
-    Loader_PcmFile = PcmFile; //fdopen(dup(fileno(f)), "r");
+    Loader_File = File;
+    Loader_PcmFile = PcmFile;
     Loader_VgmInfo = info;
     Loader_PcmPos = 0;
     Loader_PcmOff = 0;
