@@ -59,6 +59,7 @@ uint32_t Loader_GetPcmOffset(uint32_t PcmPos) {
 
 uint32_t Loader_Pending = 0;
 uint8_t running = false;
+bool Loader_EndReached = false;
 
 void Loader_Main() {
     ESP_LOGI(TAG, "Task start");
@@ -85,7 +86,7 @@ void Loader_Main() {
             } else if (spaces == DRIVER_QUEUE_SIZE) {
                 xEventGroupSetBits(Loader_BufStatus, LOADER_BUF_EMPTY);
                 xEventGroupClearBits(Loader_BufStatus, 0xff ^ LOADER_BUF_EMPTY);
-            } else if (spaces < DRIVER_QUEUE_SIZE/3) {
+            } else if (spaces < DRIVER_QUEUE_SIZE/3 || Loader_EndReached) {
                 xEventGroupSetBits(Loader_BufStatus, LOADER_BUF_OK);
                 xEventGroupClearBits(Loader_BufStatus, 0xff ^ LOADER_BUF_OK);
             } else if (spaces >= DRIVER_QUEUE_SIZE/2) {
@@ -136,6 +137,7 @@ void Loader_Main() {
                             Loader_PcmOff++;
                             #endif
                         } else if (d == 0x66) { //end of music, optionally loop
+                            Loader_EndReached = true;
                             fseek(Loader_File, Loader_VgmInfo->LoopOffset, SEEK_SET);
                             continue;
                         } else {
@@ -169,6 +171,7 @@ bool Loader_Start(FILE *File, FILE *PcmFile, VgmInfoStruct_t *info) {
     Loader_PcmPos = 0;
     Loader_PcmOff = 0;
     Loader_Pending = 0;
+    Loader_EndReached = true;
     
     fseek(Loader_File, Loader_VgmInfo->DataOffset, SEEK_SET);
 
