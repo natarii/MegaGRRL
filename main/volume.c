@@ -4,6 +4,8 @@
 
 static const char* TAG = "VolumeMgr";
 
+uint8_t Volume_SystemVolume = 5; //in dB attenuation
+
 bool Volume_Setup() {
     ESP_LOGI(TAG, "Setting up");
 
