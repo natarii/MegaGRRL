@@ -66,7 +66,7 @@ bool Volume_SetVolume(uint8_t Left, uint8_t Right) {
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd, (0b0101000<<1)|I2C_MASTER_WRITE, true);
     i2c_master_write_byte(cmd, 0b10101010, true);
-    i2c_master_write_byte(cmd, Left, true);
+    i2c_master_write_byte(cmd, Right, true);
     i2c_master_stop(cmd);
     ret = i2c_master_cmd_begin(I2C_NUM_0, cmd, pdMS_TO_TICKS(100));
     i2c_cmd_link_delete(cmd);
