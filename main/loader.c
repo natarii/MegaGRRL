@@ -171,7 +171,7 @@ bool Loader_Start(FILE *File, FILE *PcmFile, VgmInfoStruct_t *info) {
     Loader_PcmPos = 0;
     Loader_PcmOff = 0;
     Loader_Pending = 0;
-    Loader_EndReached = true;
+    Loader_EndReached = false;
     
     fseek(Loader_File, Loader_VgmInfo->DataOffset, SEEK_SET);
 
