@@ -195,8 +195,6 @@ bool Loader_Stop() {
             uint8_t trash;
             xQueueReceive(Driver_PcmQueue, &trash, 0);
         }
-        fclose(Loader_File);
-        fclose(Loader_PcmFile);
         return true;
     } else {
         ESP_LOGE(TAG, "Loader stop request timeout !!");
