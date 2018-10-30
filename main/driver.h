@@ -27,7 +27,11 @@ extern EventGroupHandle_t Driver_CommandEvents;
 extern EventGroupHandle_t Driver_QueueEvents;
 extern uint8_t DacStreamId;
 extern volatile uint32_t Driver_CpuPeriod;
-extern volatile uint32_t Driver_CpuUsage;
+extern volatile uint32_t Driver_CpuUsageVgm;
+extern volatile uint32_t Driver_CpuUsageDs;
+
+extern uint32_t Driver_Sample;
+extern uint32_t Driver_NextSample;
 
 bool Driver_Setup();
 void Driver_Main();

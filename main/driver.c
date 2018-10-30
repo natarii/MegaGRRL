@@ -32,7 +32,8 @@ EventGroupHandle_t Driver_CommandEvents; //driver status flags
 EventGroupHandle_t Driver_QueueEvents; //queue status flags
 
 volatile uint32_t Driver_CpuPeriod = 0;
-volatile uint32_t Driver_CpuUsage = 0;
+volatile uint32_t Driver_CpuUsageVgm = 0;
+volatile uint32_t Driver_CpuUsageDs = 0;
 
 //we abuse the esp32's spi hardware to drive the shift registers
 spi_bus_config_t Driver_SpiBusConfig = {
@@ -52,6 +53,7 @@ spi_device_handle_t Driver_SpiDevice;
 
 //vgm / 2612 pcm stuff
 uint32_t Driver_Sample = 0;     //current sample number
+uint32_t Driver_VgmSample = 0;
 uint64_t Driver_Cycle = 0;      //current cycle number
 uint32_t Driver_Cc = 0;         //current cycle from the api - just keep it off the stack
 uint32_t Driver_LastCc = 0;     //copy of the above var
@@ -292,10 +294,10 @@ void Driver_Main() {
         } else if (commandeventbits & DRIVER_EVENT_RESET_REQUEST) {
             Driver_SrBuf[0] ^= SR_BIT_IC;
             Driver_Output();
-            Driver_Sleep(100000);
+            Driver_Sleep(50000);
             Driver_SrBuf[0] |= SR_BIT_IC;
             Driver_Output();
-            Driver_Sleep(100000);
+            Driver_Sleep(10000);
             Driver_PsgOut(0b10011111);
             Driver_PsgOut(0b10111111);
             Driver_PsgOut(0b11011111);
@@ -348,7 +350,7 @@ void Driver_Main() {
                     printf("UNDER none\n");
                     fflush(stdout);
                 }
-                Driver_CpuUsage += (xthal_get_ccount() - Driver_BusyStart);
+                Driver_CpuUsageVgm += (xthal_get_ccount() - Driver_BusyStart);
             } else {
                 //not time for next sample yet
             }
@@ -375,7 +377,7 @@ void Driver_Main() {
                     ESP_LOGW(TAG, "DacStream sample queue under !! pos %d length %d", DacStreamSamplesPlayed, DacStreamDataLength);
                     //DacStreamActive = false;
                 }
-                Driver_CpuUsage += (xthal_get_ccount() - Driver_BusyStart);
+                Driver_CpuUsageDs += (xthal_get_ccount() - Driver_BusyStart);
             }
         } else {
             //not running
