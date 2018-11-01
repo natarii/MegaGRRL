@@ -67,15 +67,16 @@ void Loader_Main() {
         uint8_t bits = xEventGroupWaitBits(Loader_Status, LOADER_START_REQUEST | LOADER_RUNNING | LOADER_STOP_REQUEST, false, false, pdMS_TO_TICKS(75));
         if (bits & LOADER_START_REQUEST) {
             ESP_LOGI(TAG, "Loader starting");
+            xEventGroupClearBits(Loader_Status, LOADER_STOPPED);
             xEventGroupSetBits(Loader_Status, LOADER_RUNNING);
             xEventGroupClearBits(Loader_Status, LOADER_START_REQUEST);
             running = true;
         } else if (bits & LOADER_STOP_REQUEST) {
             ESP_LOGI(TAG, "Loader stopping");
+            running = false;
+            xEventGroupClearBits(Loader_Status, LOADER_RUNNING);
             xEventGroupSetBits(Loader_Status, LOADER_STOPPED);
             xEventGroupClearBits(Loader_Status, LOADER_STOP_REQUEST);
-            xEventGroupClearBits(Loader_Status, LOADER_RUNNING);
-            running = false;
         }
         if (running) {
             uint16_t spaces = uxQueueSpacesAvailable(Driver_CommandQueue);
@@ -181,6 +182,10 @@ bool Loader_Start(FILE *File, FILE *PcmFile, VgmInfoStruct_t *info) {
 }
 
 bool Loader_Stop() {
+    if (xEventGroupGetBits(Loader_Status) & LOADER_STOPPED) {
+        ESP_LOGE(TAG, "Bugcheck: Loader_Stop() called but loader is already stopped !!");
+        return false;
+    }
     xEventGroupSetBits(Loader_Status, LOADER_STOP_REQUEST);
     uint8_t bits = xEventGroupWaitBits(Loader_Status, LOADER_STOPPED, false, false, pdMS_TO_TICKS(3000));
     if (bits & LOADER_STOPPED) {
