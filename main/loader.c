@@ -64,7 +64,7 @@ bool Loader_EndReached = false;
 void Loader_Main() {
     ESP_LOGI(TAG, "Task start");
     while (1) {
-        uint8_t bits = xEventGroupWaitBits(Loader_Status, LOADER_START_REQUEST | LOADER_RUNNING | LOADER_STOP_REQUEST, false, false, pdMS_TO_TICKS(75));
+        EventBits_t bits = xEventGroupWaitBits(Loader_Status, LOADER_START_REQUEST | LOADER_RUNNING | LOADER_STOP_REQUEST, false, false, pdMS_TO_TICKS(75));
         if (bits & LOADER_START_REQUEST) {
             ESP_LOGI(TAG, "Loader starting");
             xEventGroupClearBits(Loader_Status, LOADER_STOPPED);
@@ -80,7 +80,7 @@ void Loader_Main() {
         }
         if (running) {
             uint16_t spaces = uxQueueSpacesAvailable(Driver_CommandQueue);
-            uint8_t bbits = xEventGroupGetBits(Loader_BufStatus);
+            EventBits_t bbits = xEventGroupGetBits(Loader_BufStatus);
             if (spaces == 0 && !(bbits & LOADER_BUF_FULL)) {
                 xEventGroupSetBits(Loader_BufStatus, LOADER_BUF_FULL);
                 xEventGroupClearBits(Loader_BufStatus, 0xff ^ LOADER_BUF_FULL);
@@ -187,7 +187,7 @@ bool Loader_Stop() {
         return false;
     }
     xEventGroupSetBits(Loader_Status, LOADER_STOP_REQUEST);
-    uint8_t bits = xEventGroupWaitBits(Loader_Status, LOADER_STOPPED, false, false, pdMS_TO_TICKS(3000));
+    EventBits_t bits = xEventGroupWaitBits(Loader_Status, LOADER_STOPPED, false, false, pdMS_TO_TICKS(3000));
     if (bits & LOADER_STOPPED) {
         //cleanup stuff
         Loader_VgmDataBlockIndex = 0;
