@@ -4,6 +4,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "driver/i2c.h"
+#include "esp_system.h"
 
 #include "pins.h"
 

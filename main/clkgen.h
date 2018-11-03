@@ -2,6 +2,7 @@
 #define AGR_CLKGEN_H
 
 #include "freertos/FreeRTOS.h"
+#include "esp_system.h"
 
 #define CLKGEN_PSG  1
 #define CLKGEN_FM   0
