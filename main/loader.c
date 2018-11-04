@@ -192,14 +192,8 @@ bool Loader_Stop() {
         //cleanup stuff
         Loader_VgmDataBlockIndex = 0;
         xEventGroupClearBits(Loader_BufStatus, 0xff);
-        while (uxQueueMessagesWaiting(Driver_CommandQueue) > 0) {
-            uint8_t trash;
-            xQueueReceive(Driver_CommandQueue, &trash, 0);
-        }
-        while (uxQueueMessagesWaiting(Driver_PcmQueue) > 0) {
-            uint8_t trash;
-            xQueueReceive(Driver_PcmQueue, &trash, 0);
-        }
+        xQueueReset(Driver_CommandQueue);
+        xQueueReset(Driver_PcmQueue);
         return true;
     } else {
         ESP_LOGE(TAG, "Loader stop request timeout !!");

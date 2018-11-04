@@ -309,10 +309,7 @@ bool DacStream_Stop() {
             for (uint8_t i=0; i<DACSTREAM_PRE_COUNT; i++) {
                 DacStreamEntries[i].SlotFree = true;
                 DacStreamEntries[i].Seq = 0;
-                while (uxQueueMessagesWaiting(DacStreamEntries[i].Queue) > 0) {
-                    uint8_t trash;
-                    xQueueReceive(DacStreamEntries[i].Queue, &trash, 0);
-                }
+                xQueueReset(DacStreamEntries[i].Queue);
             }
             return true;
         } else {
