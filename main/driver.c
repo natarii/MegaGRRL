@@ -285,6 +285,8 @@ void Driver_Main() {
             Driver_Cycle = 0;
             Driver_LastCc = Driver_Cc;
             Driver_NextSample = 0;
+            DacStreamActive = false;
+            DacStreamSeq = 0;
 
             //update status flags
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_START_REQUEST);
