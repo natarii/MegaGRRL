@@ -105,7 +105,7 @@ uint8_t DacStream_CurDataBank = 0;
 uint16_t DacStream_CurDataBlock = 0;
 uint8_t DacStream_CurChipCommand = 0;
 uint8_t DacStream_CurChipPort = 0;
-uint8_t garbage = 0;
+uint8_t garbageary[10];
 
 bool DacStream_FindRunning = false;
 bool DacStream_FoundAny = false;
@@ -138,7 +138,7 @@ void DacStream_FindTask() {
             }
             if (FreeSlot != 0xff) {
                 uint32_t start = xTaskGetTickCount();
-                while (xTaskGetTickCount() - start <= pdMS_TO_TICKS(10)) {
+                while (xTaskGetTickCount() - start <= pdMS_TO_TICKS(25)) {
                     fread(&d,1,1,DacStream_FindFile);
                     if (!VgmCommandIsFixedSize(d)) {
                         if (d == 0x67) { //datablock
@@ -147,20 +147,18 @@ void DacStream_FindTask() {
                         }
                     } else {
                         if (d == 0x90) { //dacstream setup
-                            fread(&garbage,1,1,DacStream_FindFile); //skip stream id
-                            fread(&garbage,1,1,DacStream_FindFile); //skip chip type
+                            fread(&garbageary[0],2,1,DacStream_FindFile); //skip stream id and chip type
                             fread(&DacStream_CurChipPort,1,1,DacStream_FindFile);
                             fread(&DacStream_CurChipCommand,1,1,DacStream_FindFile);
                         } else if (d == 0x91) { //dacstream set data
-                            fread(&garbage,1,1,DacStream_FindFile); //skip stream id
+                            fread(&garbageary[0],1,1,DacStream_FindFile); //skip stream id
                             fread(&DacStream_CurDataBank,1,1,DacStream_FindFile);
-                            fread(&garbage,1,1,DacStream_FindFile); //skip step size
-                            fread(&garbage,1,1,DacStream_FindFile); //skip step base
+                            fread(&garbageary[0],2,1,DacStream_FindFile); //skip step size and step base
                         } else if (d == 0x92) { //set sample rate
-                            fread(&garbage,1,1,DacStream_FindFile); //skip stream id
+                            fread(&garbageary[0],1,1,DacStream_FindFile); //skip stream id
                             fread(&DacStream_CurSampleRate,4,1,DacStream_FindFile);
                         } else if (d == 0x93) { //start
-                            fread(&garbage,1,1,DacStream_FindFile); //skip stream id
+                            fread(&garbageary[0],1,1,DacStream_FindFile); //skip stream id
                             fread(&DacStreamEntries[FreeSlot].DataStart,4,1,DacStream_FindFile); //todo: figure out what to do with -1
                             fread(&DacStreamEntries[FreeSlot].LengthMode,1,1,DacStream_FindFile);
                             fread(&DacStreamEntries[FreeSlot].DataLength,4,1,DacStream_FindFile);
@@ -178,7 +176,7 @@ void DacStream_FindTask() {
                             DacStream_FoundAny = true;
                             break;
                         } else if (d == 0x94) { //stop
-                            fread(&garbage,1,1,DacStream_FindFile); //skip stream id
+                            fread(&garbageary[0],1,1,DacStream_FindFile); //skip stream id
                         } else if (d == 0x95) { //fast start
                             uint8_t sid;
                             fread(&sid,1,1,DacStream_FindFile);
@@ -212,17 +210,15 @@ void DacStream_FindTask() {
                             }
                         } else {
                             //unimplemented command
-                            for (uint8_t waste=0;waste<VgmCommandLength(d)-1;waste++) {
-                                fread(&garbage,1,1,DacStream_FindFile);
-                            }
+                            //the largest fixed size command is 10 bytes (excl command byte) so we don't have to worry about it
+                            fread(&garbageary[0],VgmCommandLength(d)-1,1,DacStream_FindFile);
                         }
                     }
                 }
-                //
             }
             xSemaphoreGive(DacStream_Mutex);
         }
-        vTaskDelay(pdMS_TO_TICKS(10));
+        vTaskDelay(pdMS_TO_TICKS(25));
     }
 }
 
