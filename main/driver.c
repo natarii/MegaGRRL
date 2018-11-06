@@ -72,6 +72,10 @@ uint32_t DacStreamSamplesPlayed = 0;    //how many samples played so far
 uint8_t DacStreamLengthMode = 0;
 uint32_t DacStreamDataLength = 0;
 
+void Driver_Output() { //output data to shift registers
+    disp_spi_transfer_data(Driver_SpiDevice, (uint8_t*)&Driver_SrBuf, NULL, 2, 0);
+}
+
 bool Driver_Setup() {
     //create the queues and event groups
     ESP_LOGI(TAG, "Setting up");
@@ -115,12 +119,12 @@ bool Driver_Setup() {
     spi_transaction_t txn;
     memset(&txn, 0, sizeof(txn));
     txn.length = 16; //BITS !!
-    txn.tx_buffer = NULL;
+    txn.tx_buffer = &Driver_SrBuf;
     txn.rx_buffer = NULL;
     spi_device_transmit(Driver_SpiDevice, &txn);
 
     //and now output initial values
-    disp_spi_transfer_data(Driver_SpiDevice, (uint8_t*)&Driver_SrBuf, NULL, 2, 0);
+    Driver_Output();
 
     /*ESP_LOGW(TAG, "Benchmarking FmOut");
     uint32_t s = xthal_get_ccount();
@@ -139,10 +143,6 @@ void Driver_Sleep(uint32_t us) { //quick and dirty spin sleep
     uint32_t s = xthal_get_ccount();
     uint32_t c = us*(DRIVER_CLOCK_RATE/1000000);
     while (xthal_get_ccount() - s < c);
-}
-
-void Driver_Output() { //output data to shift registers
-    disp_spi_transfer_data(Driver_SpiDevice, (uint8_t*)&Driver_SrBuf, NULL, 2, 0);
 }
 
 void Driver_PsgOut(uint8_t Data) {
