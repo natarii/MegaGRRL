@@ -42,6 +42,7 @@ bool DacStream_Setup();
 void DacStream_FindTask();
 void DacStream_FillTask();
 bool DacStream_Start(FILE *FindFile, FILE *FillFile, VgmInfoStruct_t *info);
+bool DacStream_BeginFinding(VgmDataBlockStruct_t *SourceBlocks, uint8_t SourceBlockCount, uint32_t StartOffset);
 bool DacStream_Stop();
 
 #endif

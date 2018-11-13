@@ -81,15 +81,8 @@ bool Player_StartTrack(char *FilePath) {
         return false;
     }
 
-    ESP_LOGI(TAG, "Wait for dacstream find task...");
-    bits = xEventGroupWaitBits(DacStream_FindStatus, LOADER_RUNNING, false, false, pdMS_TO_TICKS(3000));
-    if ((bits & DACSTREAM_RUNNING) == 0) {
-        ESP_LOGE(TAG, "Dacstream find task start timeout !!");
-        return false;
-    }
-
     ESP_LOGI(TAG, "Wait for dacstream fill task...");
-    bits = xEventGroupWaitBits(DacStream_FillStatus, LOADER_RUNNING, false, false, pdMS_TO_TICKS(3000));
+    bits = xEventGroupWaitBits(DacStream_FillStatus, DACSTREAM_RUNNING, false, false, pdMS_TO_TICKS(3000));
     if ((bits & DACSTREAM_RUNNING) == 0) {
         ESP_LOGE(TAG, "Dacstream fill task start timeout !!");
         return false;
