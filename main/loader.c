@@ -7,6 +7,8 @@
 #include "esp_log.h"
 #include "driver.h"
 #include "mallocs.h"
+#include "ioexp.h"
+#include "dacstream.h"
 
 static const char* TAG = "Loader";
 
@@ -19,6 +21,7 @@ FILE *Loader_PcmFile;
 VgmInfoStruct_t *Loader_VgmInfo;
 uint8_t Loader_VgmDataBlockIndex = 0;
 VgmDataBlockStruct_t Loader_VgmDataBlocks[MAX_REALTIME_DATABLOCKS];
+bool Loader_RequestedDacStreamFindStart = false;
 
 bool Loader_Setup() {
     ESP_LOGI(TAG, "Setting up");
@@ -95,6 +98,7 @@ void Loader_Main() {
                 xEventGroupClearBits(Loader_BufStatus, 0xff ^ LOADER_BUF_LOW);
             }
             if (spaces > DRIVER_QUEUE_SIZE/6) {
+                IoExp_WriteLed(0, true);
                 while (uxQueueSpacesAvailable(Driver_CommandQueue)) {
                     uint8_t d;
                     fread(&d,1,1,Loader_File);
@@ -141,6 +145,16 @@ void Loader_Main() {
                             Loader_EndReached = true;
                             fseek(Loader_File, Loader_VgmInfo->LoopOffset, SEEK_SET);
                             continue;
+                        } else if (d >= 0x90 && d <= 0x95) { //dacstream command
+                            if (!Loader_RequestedDacStreamFindStart) {
+                                DacStream_BeginFinding(&Loader_VgmDataBlocks, Loader_VgmDataBlockIndex, ftell(Loader_File)-1);
+                                Loader_RequestedDacStreamFindStart = true;
+                            }
+                            if (VgmCommandIsFixedSize(d)) {
+                                Loader_Pending = VgmCommandLength(d) - 1;
+                            } else {
+                                ESP_LOGE(TAG, "non-fixed size command unimplemented !!");
+                            }
                         } else {
                             if (VgmCommandIsFixedSize(d)) {
                                 Loader_Pending = VgmCommandLength(d) - 1;
@@ -153,6 +167,7 @@ void Loader_Main() {
                     }
                     xQueueSendToBack(Driver_CommandQueue, &d, 0);
                 }
+                IoExp_WriteLed(0, false);
             } else {
             }
         }
@@ -173,6 +188,7 @@ bool Loader_Start(FILE *File, FILE *PcmFile, VgmInfoStruct_t *info) {
     Loader_PcmOff = 0;
     Loader_Pending = 0;
     Loader_EndReached = false;
+    Loader_RequestedDacStreamFindStart = false;
     
     fseek(Loader_File, Loader_VgmInfo->DataOffset, SEEK_SET);
 

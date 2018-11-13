@@ -5,6 +5,7 @@
 #include "freertos/semphr.h"
 #include "ioexp.h"
 #include "driver.h"
+#include "string.h"
 
 static const char* TAG = "DacStream";
 
@@ -12,11 +13,11 @@ volatile DacStreamEntry_t DacStreamEntries[DACSTREAM_PRE_COUNT];
 
 StaticSemaphore_t DacStream_MutexBuf;
 SemaphoreHandle_t DacStream_Mutex = NULL;
-uint8_t DacStream_VgmDataBlockIndex = 0;
+volatile uint8_t DacStream_VgmDataBlockIndex = 0;
 FILE *DacStream_FindFile;
 FILE *DacStream_FillFile;
 VgmInfoStruct_t *DacStream_VgmInfo;
-static VgmDataBlockStruct_t DacStream_VgmDataBlocks[MAX_REALTIME_DATABLOCKS];
+volatile static VgmDataBlockStruct_t DacStream_VgmDataBlocks[MAX_REALTIME_DATABLOCKS];
 EventGroupHandle_t DacStream_FindStatus;
 StaticEventGroup_t DacStream_FindStatusBuf;
 EventGroupHandle_t DacStream_FillStatus;
@@ -138,7 +139,8 @@ void DacStream_FindTask() {
             }
             if (FreeSlot != 0xff) {
                 uint32_t start = xTaskGetTickCount();
-                while (xTaskGetTickCount() - start <= pdMS_TO_TICKS(25)) {
+                IoExp_WriteLed(1, true);
+                while (xTaskGetTickCount() - start <= pdMS_TO_TICKS(50)) {
                     fread(&d,1,1,DacStream_FindFile);
                     if (!VgmCommandIsFixedSize(d)) {
                         if (d == 0x67) { //datablock
@@ -215,6 +217,7 @@ void DacStream_FindTask() {
                         }
                     }
                 }
+                IoExp_WriteLed(1, false);
             }
             xSemaphoreGive(DacStream_Mutex);
         }
@@ -226,6 +229,7 @@ void DacStream_FillTask_DoPre(uint8_t idx) {
     xSemaphoreTake(DacStream_Mutex, pdMS_TO_TICKS(1000));
     if (!DacStreamEntries[idx].SlotFree) {
         if (uxQueueSpacesAvailable(DacStreamEntries[idx].Queue) > DACSTREAM_BUF_SIZE/3 && DacStreamEntries[idx].ReadOffset < DacStreamEntries[idx].DataLength) {
+            IoExp_WriteLed(2, true);
             uint32_t o = DacStream_GetDataOffset(DacStreamEntries[idx].DataBankId, DacStreamEntries[idx].DataStart + DacStreamEntries[idx].ReadOffset);
             fseek(DacStream_FillFile,o,SEEK_SET);
             while (uxQueueSpacesAvailable(DacStreamEntries[idx].Queue) && DacStreamEntries[idx].ReadOffset < DacStreamEntries[idx].DataLength) {
@@ -234,6 +238,7 @@ void DacStream_FillTask_DoPre(uint8_t idx) {
                 xQueueSend(DacStreamEntries[idx].Queue, &d, 0);
                 DacStreamEntries[idx].ReadOffset++;
             }
+        IoExp_WriteLed(2, false);
         }
     }
     xSemaphoreGive(DacStream_Mutex);
@@ -285,16 +290,41 @@ bool DacStream_Start(FILE *FindFile, FILE *FillFile, VgmInfoStruct_t *info) {
     DacStream_Seq = 1;
     DacStream_FoundAny = false;
 
-    fseek(DacStream_FindFile, DacStream_VgmInfo->DataOffset, SEEK_SET);
-
-    xEventGroupSetBits(DacStream_FindStatus, DACSTREAM_START_REQUEST);
+    ESP_LOGI(TAG, "DacStream_Start() requesting fill task start");
     xEventGroupSetBits(DacStream_FillStatus, DACSTREAM_START_REQUEST);
 
     return true;
 }
 
+bool DacStream_BeginFinding(VgmDataBlockStruct_t *SourceBlocks, uint8_t SourceBlockCount, uint32_t StartOffset) {
+    ESP_LOGI(TAG, "DacStream_BeginFinding() starting");
+    if (xEventGroupGetBits(DacStream_FindStatus) & DACSTREAM_RUNNING) {
+        ESP_LOGE(TAG, "Find task already running !!");
+        return false;
+    }
+    ESP_LOGI(TAG, "Copying datablock array");
+    memcpy(&DacStream_VgmDataBlocks[0], SourceBlocks, sizeof(VgmDataBlockStruct_t)*SourceBlockCount);
+    DacStream_VgmDataBlockIndex = SourceBlockCount;
+    ESP_LOGI(TAG, "Seek to start offset");
+    fseek(DacStream_FindFile, StartOffset, SEEK_SET);
+    ESP_LOGI(TAG, "Requesting find task start");
+    xEventGroupSetBits(DacStream_FindStatus, DACSTREAM_START_REQUEST);
+    ESP_LOGI(TAG, "Wait for find task start...");
+    EventBits_t bits = xEventGroupWaitBits(DacStream_FindStatus, DACSTREAM_RUNNING, false, false, pdMS_TO_TICKS(3000));
+    if ((bits & DACSTREAM_RUNNING) == 0) {
+        ESP_LOGE(TAG, "Dacstream find task start timeout !!");
+        return false;
+    }
+    return true;
+}
+
 bool DacStream_Stop() {
-    xEventGroupSetBits(DacStream_FindStatus, DACSTREAM_STOP_REQUEST);
+    if (xEventGroupGetBits(DacStream_FindStatus) & DACSTREAM_STOPPED) {
+        ESP_LOGW(TAG, "Warning: Dacstream find task is already stopped in DacStream_Stop() !!");
+    } else {
+        xEventGroupSetBits(DacStream_FindStatus, DACSTREAM_STOP_REQUEST);
+    }
+
     xEventGroupSetBits(DacStream_FillStatus, DACSTREAM_STOP_REQUEST);
 
     EventBits_t bits = xEventGroupWaitBits(DacStream_FindStatus, DACSTREAM_STOPPED, false, false, pdMS_TO_TICKS(3000));
