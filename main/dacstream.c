@@ -289,6 +289,7 @@ bool DacStream_Start(FILE *FindFile, FILE *FillFile, VgmInfoStruct_t *info) {
 
     DacStream_Seq = 1;
     DacStream_FoundAny = false;
+    DacStream_VgmDataBlockIndex = 0;
 
     ESP_LOGI(TAG, "DacStream_Start() requesting fill task start");
     xEventGroupSetBits(DacStream_FillStatus, DACSTREAM_START_REQUEST);

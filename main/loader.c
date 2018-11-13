@@ -189,6 +189,7 @@ bool Loader_Start(FILE *File, FILE *PcmFile, VgmInfoStruct_t *info) {
     Loader_Pending = 0;
     Loader_EndReached = false;
     Loader_RequestedDacStreamFindStart = false;
+    Loader_VgmDataBlockIndex = 0;
     
     fseek(Loader_File, Loader_VgmInfo->DataOffset, SEEK_SET);
 
