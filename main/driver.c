@@ -305,7 +305,9 @@ void Driver_Main() {
             Driver_PsgOut(0b11011111);
             Driver_PsgOut(0b11111111);
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_RESET_REQUEST);
+            xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_RESET_ACK);
             commandeventbits &= ~DRIVER_EVENT_RESET_REQUEST;
+            commandeventbits |= DRIVER_EVENT_RESET_ACK;
         } else if (commandeventbits & DRIVER_EVENT_STOP_REQUEST) {
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_RUNNING);
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_STOP_REQUEST);

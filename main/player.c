@@ -89,8 +89,12 @@ bool Player_StartTrack(char *FilePath) {
     }
 
     ESP_LOGI(TAG, "Wait for driver to reset...");
-    //todo make this less awful, wait for a bit to be set, not cleared
-    while (xEventGroupGetBits(Driver_CommandEvents) & DRIVER_EVENT_RESET_REQUEST) vTaskDelay(pdMS_TO_TICKS(10));
+    bits = xEventGroupWaitBits(Driver_CommandEvents, DRIVER_EVENT_RESET_ACK, false, false, pdMS_TO_TICKS(3000));
+    if ((bits & DRIVER_EVENT_RESET_ACK) == 0) {
+        ESP_LOGE(TAG, "Driver reset ack timeout !!");
+        return false;
+    }
+    xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_RESET_ACK);
 
     ESP_LOGI(TAG, "Volume up");
     Volume_SetVolume(Volume_SystemVolume,Volume_SystemVolume);
