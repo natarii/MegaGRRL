@@ -373,7 +373,6 @@ void Driver_Main() {
                         DacStreamSampleTime += (DRIVER_CLOCK_RATE/DacStreamSampleRate);
                         DacStreamSamplesPlayed++;
                         if (DacStreamSamplesPlayed == DacStreamDataLength && (DacStreamLengthMode == 0 || DacStreamLengthMode == 3)) {
-                            ESP_LOGI(TAG, "DacStream stopping at end");
                             DacStreamActive = false;
                         }
                     }
