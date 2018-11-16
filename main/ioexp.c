@@ -8,7 +8,7 @@
 #include "mallocs.h"
 
 static const char* TAG = "IoExpander";
-uint8_t IoExp_OLATB = 0b00010001; //hack for display backlight and amp remove me
+volatile uint8_t IoExp_OLATB = 0b00010001; //hack for display backlight and amp remove me
 static const uint8_t MCP23017_Config[] = {
     0x0a,0b01100010,    /* banking off, since that's the default and we don't know if this is POR or just esp reset
                          * INT pin mirroring on
@@ -160,38 +160,38 @@ void IoExp_Main() {
 }
 
 bool IoExp_WriteLed(uint8_t LedNo, bool LedStatus) {
+    if (!I2cMgr_Seize(false, pdMS_TO_TICKS(1000))) {
+        ESP_LOGE(TAG, "Couldn't seize bus !!");
+        return false;
+    }
     uint8_t n = IoExp_OLATB;
     if (LedStatus) {
         n |= (1<<(5+LedNo));
     } else {
         n &= ~(1<<(5+LedNo));
     }
-    if (!I2cMgr_Seize(false, pdMS_TO_TICKS(1000))) {
-        ESP_LOGE(TAG, "Couldn't seize bus !!");
-        return false;
-    }
     if (!IoExp_WriteRegister(0x15, n)) {
         ESP_LOGE(TAG, "OLATB write fail !!");
         return false;
     }
-    I2cMgr_Release(false);
     IoExp_OLATB = n;
+    I2cMgr_Release(false);
     return true;
 }
 
 bool IoExp_WriteLeds(bool FlashlightStatus, bool Led1Status, bool Led2Status) {
-    uint8_t l = (FlashlightStatus<<5) | (Led1Status<<6) | (Led2Status<<7);
-    uint8_t n = (l & 0xe0) | (IoExp_OLATB & 0x1f);
     if (!I2cMgr_Seize(false, pdMS_TO_TICKS(1000))) {
         ESP_LOGE(TAG, "Couldn't seize bus !!");
         return false;
     }
+    uint8_t l = (FlashlightStatus<<5) | (Led1Status<<6) | (Led2Status<<7);
+    uint8_t n = (l & 0xe0) | (IoExp_OLATB & 0x1f);
     if (!IoExp_WriteRegister(0x15, n)) {
         ESP_LOGE(TAG, "OLATB write fail !!");
         return false;
     }
-    I2cMgr_Release(false);
     IoExp_OLATB = n;
+    I2cMgr_Release(false);
     return true;
 }
 
@@ -200,17 +200,17 @@ bool IoExp_WriteLedsBin(uint8_t ThreeBits) {
 }
 
 bool IoExp_PowerControl(bool HoldPower) {
-    uint8_t n = (HoldPower<<1) | (IoExp_OLATB & 0xfd);
     if (!I2cMgr_Seize(false, pdMS_TO_TICKS(1000))) {
         ESP_LOGE(TAG, "Couldn't seize bus !!");
         return false;
     }
+    uint8_t n = (HoldPower<<1) | (IoExp_OLATB & 0xfd);
     if (!IoExp_WriteRegister(0x15, n)) {
         ESP_LOGE(TAG, "OLATB write fail !!");
         return false;
     }
-    I2cMgr_Release(false);
     IoExp_OLATB = n;
+    I2cMgr_Release(false);
     return true;
 }
 
@@ -229,8 +229,8 @@ bool IoExp_AmpControl(bool AmpPower) {
         ESP_LOGE(TAG, "OLATB write fail !!");
         return false;
     }
-    I2cMgr_Release(false);
     IoExp_OLATB = n;
+    I2cMgr_Release(false);
     return true;
 }
 
