@@ -117,6 +117,8 @@ bool Player_StartTrack(char *FilePath) {
         return false;
     }
 
+    ESP_LOGI(TAG, "Driver started !!");
+
     return true;
 }
 
