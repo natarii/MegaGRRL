@@ -238,7 +238,7 @@ void DacStream_FillTask_DoPre(uint8_t idx) {
                 xQueueSend(DacStreamEntries[idx].Queue, &d, 0);
                 DacStreamEntries[idx].ReadOffset++;
             }
-        IoExp_WriteLed(2, false);
+            IoExp_WriteLed(2, false);
         }
     }
     xSemaphoreGive(DacStream_Mutex);
