@@ -50,19 +50,18 @@ bool Player_StartTrack(char *FilePath) {
     IoExp_AmpControl(true); //hw takes maybe 500ms to power up, so do it now
     TickType_t Time_AmpOn = xTaskGetTickCount();
 
-
-    ESP_LOGI(TAG, "Starting loader");
-    bool ret;
-    ret = Loader_Start(Player_VgmFile, Player_PcmFile, &Player_Info);
-    if (!ret) {
-        ESP_LOGE(TAG, "Loader failed to start !!");
-        return false;
-    }
-
     ESP_LOGI(TAG, "Starting dacstreams");
+    bool ret;
     ret = DacStream_Start(Player_DsFindFile, Player_DsFillFile, &Player_Info);
     if (!ret) {
         ESP_LOGE(TAG, "Dacstreams failed to start !!");
+        return false;
+    }
+
+    ESP_LOGI(TAG, "Starting loader");
+    ret = Loader_Start(Player_VgmFile, Player_PcmFile, &Player_Info);
+    if (!ret) {
+        ESP_LOGE(TAG, "Loader failed to start !!");
         return false;
     }
 
