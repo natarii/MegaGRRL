@@ -260,6 +260,8 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
         } else {
             ESP_LOGD(TAG, "Not updating dacstream samplerate, not playing");
         }
+    } else if (cmd[0] == 0x90 || cmd[0] == 0x91) { //dacstream commands we don't need to worry about here
+
     } else if (cmd[0] == 0x4f) { //gamegear psg stereo
         ESP_LOGW(TAG, "Game Gear PSG stereo not implemented !!");
     } else {
