@@ -41,13 +41,14 @@ spi_bus_config_t Driver_SpiBusConfig = {
     .mosi_io_num=PIN_DRIVER_DATA,
     .sclk_io_num=PIN_DRIVER_SHCLK,
     .quadwp_io_num=-1,
-    .quadhd_io_num=-1
+    .quadhd_io_num=-1,
 };
 spi_device_interface_config_t Driver_SpiDeviceConfig = {
     .clock_speed_hz=26600000, /*incredibly loud green hill zone music plays*/
     .mode=0,
     .spics_io_num=PIN_DRIVER_SHSTO,
-    .queue_size=10
+    .queue_size=10,
+    //.flags = SPI_DEVICE_NO_DUMMY
 };
 spi_device_handle_t Driver_SpiDevice;
 
@@ -196,6 +197,8 @@ uint8_t Driver_SeqToSlot(uint32_t seq) {
     ESP_LOGE(TAG, "Dacstream sync error - failed to find entry for seq %d !!", seq);
     return 0xff;
 }
+
+uint8_t Driver_PsgFreqLow = 0; //used for sega psg fix
 bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the queue. command length as a parameter just to avoid looking it up a second time
     uint8_t cmd[CommandLength]; //buffer for command + attached data
     
@@ -205,7 +208,20 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
     }
 
     if (cmd[0] == 0x50) { //SN76489
-        Driver_PsgOut(cmd[1]);
+        //TODO: only do this for vgms where ver >= 1.51 and header 0x2b bit 0 is set
+        if ((cmd[1] & 0x80) == 0) { //channel frequency high byte
+            if ((Driver_PsgFreqLow & 0b00001111) == 0) { //low byte is all 0 for freq
+                if ((cmd[1] & 0b00111111) == 0) { //high byte is all 0 for freq
+                    Driver_PsgFreqLow |= 1; //set bit 0 of freq to 1
+                }
+            }
+            Driver_PsgOut(Driver_PsgFreqLow);
+            Driver_PsgOut(cmd[1]);
+        } else if ((cmd[1] & 0b10010000) == 0b10000000) { //channel frequency low byte
+            Driver_PsgFreqLow = cmd[1];
+        } else {
+            Driver_PsgOut(cmd[1]);
+        }
     } else if (cmd[0] == 0x52) { //YM2612 port 0
         Driver_FmOut(0, cmd[1], cmd[2]);
     } else if (cmd[0] == 0x53) { //YM2612 port 1
