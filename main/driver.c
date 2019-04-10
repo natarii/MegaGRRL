@@ -217,7 +217,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
             }
             Driver_PsgOut(Driver_PsgFreqLow);
             Driver_PsgOut(cmd[1]);
-        } else if ((cmd[1] & 0b10010000) == 0b10000000) { //channel frequency low byte
+        } else if ((cmd[1] & 0b10010000) == 0b10000000 && (cmd[1]&0b01100000)>>5 != 3) { //channel frequency low byte
             Driver_PsgFreqLow = cmd[1];
         } else {
             Driver_PsgOut(cmd[1]);
