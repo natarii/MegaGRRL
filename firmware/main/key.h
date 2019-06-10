@@ -27,13 +27,13 @@ typedef struct KeyEvent {
 #define KEY_EVENT_REPEAT    0x8 //used like a flag
 #define KEY_EVENT_HOLD      0x10
 
-#define KEY_UP      0
-#define KEY_DOWN    1
-#define KEY_LEFT    2
-#define KEY_RIGHT   3
-#define KEY_BACK    4
-#define KEY_A       5
-#define KEY_B       6
+#define KEY_A       0
+#define KEY_B       1
+#define KEY_C       2
+#define KEY_DOWN    3
+#define KEY_RIGHT   4
+#define KEY_LEFT    5
+#define KEY_UP      6
 #define KEY_COUNT   7
 
 #define KEY_DEBOUNCE_TIME 30
