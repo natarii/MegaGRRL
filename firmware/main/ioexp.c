@@ -159,46 +159,6 @@ void IoExp_Main() {
     }
 }
 
-bool IoExp_WriteLed(uint8_t LedNo, bool LedStatus) {
-    if (!I2cMgr_Seize(false, pdMS_TO_TICKS(1000))) {
-        ESP_LOGE(TAG, "Couldn't seize bus !!");
-        return false;
-    }
-    uint8_t n = IoExp_OLATB;
-    if (LedStatus) {
-        n |= (1<<(5+LedNo));
-    } else {
-        n &= ~(1<<(5+LedNo));
-    }
-    if (!IoExp_WriteRegister(0x15, n)) {
-        ESP_LOGE(TAG, "OLATB write fail !!");
-        return false;
-    }
-    IoExp_OLATB = n;
-    I2cMgr_Release(false);
-    return true;
-}
-
-bool IoExp_WriteLeds(bool FlashlightStatus, bool Led1Status, bool Led2Status) {
-    if (!I2cMgr_Seize(false, pdMS_TO_TICKS(1000))) {
-        ESP_LOGE(TAG, "Couldn't seize bus !!");
-        return false;
-    }
-    uint8_t l = (FlashlightStatus<<5) | (Led1Status<<6) | (Led2Status<<7);
-    uint8_t n = (l & 0xe0) | (IoExp_OLATB & 0x1f);
-    if (!IoExp_WriteRegister(0x15, n)) {
-        ESP_LOGE(TAG, "OLATB write fail !!");
-        return false;
-    }
-    IoExp_OLATB = n;
-    I2cMgr_Release(false);
-    return true;
-}
-
-bool IoExp_WriteLedsBin(uint8_t ThreeBits) {
-    return IoExp_WriteLeds(ThreeBits&1, (ThreeBits>>1)&1, (ThreeBits>>2)&1);
-}
-
 bool IoExp_PowerControl(bool HoldPower) {
     if (!I2cMgr_Seize(false, pdMS_TO_TICKS(1000))) {
         ESP_LOGE(TAG, "Couldn't seize bus !!");
