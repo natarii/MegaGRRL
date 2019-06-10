@@ -7,7 +7,7 @@
 
 static const char* TAG = "KeyMgr";
 
-void(*KeyMgr_Listener)(uint8_t, uint8_t) = NULL;
+volatile QueueHandle_t KeyMgr_TargetQueue = NULL;
 KeyState_t KeyStates[KEY_COUNT];
 
 bool KeyMgr_Setup() {
@@ -20,6 +20,21 @@ bool KeyMgr_Setup() {
 
     ESP_LOGI(TAG, "OK");
     return true;
+}
+
+void KeyMgr_SendEvent(uint8_t key, uint8_t state) {
+    if (KeyMgr_TargetQueue == NULL) {
+        ESP_LOGW(TAG, "Warning: Sending key event when no target queue is set !!");
+        return false;
+    }
+    KeyEvent_t KeyEvent;
+    KeyEvent.Key = key;
+    KeyEvent.State = state;
+    BaseType_t ret = xQueueSend(KeyMgr_TargetQueue, &KeyEvent, 0);
+    if (ret == errQUEUE_FULL) {
+        ESP_LOGW(TAG, "Warning: Target queue for key events is full, event will be dropped !!");
+        return false;
+    }
 }
 
 void KeyMgr_Main() {
@@ -47,30 +62,28 @@ void KeyMgr_Main() {
                 KeyStates[bit].AlreadyHeld = false;
 
                 //edge
-                if (KeyMgr_Listener != NULL) {
-                    KeyMgr_Listener(bit, KEY_EVENT_DOWN);
-                    KeyMgr_Listener(bit, KEY_EVENT_PRESS);
-                }
+                KeyMgr_SendEvent(bit, KEY_EVENT_DOWN);
+                KeyMgr_SendEvent(bit, KEY_EVENT_PRESS);
             } else if (!KeyStates[bit].RawState && KeyStates[bit].DebouncedState) { //up
                 if (now - KeyStates[bit].RawStateTs >= KEY_DEBOUNCE_TIME) {
                     KeyStates[bit].DebouncedState = 0;
                     KeyStates[bit].TsUp = now;
 
                     //edge
-                    if (KeyMgr_Listener != NULL) KeyMgr_Listener(bit, KEY_EVENT_UP);
+                    KeyMgr_SendEvent(bit, KEY_EVENT_UP);
                 }
             }
 
             //hold notif
             if (KeyStates[bit].DebouncedState && !KeyStates[bit].AlreadyHeld && now - KeyStates[bit].TsDown >= KEY_HOLD_DELAY) {
-                if (KeyMgr_Listener != NULL) KeyMgr_Listener(bit, KEY_EVENT_HOLD);
+                KeyMgr_SendEvent(bit, KEY_EVENT_HOLD);
                 KeyStates[bit].AlreadyHeld = true;
             }
 
             //repeat
             if (KeyStates[bit].DebouncedState && now - KeyStates[bit].TsDown >= KEY_REPEAT_DELAY) {
                 if (now - KeyStates[bit].TsLastRepeat >= KEY_REPEAT_INTERVAL) {
-                    if (KeyMgr_Listener != NULL) KeyMgr_Listener(bit, KEY_EVENT_PRESS | KEY_EVENT_REPEAT);
+                    KeyMgr_SendEvent(bit, KEY_EVENT_PRESS | KEY_EVENT_REPEAT);
                     KeyStates[bit].TsLastRepeat = now;
                     if (bit == KEY_BACK && now - KeyStates[bit].TsDown >= 2500) {
                         IoExp_AmpControl(false);

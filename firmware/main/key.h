@@ -4,6 +4,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "mallocs.h"
+#include "esp_system.h"
 
 typedef struct KeyState {
     uint8_t RawState;
@@ -14,6 +15,11 @@ typedef struct KeyState {
     uint32_t TsLastRepeat;
     bool AlreadyHeld;
 } KeyState_t;
+
+typedef struct KeyEvent {
+    uint8_t Key;
+    uint8_t State;
+} KeyEvent_t;
 
 #define KEY_EVENT_DOWN      0x1
 #define KEY_EVENT_UP        0x2
@@ -35,9 +41,9 @@ typedef struct KeyState {
 #define KEY_REPEAT_DELAY 750
 #define KEY_HOLD_DELAY 750
 
-extern void(*KeyMgr_Listener)(uint8_t, uint8_t);
-
 bool KeyMgr_Setup();
 void KeyMgr_Main();
+
+volatile QueueHandle_t KeyMgr_TargetQueue;
 
 #endif
