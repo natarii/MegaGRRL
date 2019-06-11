@@ -85,7 +85,7 @@ void KeyMgr_Main() {
                 if (now - KeyStates[bit].TsLastRepeat >= KEY_REPEAT_INTERVAL) {
                     KeyMgr_SendEvent(bit, KEY_EVENT_PRESS | KEY_EVENT_REPEAT);
                     KeyStates[bit].TsLastRepeat = now;
-                    if (bit == KEY_BACK && now - KeyStates[bit].TsDown >= 2500) {
+                    if (bit == KEY_A && now - KeyStates[bit].TsDown >= 2500) {
                         IoExp_AmpControl(false);
                         /*do shutdown stuff*/
                         vTaskDelay(pdMS_TO_TICKS(250));
