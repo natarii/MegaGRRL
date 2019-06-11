@@ -174,26 +174,6 @@ bool IoExp_PowerControl(bool HoldPower) {
     return true;
 }
 
-bool IoExp_AmpControl(bool AmpPower) {
-    if (!I2cMgr_Seize(false, pdMS_TO_TICKS(1000))) {
-        ESP_LOGE(TAG, "Couldn't seize bus !!");
-        return false;
-    }
-    uint8_t n = IoExp_OLATB;
-    if (AmpPower) {
-        n &= 0b11111110;
-    } else {
-        n |= 1;
-    }
-    if (!IoExp_WriteRegister(0x15, n)) {
-        ESP_LOGE(TAG, "OLATB write fail !!");
-        return false;
-    }
-    IoExp_OLATB = n;
-    I2cMgr_Release(false);
-    return true;
-}
-
 bool IoExp_ChargeStatus() {
     if (!I2cMgr_Seize(false, pdMS_TO_TICKS(1000))) {
         ESP_LOGE(TAG, "Couldn't seize bus !!");

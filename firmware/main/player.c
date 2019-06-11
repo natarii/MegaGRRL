@@ -45,10 +45,6 @@ bool Player_StartTrack(char *FilePath) {
     ESP_LOGI(TAG, "Signalling driver reset");
     xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_RESET_REQUEST);
 
-    ESP_LOGI(TAG, "Amp powerup");
-    IoExp_AmpControl(true); //hw takes maybe 500ms to power up, so do it now
-    TickType_t Time_AmpOn = xTaskGetTickCount();
-
     ESP_LOGI(TAG, "Starting dacstreams");
     bool ret;
     ret = DacStream_Start(Player_DsFindFile, Player_DsFillFile, &Player_Info);
@@ -93,13 +89,6 @@ bool Player_StartTrack(char *FilePath) {
         return false;
     }
     xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_RESET_ACK);
-
-    ESP_LOGI(TAG, "Wait for hw timeouts...");
-    TickType_t Time_Cur;
-    do {
-        vTaskDelay(pdMS_TO_TICKS(10));
-        Time_Cur = xTaskGetTickCount();
-    } while (Time_Cur - Time_AmpOn < pdMS_TO_TICKS(250));
 
     ESP_LOGI(TAG, "Request driver start...");
     xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_START_REQUEST);

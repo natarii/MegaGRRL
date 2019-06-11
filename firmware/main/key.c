@@ -86,9 +86,7 @@ void KeyMgr_Main() {
                     KeyMgr_SendEvent(bit, KEY_EVENT_PRESS | KEY_EVENT_REPEAT);
                     KeyStates[bit].TsLastRepeat = now;
                     if (bit == KEY_A && now - KeyStates[bit].TsDown >= 2500) {
-                        IoExp_AmpControl(false);
                         /*do shutdown stuff*/
-                        vTaskDelay(pdMS_TO_TICKS(250));
                         IoExp_PowerControl(false);
                         vTaskDelay(pdMS_TO_TICKS(250));
                         //if we're still alive, we must be on usb power...
