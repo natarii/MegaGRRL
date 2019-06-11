@@ -98,7 +98,7 @@ void Loader_Main() {
                 xEventGroupClearBits(Loader_BufStatus, 0xff ^ LOADER_BUF_LOW);
             }
             if (spaces > DRIVER_QUEUE_SIZE/6) {
-                IoExp_WriteLed(0, true);
+                //IoExp_WriteLed(0, true);
                 while (uxQueueSpacesAvailable(Driver_CommandQueue)) {
                     uint8_t d;
                     fread(&d,1,1,Loader_File);
@@ -167,7 +167,7 @@ void Loader_Main() {
                     }
                     xQueueSendToBack(Driver_CommandQueue, &d, 0);
                 }
-                IoExp_WriteLed(0, false);
+                //IoExp_WriteLed(0, false);
             } else {
             }
         }

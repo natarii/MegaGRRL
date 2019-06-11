@@ -139,7 +139,7 @@ void DacStream_FindTask() {
             }
             if (FreeSlot != 0xff) {
                 uint32_t start = xTaskGetTickCount();
-                IoExp_WriteLed(1, true);
+                //IoExp_WriteLed(1, true);
                 while (xTaskGetTickCount() - start <= pdMS_TO_TICKS(50)) {
                     fread(&d,1,1,DacStream_FindFile);
                     if (!VgmCommandIsFixedSize(d)) {
@@ -217,7 +217,7 @@ void DacStream_FindTask() {
                         }
                     }
                 }
-                IoExp_WriteLed(1, false);
+                //IoExp_WriteLed(1, false);
             }
             xSemaphoreGive(DacStream_Mutex);
         }
@@ -229,7 +229,7 @@ void DacStream_FillTask_DoPre(uint8_t idx) {
     xSemaphoreTake(DacStream_Mutex, pdMS_TO_TICKS(1000));
     if (!DacStreamEntries[idx].SlotFree) {
         if (uxQueueSpacesAvailable(DacStreamEntries[idx].Queue) > DACSTREAM_BUF_SIZE/3 && DacStreamEntries[idx].ReadOffset < DacStreamEntries[idx].DataLength) {
-            IoExp_WriteLed(2, true);
+            //IoExp_WriteLed(2, true);
             uint32_t o = DacStream_GetDataOffset(DacStreamEntries[idx].DataBankId, DacStreamEntries[idx].DataStart + DacStreamEntries[idx].ReadOffset);
             fseek(DacStream_FillFile,o,SEEK_SET);
             while (uxQueueSpacesAvailable(DacStreamEntries[idx].Queue) && DacStreamEntries[idx].ReadOffset < DacStreamEntries[idx].DataLength) {
@@ -238,7 +238,7 @@ void DacStream_FillTask_DoPre(uint8_t idx) {
                 xQueueSend(DacStreamEntries[idx].Queue, &d, 0);
                 DacStreamEntries[idx].ReadOffset++;
             }
-            IoExp_WriteLed(2, false);
+            //IoExp_WriteLed(2, false);
         }
     }
     xSemaphoreGive(DacStream_Mutex);
