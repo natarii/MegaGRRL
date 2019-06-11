@@ -1,11 +1,12 @@
 #include "sdcard.h"
 #include "mallocs.h"
 #include "esp_log.h"
+#include <dirent.h>
 
 static const char* TAG = "Sdcard";
 
-const sdmmc_host_t Sdcard_Host = SDMMC_HOST_DEFAULT();
-const sdmmc_slot_config_t Sdcard_Slot = SDMMC_SLOT_CONFIG_DEFAULT();
+sdmmc_host_t Sdcard_Host = SDMMC_HOST_DEFAULT();
+sdmmc_slot_config_t Sdcard_Slot = SDMMC_SLOT_CONFIG_DEFAULT();
 esp_vfs_fat_sdmmc_mount_config_t Sdcard_Mount = {
     .format_if_mount_failed = false,
     .max_files = MAX_OPEN_FILES,
@@ -17,6 +18,8 @@ FATFS* Sdcard_Fs = NULL;
 
 bool Sdcard_Setup() {
     ESP_LOGI(TAG, "Setting up");
+
+    Sdcard_Host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
 
     uint8_t pdrv = 0xff;
     if (ff_diskio_get_drive(&pdrv) != ESP_OK || pdrv == 0xff) {
@@ -66,5 +69,13 @@ bool Sdcard_Setup() {
     }
 
     ESP_LOGI(TAG, "Card online !!");
+
+    DIR *test = opendir("/sd/.mega");
+    if (!test) {
+        ESP_LOGW(TAG, ".mega doesn't exist, creating !!");
+        mkdir("/sd/.mega", S_IRWXU);
+    }
+
+
     return true;
 }
