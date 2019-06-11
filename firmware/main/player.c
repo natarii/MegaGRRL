@@ -4,7 +4,6 @@
 #include "driver.h"
 #include "ioexp.h"
 #include "loader.h"
-#include "volume.h"
 #include "dacstream.h"
 
 static const char* TAG = "Player";
@@ -95,16 +94,12 @@ bool Player_StartTrack(char *FilePath) {
     }
     xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_RESET_ACK);
 
-    ESP_LOGI(TAG, "Volume up");
-    Volume_SetVolume(Volume_SystemVolume,Volume_SystemVolume);
-    TickType_t Time_VolUp = xTaskGetTickCount();
-
     ESP_LOGI(TAG, "Wait for hw timeouts...");
     TickType_t Time_Cur;
     do {
         vTaskDelay(pdMS_TO_TICKS(10));
         Time_Cur = xTaskGetTickCount();
-    } while (Time_Cur - Time_VolUp < pdMS_TO_TICKS(60) || Time_Cur - Time_AmpOn < pdMS_TO_TICKS(250));
+    } while (Time_Cur - Time_AmpOn < pdMS_TO_TICKS(250));
 
     ESP_LOGI(TAG, "Request driver start...");
     xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_START_REQUEST);
