@@ -8,7 +8,7 @@
 #include "mallocs.h"
 
 static const char* TAG = "IoExpander";
-volatile uint8_t IoExp_OLATB = 0b00010001; //hack for display backlight and amp remove me
+volatile uint8_t IoExp_OLATB = (1<<6); //hack for display backlight, remove me
 static const uint8_t MCP23017_Config[] = {
     0x0a,0b01100010,    /* banking off, since that's the default and we don't know if this is POR or just esp reset
                          * INT pin mirroring on
@@ -24,15 +24,15 @@ static const uint8_t MCP23017_Config[] = {
     0x04,0b01111111,    //GPINTENA for all bits except 7
     0x06,0x00,          //DEFVALA doesn't actually matter
     0x08,0b00000000,    //INTCONA compare against previous value
-    0x0c,0b10000000,    //GPPUA enable for bit 7 to avoid false triggering
+    0x0c,0b11111111,    //GPPUA enable all pullups on A
 
-    0x01,0b00001100,    //IODIRB
-    0x03,0b00001000,    //IPOLB
+    0x01,0b00000010,    //IODIRB
+    0x03,0b00000000,    //IPOLB
     0x05,0b00000000,    //GPINTENB
     0x07,0x00,          //DEFVALB
     0x09,0x00,          //INTCONB
     0x0d,0b00000000,    //GPPUB
-    0x15,0b00010001,    //OLATB //hack for display backlight remove me
+    0x15,(1<<6),        //OLATB //hack for display backlight, remove me
 };
 
 static uint8_t PORTAQueueBuf[IOEXP_PORTA_QUEUE_SIZE * sizeof(PORTAQueueItem_t)];
@@ -164,8 +164,8 @@ bool IoExp_PowerControl(bool HoldPower) {
         ESP_LOGE(TAG, "Couldn't seize bus !!");
         return false;
     }
-    uint8_t n = (HoldPower<<1) | (IoExp_OLATB & 0xfd);
-    if (!IoExp_WriteRegister(0x15, n)) {
+    uint8_t n = HoldPower | (IoExp_OLATB & ~(1<<0));
+    if (!IoExp_WriteRegister(0x15, n)) { //OLATB
         ESP_LOGE(TAG, "OLATB write fail !!");
         return false;
     }
@@ -181,5 +181,5 @@ bool IoExp_ChargeStatus() {
     }
     uint8_t r = IoExp_ReadRegister(0x13);
     I2cMgr_Release(false);
-    return (r & 0b100) == 0;
+    return (r & (1<<1)) == 0;
 }
