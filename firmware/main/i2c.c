@@ -16,7 +16,7 @@ bool I2cMgr_Setup() {
     config.sda_io_num = PIN_I2C_DATA;
     config.scl_pullup_en = GPIO_PULLUP_DISABLE;
     config.sda_pullup_en = GPIO_PULLUP_DISABLE;
-    config.master.clk_speed = 100000;
+    config.master.clk_speed = 400000;
     esp_err_t ret;
     ret = i2c_param_config(I2C_NUM_0, &config);
     if (ret != ESP_OK) {
