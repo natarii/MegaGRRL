@@ -11,5 +11,6 @@
 bool I2cMgr_Setup();
 bool I2cMgr_Seize(bool IsIsr, TickType_t Ticks);
 bool I2cMgr_Release(bool IsIsr);
+void I2cMgr_Clear();
 
 #endif

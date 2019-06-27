@@ -1,5 +1,6 @@
 #include "i2c.h"
 #include "esp_log.h"
+#include "driver/gpio.h"
 
 static const char* TAG = "I2cMgr";
 
@@ -65,4 +66,24 @@ bool I2cMgr_Release(bool IsIsr) {
         return false;
     }
     return true;
+}
+
+void I2cMgr_Clear() {
+    gpio_config_t cfg;
+    cfg.intr_type = GPIO_PIN_INTR_DISABLE;
+    cfg.mode = GPIO_MODE_OUTPUT;
+    cfg.pin_bit_mask = (1<<PIN_I2C_CLK) | (1<<PIN_I2C_DATA);
+    cfg.pull_down_en = 0;
+    cfg.pull_up_en = 0;
+    gpio_config(&cfg);
+    gpio_set_level(PIN_I2C_DATA, 1);
+    gpio_set_level(PIN_I2C_CLK, 1);
+    ets_delay_us(10000);
+    for (uint8_t i=0;i<9;i++) {
+        gpio_set_level(PIN_I2C_CLK, 0);
+        ets_delay_us(4);
+        gpio_set_level(PIN_I2C_CLK, 1);
+        ets_delay_us(4);
+    }
+    ets_delay_us(10000);
 }
