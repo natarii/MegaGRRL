@@ -71,17 +71,17 @@
 
 /*Color settings*/
 #define LV_COLOR_DEPTH     16                     /*Color depth: 1/8/16/32*/
-#define LV_COLOR_16_SWAP   0                      /*Swap the 2 bytes of RGB565 color. Useful if the display has a 8 bit interface (e.g. SPI)*/
+#define LV_COLOR_16_SWAP   1                      /*Swap the 2 bytes of RGB565 color. Useful if the display has a 8 bit interface (e.g. SPI)*/
 #define LV_COLOR_SCREEN_TRANSP        0           /*1: Enable screen transparency. Useful for OSD or other overlapping GUIs. Requires ARGB8888 colors*/
-#define LV_COLOR_TRANSP    LV_COLOR_LIME          /*Images pixels with this color will not be drawn (with chroma keying)*/
+#define LV_COLOR_TRANSP    LV_COLOR_MAKE(0x12,0x34,0x56) //LV_COLOR_LIME          /*Images pixels with this color will not be drawn (with chroma keying)*/
 
 /*Text settings*/
-#define LV_TXT_UTF8             1                /*Enable UTF-8 coded Unicode character usage */
+#define LV_TXT_UTF8             0                /*Enable UTF-8 coded Unicode character usage */
 #define LV_TXT_BREAK_CHARS     " ,.;:-_"         /*Can break texts on these chars*/
 
 /*Graphics feature usage*/
 #define USE_LV_ANIMATION        1               /*1: Enable all animations*/
-#define USE_LV_SHADOW           1               /*1: Enable shadows*/
+#define USE_LV_SHADOW           0               /*1: Enable shadows*/
 #define USE_LV_GROUP            1               /*1: Enable object groups (for keyboards)*/
 #define USE_LV_GPU              0               /*1: Enable GPU interface*/
 #define USE_LV_REAL_DRAW        0               /*1: Enable function which draw directly to the frame buffer instead of VDB (required if LV_VDB_SIZE = 0)*/
@@ -137,7 +137,7 @@
 /* More info about fonts: https://littlevgl.com/basics#fonts
  * To enable a built-in font use 1,2,4 or 8 values
  * which will determine the bit-per-pixel */
-#define USE_LV_FONT_DEJAVU_10              0
+#define USE_LV_FONT_DEJAVU_10              1
 #define USE_LV_FONT_DEJAVU_10_LATIN_SUP    0
 #define USE_LV_FONT_DEJAVU_10_CYRILLIC     0
 #define USE_LV_FONT_SYMBOL_10              0
@@ -157,7 +157,7 @@
 #define USE_LV_FONT_DEJAVU_40_CYRILLIC     0
 #define USE_LV_FONT_SYMBOL_40              0
 
-#define USE_LV_FONT_MONOSPACE_8            0
+#define USE_LV_FONT_MONOSPACE_8            1
 
 /* Optionally declare your custom fonts here.
  * You can use these fonts as default font too
@@ -167,7 +167,7 @@
  */
 #define LV_FONT_CUSTOM_DECLARE
 
-#define LV_FONT_DEFAULT        &lv_font_dejavu_20     /*Always set a default font from the built-in fonts*/
+#define LV_FONT_DEFAULT        &lv_font_dejavu_10     /*Always set a default font from the built-in fonts*/
 
 /*===================
  *  LV_OBJ SETTINGS
@@ -235,7 +235,7 @@
 #define USE_LV_LMETER   1
 
 /*Gauge (dependencies:bar, lmeter)*/
-#define USE_LV_GAUGE    1
+#define USE_LV_GAUGE    0
 
 /*Chart (dependencies: -)*/
 #define USE_LV_CHART    1
@@ -254,10 +254,10 @@
 #endif
 
 /*Calendar (dependencies: -)*/
-#define USE_LV_CALENDAR 1
+#define USE_LV_CALENDAR 0
 
 /*Preload (dependencies: arc)*/
-#define USE_LV_PRELOAD      1
+#define USE_LV_PRELOAD      0
 #if USE_LV_PRELOAD != 0
 #define LV_PRELOAD_DEF_ARC_LENGTH   60      /*[deg]*/
 #define LV_PRELOAD_DEF_SPIN_TIME    1000    /*[ms]*/
