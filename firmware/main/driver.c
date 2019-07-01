@@ -9,6 +9,7 @@
 #include "vgm.h"
 #include "pins.h"
 #include "dacstream.h"
+#include "channels.h"
 
 static const char* TAG = "Driver";
 
@@ -59,6 +60,8 @@ uint64_t Driver_Cycle = 0;      //current cycle number
 uint32_t Driver_Cc = 0;         //current cycle from the api - just keep it off the stack
 uint32_t Driver_LastCc = 0;     //copy of the above var
 uint32_t Driver_NextSample = 0; //sample number at which the next command needs to be run
+uint8_t Driver_FmAlgo[6] = {0,0,0,0,0,0};
+uint8_t Driver_PsgLastChannel = 0;
 
 //dacstream specific
 uint32_t DacStreamSeq = 0;              //sequence no of the current stream
@@ -72,6 +75,8 @@ uint8_t DacStreamCommand = 0;           //chip command to use
 uint32_t DacStreamSamplesPlayed = 0;    //how many samples played so far
 uint8_t DacStreamLengthMode = 0;
 uint32_t DacStreamDataLength = 0;
+
+#define min(a,b) ((a) < (b) ? (a) : (b)) //sigh.
 
 void Driver_Output() { //output data to shift registers
     disp_spi_transfer_data(Driver_SpiDevice, (uint8_t*)&Driver_SrBuf, NULL, 2, 0);
@@ -163,6 +168,29 @@ void Driver_PsgOut(uint8_t Data) {
     Driver_SrBuf[0] |= SR_BIT_PSG_CS;
     Driver_Output();
     Driver_Sleep(20);
+
+    //channel led stuff
+    if (Data & 0x80) {
+        Driver_PsgLastChannel = (Data & 0b01100000) >> 5;
+    }
+    uint8_t ch = 7 + Driver_PsgLastChannel; //7 = psg ch offset in array
+    if ((Data & 0b10010000) == 0b10010000) { //attenuation
+        uint8_t atten = Data & 0b00001111;
+        if (atten == 0b1111) { //full atten, off.
+            ChannelMgr_States[ch] &= ~CHSTATE_KON;
+        } else {
+            ChannelMgr_States[ch] |= CHSTATE_KON | CHSTATE_PARAM;
+        }
+    }
+    if ((Data & 0b10010000) == 0b10000000) { //frequency low bits
+        ChannelMgr_States[ch] |= CHSTATE_PARAM;
+    }
+    if ((Data & 0b10000000) == 0) { //frequency high bits
+        ChannelMgr_States[ch] |= CHSTATE_PARAM;
+    }
+    if ((Data & 0b11110000) == 0b11100000) { //noise params
+        ChannelMgr_States[ch] |= CHSTATE_PARAM;
+    }
 }
 
 void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
@@ -187,6 +215,75 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
     Driver_SrBuf[0] |= SR_BIT_FM_CS; // /cs high
     Driver_Output();
     Driver_Sleep(5);
+
+    //channel led stuff
+    //todo: clean this up, there's so much code duplication.
+    if (Register >= 0xb0 && Register <= 0xb2) {
+        Driver_FmAlgo[(Port?3:0)+(Register-0xb0)] = Value & 0b111;
+    } else if (Port == 0 && Register == 0x28) { //KON
+        uint8_t ch = Value & 0b111;
+        if (ch >= 0b100) ch = 0b11 + (ch - 0b100);
+        //uint8_t st = Value >> 4;
+        uint8_t st = 0;
+        switch (Driver_FmAlgo[ch]) {
+            case 0:
+            case 1:
+            case 2:
+            case 3:
+                st = Value & 0b10000000;
+                break;
+            case 4:
+                st = Value & 0b11000000;
+                break;
+            case 5:
+            case 6:
+                st = Value & 0b11100000;
+                break;
+            case 7:
+                st = Value & 0b11110000;
+                break;
+            default: /*not possible*/
+                break;
+        }
+        if (st) {
+            ChannelMgr_States[ch] |= CHSTATE_KON;
+        } else {
+            ChannelMgr_States[ch] &= ~CHSTATE_KON;
+        }
+    } else if (Register >= 0xa0 && Register <= 0xae) { //frequency
+        uint8_t ch = (Port?3:0) + min(2,Register-0xa0); //this is wacky, but it's to deal with ch3 special mode.
+        ChannelMgr_States[ch] |= CHSTATE_PARAM;
+    } else if (Register == 0x2a) { //dac value
+        if (Value >= 0x7f) {
+            ChannelMgr_PcmAccu += Value - 0x7f;
+        } else {
+            ChannelMgr_PcmAccu += 0x7f - Value;
+        }
+        ChannelMgr_PcmCount++;
+    } else if (Register >= 0x30 && Register <= 0x3e) { //multiply, detune
+        uint8_t ch = (Port?3:0)+(Register%3);
+        ChannelMgr_States[ch] |= CHSTATE_PARAM;
+    } else if (Register >= 0x40 && Register <= 0x4e) { //TL
+        uint8_t ch = (Port?3:0)+(Register%3);
+        ChannelMgr_States[ch] |= CHSTATE_PARAM;
+    } else if (Register >= 0x50 && Register <= 0x5e) { //attack rate/scaling
+        uint8_t ch = (Port?3:0)+(Register%3);
+        ChannelMgr_States[ch] |= CHSTATE_PARAM;
+    } else if (Register >= 0x60 && Register <= 0x6e) { //1st decay, am enable
+        uint8_t ch = (Port?3:0)+(Register%3);
+        ChannelMgr_States[ch] |= CHSTATE_PARAM;
+    } else if (Register >= 0x70 && Register <= 0x7e) { //2nd decay
+        uint8_t ch = (Port?3:0)+(Register%3);
+        ChannelMgr_States[ch] |= CHSTATE_PARAM;
+    } else if (Register >= 0x80 && Register <= 0x8e) { //release rate, sustain
+        uint8_t ch = (Port?3:0)+(Register%3);
+        ChannelMgr_States[ch] |= CHSTATE_PARAM;
+    } else if (Register >= 0x90 && Register <= 0x9e) { //SSG-EG
+        uint8_t ch = (Port?3:0)+(Register%3);
+        ChannelMgr_States[ch] |= CHSTATE_PARAM;
+    } else if (Register == 0x2b) { //dac enable
+        if (Value & 0x80) ChannelMgr_States[5] |= CHSTATE_KON;
+    }
 }
 uint8_t Driver_SeqToSlot(uint32_t seq) {
     for (uint8_t i=0;i<DACSTREAM_PRE_COUNT;i++) {
@@ -305,6 +402,8 @@ void Driver_Main() {
             Driver_NextSample = 0;
             DacStreamActive = false;
             DacStreamSeq = 0;
+            memset(&Driver_FmAlgo[0], 0, sizeof(Driver_FmAlgo));
+            Driver_PsgLastChannel = 0; //psg can't really be reset, so technically this is kinda wrong? but it's consistent.
 
             //update status flags
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_START_REQUEST);
