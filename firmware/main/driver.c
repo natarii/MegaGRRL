@@ -162,7 +162,7 @@ void Driver_PsgOut(uint8_t Data) {
     Driver_Sleep(20);
     Driver_SrBuf[0] |= SR_BIT_PSG_CS;
     Driver_Output();
-    Driver_Sleep(10);
+    Driver_Sleep(20);
 }
 
 void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
