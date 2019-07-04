@@ -17,8 +17,6 @@ static const char* TAG = "Driver";
 #define DRIVER_VGM_SAMPLE_RATE 44100
 #define DRIVER_CYCLES_PER_SAMPLE (DRIVER_CLOCK_RATE/DRIVER_VGM_SAMPLE_RATE)
 
-uint8_t Driver_SrBuf[2] = {0xff,0x00}; //buffer to transmit to the shift registers - first byte is the control register, second is data bus
-
 //bits on the control shift reg
 #define SR_BIT_PSG_CS   0x01 // PSG /CS
 #define SR_BIT_WR       0x04 // /WR
@@ -26,6 +24,8 @@ uint8_t Driver_SrBuf[2] = {0xff,0x00}; //buffer to transmit to the shift registe
 #define SR_BIT_A0       0x08 // A0 (only used by FM)
 #define SR_BIT_A1       0x10 // A1 (only used by FM)
 #define SR_BIT_IC       0x02 // /IC (only used by FM)
+
+uint8_t Driver_SrBuf[2] = {0xff & ~SR_BIT_IC,0x00}; //buffer to transmit to the shift registers - first byte is the control register, second is data bus
 
 QueueHandle_t Driver_CommandQueue; //queue of incoming vgm data
 QueueHandle_t Driver_PcmQueue; //queue of attached pcm data (if any)
@@ -152,22 +152,22 @@ void Driver_Sleep(uint32_t us) { //quick and dirty spin sleep
 }
 
 void Driver_PsgOut(uint8_t Data) {
-
-    Driver_SrBuf[0] &= ~SR_BIT_PSG_CS;
-    Driver_SrBuf[0] &= ~SR_BIT_WR;
     //data bus is reversed for the psg because it made pcb layout easier
     Driver_SrBuf[1] = 0;
     for (uint8_t i=0;i<=7;i++) {
         Driver_SrBuf[1] |= ((Data>>(7-i))&1)<<i;
     }
     Driver_Output();
-    Driver_Sleep(20);
+    Driver_SrBuf[0] &= ~SR_BIT_PSG_CS;
+    Driver_SrBuf[0] &= ~SR_BIT_WR;
+    Driver_Output();
+    Driver_Sleep(50);
     Driver_SrBuf[0] |= SR_BIT_WR;
     Driver_Output();
-    Driver_Sleep(20);
+    Driver_Sleep(50);
     Driver_SrBuf[0] |= SR_BIT_PSG_CS;
     Driver_Output();
-    Driver_Sleep(20);
+    Driver_Sleep(50);
 
     //channel led stuff
     if (Data & 0x80) {
@@ -319,6 +319,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
         } else {
             Driver_PsgOut(cmd[1]);
         }
+        //Driver_PsgOut(cmd[1]);
     } else if (cmd[0] == 0x52) { //YM2612 port 0
         Driver_FmOut(0, cmd[1], cmd[2]);
     } else if (cmd[0] == 0x53) { //YM2612 port 1
@@ -413,10 +414,10 @@ void Driver_Main() {
         } else if (commandeventbits & DRIVER_EVENT_RESET_REQUEST) {
             Driver_SrBuf[0] ^= SR_BIT_IC;
             Driver_Output();
-            Driver_Sleep(50000);
+            Driver_Sleep(1000);
             Driver_SrBuf[0] |= SR_BIT_IC;
             Driver_Output();
-            Driver_Sleep(10000);
+            Driver_Sleep(1000);
             Driver_PsgOut(0b10011111);
             Driver_PsgOut(0b10111111);
             Driver_PsgOut(0b11011111);
