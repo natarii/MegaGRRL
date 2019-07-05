@@ -225,6 +225,7 @@ void DacStream_FindTask() {
     }
 }
 
+uint8_t DacStream_FillBuf[FREAD_LOCAL_BUF];
 void DacStream_FillTask_DoPre(uint8_t idx) {
     xSemaphoreTake(DacStream_Mutex, pdMS_TO_TICKS(1000));
     if (!DacStreamEntries[idx].SlotFree) {
@@ -232,11 +233,17 @@ void DacStream_FillTask_DoPre(uint8_t idx) {
             //IoExp_WriteLed(2, true);
             uint32_t o = DacStream_GetDataOffset(DacStreamEntries[idx].DataBankId, DacStreamEntries[idx].DataStart + DacStreamEntries[idx].ReadOffset);
             fseek(DacStream_FillFile,o,SEEK_SET);
-            while (uxQueueSpacesAvailable(DacStreamEntries[idx].Queue) && DacStreamEntries[idx].ReadOffset < DacStreamEntries[idx].DataLength) {
-                uint8_t d;
-                fread(&d,1,1,DacStream_FillFile);
-                xQueueSend(DacStreamEntries[idx].Queue, &d, 0);
+            uint32_t a = uxQueueSpacesAvailable(DacStreamEntries[idx].Queue);
+            uint16_t dsbufused = FREAD_LOCAL_BUF;
+            while (a && DacStreamEntries[idx].ReadOffset < DacStreamEntries[idx].DataLength) {
+                if (dsbufused == FREAD_LOCAL_BUF) {
+                    fread(&DacStream_FillBuf[0], 1, FREAD_LOCAL_BUF, DacStream_FillFile); //todo: fix read past eof
+                    dsbufused = 0;
+                }
+                xQueueSend(DacStreamEntries[idx].Queue, &DacStream_FillBuf[dsbufused], 0);
+                dsbufused++;
                 DacStreamEntries[idx].ReadOffset++;
+                a--;
             }
             //IoExp_WriteLed(2, false);
         }
