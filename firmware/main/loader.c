@@ -63,7 +63,8 @@ uint32_t Loader_GetPcmOffset(uint32_t PcmPos) {
 uint32_t Loader_Pending = 0;
 uint8_t running = false;
 bool Loader_EndReached = false;
-
+uint8_t Loader_PcmBuf[FREAD_LOCAL_BUF];
+uint16_t Loader_PcmBufUsed = FREAD_LOCAL_BUF;
 void Loader_Main() {
     ESP_LOGI(TAG, "Task start");
     while (1) {
@@ -111,6 +112,7 @@ void Loader_Main() {
                                 ESP_LOGD(TAG, "Pcm seeking to %d", NewOff);
                                 fseek(Loader_PcmFile, NewOff, SEEK_SET);
                                 Loader_PcmOff = NewOff;
+                                Loader_PcmBufUsed = FREAD_LOCAL_BUF;
                             }
                             Loader_PcmPos = NewPos;
                             continue;
@@ -126,10 +128,13 @@ void Loader_Main() {
                             if (Loader_PcmOff == 0) { //if this is the first sample being played, need to do an initial seek
                                 Loader_PcmOff = Loader_GetPcmOffset(Loader_PcmPos);
                                 fseek(Loader_PcmFile, Loader_PcmOff, SEEK_SET);
+                                Loader_PcmBufUsed = FREAD_LOCAL_BUF;
                             }
-                            uint8_t sample;
-                            fread(&sample,1,1,Loader_PcmFile);
-                            xQueueSendToBack(Driver_PcmQueue, &sample, 0); //theoretically pcmqueue should never ever be full while there are still spaces in commandqueue
+                            if (Loader_PcmBufUsed == FREAD_LOCAL_BUF) {
+                                fread(&Loader_PcmBuf[0], 1, FREAD_LOCAL_BUF, Loader_PcmFile); //todo: fix read past eof
+                                Loader_PcmBufUsed = 0;
+                            }
+                            xQueueSendToBack(Driver_PcmQueue, &Loader_PcmBuf[Loader_PcmBufUsed++], 0); //theoretically pcmqueue should never ever be full while there are still spaces in commandqueue
                             Loader_PcmPos++;
                             #ifdef PARANOID_THAT_THERE_MIGHT_BE_VGMS_THAT_PLAY_PCM_ACROSS_BLOCK_BOUNDARIES
                             uint32_t NewOff = Loader_GetPcmOffset(Loader_PcmPos);
@@ -137,6 +142,7 @@ void Loader_Main() {
                                 ESP_LOGI(TAG, "pcm seeking to %d after sample load", NewOff);
                                 fseek(Loader_PcmFile, NewOff, SEEK_SET);
                                 Loader_PcmOff = NewOff;
+                                Loader_PcmBufUsed = FREAD_LOCAL_BUF;
                             }
                             #else
                             Loader_PcmOff++;
