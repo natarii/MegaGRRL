@@ -102,7 +102,7 @@
 
 
 /*Log settings*/
-#define USE_LV_LOG      1   /*Enable/disable the log module*/
+#define USE_LV_LOG      0   /*Enable/disable the log module*/
 #if USE_LV_LOG
 /* How important log should be added:
  * LV_LOG_LEVEL_TRACE       A lot of logs to give detailed information
@@ -145,7 +145,8 @@
 #define USE_LV_FONT_DEJAVU_20              4
 #define USE_LV_FONT_DEJAVU_20_LATIN_SUP    0
 #define USE_LV_FONT_DEJAVU_20_CYRILLIC     0
-#define USE_LV_FONT_SYMBOL_20              1
+//#define USE_LV_FONT_SYMBOL_20              1
+//#define LV_FONT_ROBOTO_16    1
 
 #define USE_LV_FONT_DEJAVU_30              0
 #define USE_LV_FONT_DEJAVU_30_LATIN_SUP    0
@@ -189,7 +190,7 @@
 /*Label (dependencies: -*/
 #define USE_LV_LABEL    1
 #if USE_LV_LABEL != 0
-#define LV_LABEL_SCROLL_SPEED       25     /*Hor, or ver. scroll speed [px/sec] in 'LV_LABEL_LONG_SCROLL/ROLL' mode*/
+#define LV_LABEL_SCROLL_SPEED       35     /*Hor, or ver. scroll speed [px/sec] in 'LV_LABEL_LONG_SCROLL/ROLL' mode*/
 #endif
 
 /*Image (dependencies: lv_label*/
