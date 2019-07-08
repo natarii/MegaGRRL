@@ -78,7 +78,7 @@ bool VgmParseHeader(FILE *f, VgmInfoStruct_t *info) {
   info->Gd3Offset += 0x14;
   fread(&info->TotalSamples, 4, 1, f);
   fread(&info->LoopOffset, 4, 1, f);
-  info->LoopOffset += 0x1c;
+  if (info->LoopOffset > 0) info->LoopOffset += 0x1c;
   fread(&info->LoopSamples, 4, 1, f);
   if (info->Version >= 101) fread(&info->Rate, 4, 1, f);
 
