@@ -78,6 +78,8 @@ uint32_t DacStreamDataLength = 0;
 
 #define min(a,b) ((a) < (b) ? (a) : (b)) //sigh.
 
+void Driver_ResetChips();
+
 void Driver_Output() { //output data to shift registers
     disp_spi_transfer_data(Driver_SpiDevice, (uint8_t*)&Driver_SrBuf, NULL, 2, 0);
 }
@@ -131,6 +133,8 @@ bool Driver_Setup() {
 
     //and now output initial values
     Driver_Output();
+
+    Driver_ResetChips();
 
     /*ESP_LOGW(TAG, "Benchmarking FmOut");
     uint32_t s = xthal_get_ccount();
@@ -191,6 +195,19 @@ void Driver_PsgOut(uint8_t Data) {
     if ((Data & 0b11110000) == 0b11100000) { //noise params
         ChannelMgr_States[ch] |= CHSTATE_PARAM;
     }
+}
+
+void Driver_ResetChips() {
+        Driver_SrBuf[0] ^= SR_BIT_IC;
+        Driver_Output();
+        Driver_Sleep(1000);
+        Driver_SrBuf[0] |= SR_BIT_IC;
+        Driver_Output();
+        Driver_Sleep(1000);
+        Driver_PsgOut(0b10011111);
+        Driver_PsgOut(0b10111111);
+        Driver_PsgOut(0b11011111);
+        Driver_PsgOut(0b11111111);
 }
 
 void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
@@ -412,16 +429,7 @@ void Driver_Main() {
             commandeventbits &= ~DRIVER_EVENT_START_REQUEST;
             commandeventbits |= DRIVER_EVENT_RUNNING;
         } else if (commandeventbits & DRIVER_EVENT_RESET_REQUEST) {
-            Driver_SrBuf[0] ^= SR_BIT_IC;
-            Driver_Output();
-            Driver_Sleep(1000);
-            Driver_SrBuf[0] |= SR_BIT_IC;
-            Driver_Output();
-            Driver_Sleep(1000);
-            Driver_PsgOut(0b10011111);
-            Driver_PsgOut(0b10111111);
-            Driver_PsgOut(0b11011111);
-            Driver_PsgOut(0b11111111);
+            Driver_ResetChips();
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_RESET_REQUEST);
             xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_RESET_ACK);
             commandeventbits &= ~DRIVER_EVENT_RESET_REQUEST;
