@@ -165,13 +165,13 @@ void Driver_PsgOut(uint8_t Data) {
     Driver_SrBuf[0] &= ~SR_BIT_PSG_CS;
     Driver_SrBuf[0] &= ~SR_BIT_WR;
     Driver_Output();
-    Driver_Sleep(50);
+    Driver_Sleep(20);
     Driver_SrBuf[0] |= SR_BIT_WR;
     Driver_Output();
-    Driver_Sleep(50);
+    Driver_Sleep(20);
     Driver_SrBuf[0] |= SR_BIT_PSG_CS;
     Driver_Output();
-    Driver_Sleep(50);
+    Driver_Sleep(20);
 
     //channel led stuff
     if (Data & 0x80) {
