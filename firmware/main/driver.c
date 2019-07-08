@@ -394,6 +394,9 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
 
     } else if (cmd[0] == 0x4f) { //gamegear psg stereo
         ESP_LOGW(TAG, "Game Gear PSG stereo not implemented !!");
+    } else if (cmd[0] == 0x66) { //end of music
+        xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_RUNNING);
+        ESP_LOGI(TAG, "reached end of music");
     } else {
         ESP_LOGE(TAG, "driver unknown command %02x !!", cmd[0]);
         return false;

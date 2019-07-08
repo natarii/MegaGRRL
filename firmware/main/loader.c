@@ -12,6 +12,9 @@
 
 static const char* TAG = "Loader";
 
+uint8_t Loader_LoopCount = 3;
+uint8_t Loader_CurLoop = 0;
+
 EventGroupHandle_t Loader_Status;
 StaticEventGroup_t Loader_StatusBuf;
 EventGroupHandle_t Loader_BufStatus;
@@ -100,7 +103,7 @@ void Loader_Main() {
             }
             if (spaces > DRIVER_QUEUE_SIZE/6) {
                 //IoExp_WriteLed(0, true);
-                while (uxQueueSpacesAvailable(Driver_CommandQueue)) {
+                while (running && uxQueueSpacesAvailable(Driver_CommandQueue)) {
                     uint8_t d;
                     fread(&d,1,1,Loader_File);
                     if (Loader_Pending == 0) {
@@ -148,9 +151,23 @@ void Loader_Main() {
                             Loader_PcmOff++;
                             #endif
                         } else if (d == 0x66) { //end of music, optionally loop
-                            Loader_EndReached = true;
-                            fseek(Loader_File, Loader_VgmInfo->LoopOffset, SEEK_SET);
-                            continue;
+                            ESP_LOGI(TAG, "reached end of music");
+                            if (Loader_VgmInfo->LoopOffset == 0) { //no loop point
+                                ESP_LOGI(TAG, "no loop point");
+                                xQueueSendToBack(Driver_CommandQueue, &d, 0); //let driver figure out it's the end
+                                running = false;
+                                break;
+                            }
+                            if (Loader_LoopCount != 255 && ++Loader_CurLoop == Loader_LoopCount) {
+                                ESP_LOGI(TAG, "stopping");
+                                xQueueSendToBack(Driver_CommandQueue, &d, 0); //let driver figure out it's the end
+                                running = false;
+                                break;
+                            } else {
+                                ESP_LOGI(TAG, "looping");
+                                fseek(Loader_File, Loader_VgmInfo->LoopOffset, SEEK_SET);
+                                continue; //dont let driver get 0x66
+                            }
                         } else if (d >= 0x90 && d <= 0x95) { //dacstream command
                             if (!Loader_RequestedDacStreamFindStart) {
                                 DacStream_BeginFinding(&Loader_VgmDataBlocks, Loader_VgmDataBlockIndex, ftell(Loader_File)-1);
@@ -196,6 +213,7 @@ bool Loader_Start(FILE *File, FILE *PcmFile, VgmInfoStruct_t *info) {
     Loader_EndReached = false;
     Loader_RequestedDacStreamFindStart = false;
     Loader_VgmDataBlockIndex = 0;
+    Loader_CurLoop = 0;
     
     fseek(Loader_File, Loader_VgmInfo->DataOffset, SEEK_SET);
 
@@ -206,8 +224,7 @@ bool Loader_Start(FILE *File, FILE *PcmFile, VgmInfoStruct_t *info) {
 
 bool Loader_Stop() {
     if (xEventGroupGetBits(Loader_Status) & LOADER_STOPPED) {
-        ESP_LOGE(TAG, "Bugcheck: Loader_Stop() called but loader is already stopped !!");
-        return false;
+        ESP_LOGW(TAG, "Loader_Stop() called but loader is already stopped !!");
     }
     xEventGroupSetBits(Loader_Status, LOADER_STOP_REQUEST);
     EventBits_t bits = xEventGroupWaitBits(Loader_Status, LOADER_STOPPED, false, false, pdMS_TO_TICKS(3000));
