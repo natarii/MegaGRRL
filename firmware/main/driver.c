@@ -336,7 +336,6 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
         } else {
             Driver_PsgOut(cmd[1]);
         }
-        //Driver_PsgOut(cmd[1]);
     } else if (cmd[0] == 0x52) { //YM2612 port 0
         Driver_FmOut(0, cmd[1], cmd[2]);
     } else if (cmd[0] == 0x53) { //YM2612 port 1
