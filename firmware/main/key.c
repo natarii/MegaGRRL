@@ -70,7 +70,7 @@ void KeyMgr_Main() {
                     KeyStates[bit].TsUp = now;
 
                     //edge
-                    KeyMgr_SendEvent(bit, KEY_EVENT_UP);
+                    KeyMgr_SendEvent(bit, KEY_EVENT_UP | (KeyStates[bit].AlreadyHeld?KEY_EVENT_HELD:0));
                 }
             }
 

@@ -24,8 +24,9 @@ typedef struct KeyEvent {
 #define KEY_EVENT_DOWN      0x1
 #define KEY_EVENT_UP        0x2
 #define KEY_EVENT_PRESS     0x4
-#define KEY_EVENT_REPEAT    0x8 //used like a flag
+#define KEY_EVENT_REPEAT    0x8     //used like a flag
 #define KEY_EVENT_HOLD      0x10
+#define KEY_EVENT_HELD      0x20    //flag
 
 #define KEY_A       0
 #define KEY_B       1
