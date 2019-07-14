@@ -31,7 +31,7 @@ void ChannelMgr_Main() {
         for (uint8_t i=0;i<7+4;i++) { //fm, psg
             if ((ChannelMgr_States_Old[i] & CHSTATE_KON) == 0 && (ChannelMgr_States[i] & CHSTATE_KON)) { //kon rising edge
                 ChannelMgr_BrTime[i] = esp_timer_get_time();
-            } else if (/*((ChannelMgr_States_Old[i] & CHSTATE_PARAM) == 0) && */(ChannelMgr_States[i] & CHSTATE_PARAM) && (ChannelMgr_States[i] & CHSTATE_KON)) { //param rising edge
+            } else if ((ChannelMgr_States[i] & CHSTATE_PARAM) && (ChannelMgr_States[i] & CHSTATE_KON)) { //param rising edge
                 ChannelMgr_BrTime[i] = esp_timer_get_time();
             }
 
