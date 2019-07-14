@@ -30,9 +30,9 @@ void ChannelMgr_Main() {
     while (1) {
         for (uint8_t i=0;i<7+4;i++) { //fm, psg
             if ((ChannelMgr_States_Old[i] & CHSTATE_KON) == 0 && (ChannelMgr_States[i] & CHSTATE_KON)) { //kon rising edge
-                ChannelMgr_BrTime[i] = xthal_get_ccount();
+                ChannelMgr_BrTime[i] = esp_timer_get_time();
             } else if (/*((ChannelMgr_States_Old[i] & CHSTATE_PARAM) == 0) && */(ChannelMgr_States[i] & CHSTATE_PARAM) && (ChannelMgr_States[i] & CHSTATE_KON)) { //param rising edge
-                ChannelMgr_BrTime[i] = xthal_get_ccount();
+                ChannelMgr_BrTime[i] = esp_timer_get_time();
             }
 
             ChannelMgr_States[i] &= ~CHSTATE_PARAM;
@@ -40,7 +40,7 @@ void ChannelMgr_Main() {
             uint8_t br = 0;
             if (ChannelMgr_States[i] & CHSTATE_KON) {
                 br = 96;
-                if (xthal_get_ccount() - ChannelMgr_BrTime[i] <= 12000000) br = 255;
+                if (esp_timer_get_time() - ChannelMgr_BrTime[i] <= (1000000/1000)*50) br = 255; //this will overflow eventually but it's not really a big deal
             } else {
             }
             LedDrv_States[i] = br;
