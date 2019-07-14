@@ -137,7 +137,7 @@ void IoExp_Main() {
 
     ESP_LOGI(TAG, "Starting polling...");
     while (1) {
-        bool notified = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1000)) > 0; //wait for notification, and poll periodically when no notifs
+        bool notified = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(200)) > 0; //wait for notification, and poll periodically when no notifs
         if (!I2cMgr_Seize(false, pdMS_TO_TICKS(100))) {
             ESP_LOGW(TAG, "Couldn't seize bus !!");
             continue;
