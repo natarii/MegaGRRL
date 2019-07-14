@@ -88,7 +88,7 @@ void KeyMgr_Main() {
                     if (bit == KEY_A && now - KeyStates[bit].TsDown >= 2500) {
                         /*do shutdown stuff*/
                         IoExp_PowerControl(false);
-                        vTaskDelay(pdMS_TO_TICKS(250));
+                        vTaskDelay(pdMS_TO_TICKS(500));
                         //if we're still alive, we must be on usb power...
                         ESP_LOGE(TAG, "Reset by holding back !!");
                         esp_restart();
