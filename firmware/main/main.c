@@ -53,6 +53,7 @@
 #include "lvgl.h"
 #include "ui.h"
 #include "clk.h"
+#include "userled.h"
 
 #include <stdio.h>
 #include <dirent.h>
@@ -211,6 +212,21 @@ void app_main(void)
     lv_ta_add_text(textarea, "Setting up ChannelMgr... ");
     LcdDma_Mutex_Give();
     setup_ret = ChannelMgr_Setup();
+    if (setup_ret) {
+        LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+        lv_ta_add_text(textarea, "ok\n");
+        LcdDma_Mutex_Give();
+    } else {
+        LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+        lv_ta_add_text(textarea, "failed !!\n");
+        LcdDma_Mutex_Give();
+        crash();
+    }
+
+    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    lv_ta_add_text(textarea, "Setting up UserLedMgr... ");
+    LcdDma_Mutex_Give();
+    setup_ret = UserLedMgr_Setup();
     if (setup_ret) {
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         lv_ta_add_text(textarea, "ok\n");

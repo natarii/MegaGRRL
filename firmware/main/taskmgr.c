@@ -12,6 +12,7 @@
 #include "esp_log.h"
 #include "channels.h"
 #include "ui.h"
+#include "userled.h"
 
 static const char* TAG = "Taskmgr";
 
@@ -37,6 +38,7 @@ void Taskmgr_CreateTasks() {
     xTaskCreatePinnedToCore(Player_Main, "Player", 4096, NULL, 5, &Taskmgr_Handles[TASK_PLAYER], 0);
     xTaskCreatePinnedToCore(ChannelMgr_Main, "ChannelMgr", 1024, NULL, 18, &Taskmgr_Handles[TASK_CHANNELMGR], 0);
     xTaskCreatePinnedToCore(Ui_Main, "Ui", 2048, NULL, 5, &Taskmgr_Handles[TASK_UI], 0);
+    xTaskCreatePinnedToCore(UserLedMgr_Main, "UserLed", 1024, NULL, 5, &Taskmgr_Handles[TASK_USERLED], 0);
 
     xTaskCreatePinnedToCore(Driver_Main, "Driver", 4096, NULL, configMAX_PRIORITIES-2, &Taskmgr_Handles[TASK_DRIVER], 1);
 }

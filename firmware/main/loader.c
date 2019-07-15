@@ -9,6 +9,7 @@
 #include "mallocs.h"
 #include "ioexp.h"
 #include "dacstream.h"
+#include "userled.h"
 
 static const char* TAG = "Loader";
 
@@ -102,7 +103,8 @@ void Loader_Main() {
                 xEventGroupClearBits(Loader_BufStatus, 0xff ^ LOADER_BUF_LOW);
             }
             if (spaces > DRIVER_QUEUE_SIZE/6) {
-                //IoExp_WriteLed(0, true);
+                UserLedMgr_States[0] = 255;
+                UserLedMgr_Notify();
                 while (running && uxQueueSpacesAvailable(Driver_CommandQueue)) {
                     uint8_t d;
                     fread(&d,1,1,Loader_File);
@@ -190,7 +192,8 @@ void Loader_Main() {
                     }
                     xQueueSendToBack(Driver_CommandQueue, &d, 0);
                 }
-                //IoExp_WriteLed(0, false);
+                UserLedMgr_States[0] = 0;
+                UserLedMgr_Notify();
             } else {
             }
         }

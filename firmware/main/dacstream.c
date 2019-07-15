@@ -6,6 +6,7 @@
 #include "ioexp.h"
 #include "driver.h"
 #include "string.h"
+#include "userled.h"
 
 static const char* TAG = "DacStream";
 
@@ -139,7 +140,8 @@ void DacStream_FindTask() {
             }
             if (FreeSlot != 0xff) {
                 uint32_t start = xTaskGetTickCount();
-                //IoExp_WriteLed(1, true);
+                UserLedMgr_States[1] = 255;
+                UserLedMgr_Notify();
                 while (xTaskGetTickCount() - start <= pdMS_TO_TICKS(50)) {
                     fread(&d,1,1,DacStream_FindFile);
                     if (!VgmCommandIsFixedSize(d)) {
@@ -217,7 +219,8 @@ void DacStream_FindTask() {
                         }
                     }
                 }
-                //IoExp_WriteLed(1, false);
+                UserLedMgr_States[1] = 0;
+                UserLedMgr_Notify();
             }
             xSemaphoreGive(DacStream_Mutex);
         }
@@ -230,7 +233,8 @@ void DacStream_FillTask_DoPre(uint8_t idx) {
     xSemaphoreTake(DacStream_Mutex, pdMS_TO_TICKS(1000));
     if (!DacStreamEntries[idx].SlotFree) {
         if (uxQueueSpacesAvailable(DacStreamEntries[idx].Queue) > DACSTREAM_BUF_SIZE/3 && DacStreamEntries[idx].ReadOffset < DacStreamEntries[idx].DataLength) {
-            //IoExp_WriteLed(2, true);
+            UserLedMgr_States[2] = 255;
+            UserLedMgr_Notify();
             uint32_t o = DacStream_GetDataOffset(DacStreamEntries[idx].DataBankId, DacStreamEntries[idx].DataStart + DacStreamEntries[idx].ReadOffset);
             fseek(DacStream_FillFile,o,SEEK_SET);
             uint32_t a = uxQueueSpacesAvailable(DacStreamEntries[idx].Queue);
@@ -245,7 +249,8 @@ void DacStream_FillTask_DoPre(uint8_t idx) {
                 DacStreamEntries[idx].ReadOffset++;
                 a--;
             }
-            //IoExp_WriteLed(2, false);
+            UserLedMgr_States[2] = 0;
+            UserLedMgr_Notify();
         }
     }
     xSemaphoreGive(DacStream_Mutex);
