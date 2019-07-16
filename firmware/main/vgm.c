@@ -75,7 +75,7 @@ bool VgmParseHeader(FILE *f, VgmInfoStruct_t *info) {
 
   fseek(f, 0x14, SEEK_SET);
   fread(&info->Gd3Offset, 4, 1, f);
-  info->Gd3Offset += 0x14;
+  if (info->Gd3Offset > 0) info->Gd3Offset += 0x14;
   fread(&info->TotalSamples, 4, 1, f);
   fread(&info->LoopOffset, 4, 1, f);
   if (info->LoopOffset > 0) info->LoopOffset += 0x1c;
