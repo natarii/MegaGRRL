@@ -74,6 +74,8 @@ bool Sdcard_Setup() {
     if (!test) {
         ESP_LOGW(TAG, ".mega doesn't exist, creating !!");
         mkdir("/sd/.mega", S_IRWXU);
+    } else {
+        closedir(test);
     }
 
 
