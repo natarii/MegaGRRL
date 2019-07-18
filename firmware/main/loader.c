@@ -102,7 +102,7 @@ void Loader_Main() {
                 xEventGroupSetBits(Loader_BufStatus, LOADER_BUF_LOW);
                 xEventGroupClearBits(Loader_BufStatus, 0xff ^ LOADER_BUF_LOW);
             }
-            if (spaces > DRIVER_QUEUE_SIZE/6) {
+            if (!Loader_EndReached && (spaces > DRIVER_QUEUE_SIZE/6)) {
                 UserLedMgr_States[0] = 255;
                 UserLedMgr_Notify();
                 while (running && uxQueueSpacesAvailable(Driver_CommandQueue)) {
@@ -157,13 +157,13 @@ void Loader_Main() {
                             if (Loader_VgmInfo->LoopOffset == 0) { //no loop point
                                 ESP_LOGI(TAG, "no loop point");
                                 xQueueSendToBack(Driver_CommandQueue, &d, 0); //let driver figure out it's the end
-                                running = false;
+                                Loader_EndReached = true;
                                 break;
                             }
                             if (Loader_LoopCount != 255 && ++Loader_CurLoop == Loader_LoopCount) {
                                 ESP_LOGI(TAG, "stopping");
                                 xQueueSendToBack(Driver_CommandQueue, &d, 0); //let driver figure out it's the end
-                                running = false;
+                                Loader_EndReached = true;
                                 break;
                             } else {
                                 ESP_LOGI(TAG, "looping");
