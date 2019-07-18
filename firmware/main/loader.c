@@ -10,10 +10,10 @@
 #include "ioexp.h"
 #include "dacstream.h"
 #include "userled.h"
+#include "player.h"
 
 static const char* TAG = "Loader";
 
-uint8_t Loader_LoopCount = 3;
 uint8_t Loader_CurLoop = 0;
 
 EventGroupHandle_t Loader_Status;
@@ -160,7 +160,7 @@ void Loader_Main() {
                                 Loader_EndReached = true;
                                 break;
                             }
-                            if (Loader_LoopCount != 255 && ++Loader_CurLoop == Loader_LoopCount) {
+                            if (Player_LoopCount != 255 && ++Loader_CurLoop == Player_LoopCount) {
                                 ESP_LOGI(TAG, "stopping");
                                 xQueueSendToBack(Driver_CommandQueue, &d, 0); //let driver figure out it's the end
                                 Loader_EndReached = true;
