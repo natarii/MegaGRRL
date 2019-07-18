@@ -55,7 +55,6 @@ spi_device_handle_t Driver_SpiDevice;
 
 //vgm / 2612 pcm stuff
 uint32_t Driver_Sample = 0;     //current sample number
-uint32_t Driver_VgmSample = 0;
 uint64_t Driver_Cycle = 0;      //current cycle number
 uint32_t Driver_Cc = 0;         //current cycle from the api - just keep it off the stack
 uint32_t Driver_LastCc = 0;     //copy of the above var
