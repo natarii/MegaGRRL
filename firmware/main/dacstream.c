@@ -7,10 +7,14 @@
 #include "driver.h"
 #include "string.h"
 #include "userled.h"
+#include "loader.h"
+#include "player.h"
 
 static const char* TAG = "DacStream";
 
 volatile DacStreamEntry_t DacStreamEntries[DACSTREAM_PRE_COUNT];
+
+uint8_t DacStream_CurLoop = 0;
 
 StaticSemaphore_t DacStream_MutexBuf;
 SemaphoreHandle_t DacStream_Mutex = NULL;
@@ -203,12 +207,25 @@ void DacStream_FindTask() {
                             DacStreamEntries[FreeSlot].SlotFree = false;
                             DacStream_FoundAny = true;
                             break;
-                        } else if (d == 0x66) {
-                            if (DacStream_FoundAny) {
-                                fseek(DacStream_FindFile, DacStream_VgmInfo->LoopOffset, SEEK_SET);
-                                continue;
-                            } else {
-                                ESP_LOGI(TAG, "Find task reached end of file without finding any starts");
+                        } else if (d == 0x66) { //end of music, optionally loop
+                            ESP_LOGI(TAG, "reached end of music");
+                            if (DacStream_FoundAny) { //some were found so what we do now matters
+                                if (DacStream_VgmInfo->LoopOffset == 0 || DacStream_VgmInfo->LoopSamples == 0) { //no loop point. LoopSamples is checked, see "Warning! Ignored Zero-Sample-Loop!" in vgmplay, todo make this an option
+                                    ESP_LOGI(TAG, "no loop point");
+                                    DacStream_FindRunning = false;
+                                    break;
+                                }
+                                if (Player_LoopCount != 255 && ++DacStream_CurLoop == Player_LoopCount) {
+                                    ESP_LOGI(TAG, "stopping");
+                                    DacStream_FindRunning = false;
+                                    break;
+                                } else {
+                                    ESP_LOGI(TAG, "looping");
+                                    fseek(DacStream_FindFile, DacStream_VgmInfo->LoopOffset, SEEK_SET);
+                                    continue;
+                                }
+                            } else { //none were found, so just die
+                                ESP_LOGI(TAG, "Find task reached end of music without finding any starts");
                                 DacStream_FindRunning = false;
                                 break;
                             }
@@ -302,6 +319,7 @@ bool DacStream_Start(FILE *FindFile, FILE *FillFile, VgmInfoStruct_t *info) {
     DacStream_Seq = 1;
     DacStream_FoundAny = false;
     DacStream_VgmDataBlockIndex = 0;
+    DacStream_CurLoop = 0;
 
     ESP_LOGI(TAG, "DacStream_Start() requesting fill task start");
     xEventGroupSetBits(DacStream_FillStatus, DACSTREAM_START_REQUEST);
