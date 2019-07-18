@@ -396,6 +396,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
         ESP_LOGW(TAG, "Game Gear PSG stereo not implemented !!");
     } else if (cmd[0] == 0x66) { //end of music
         xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_RUNNING);
+        xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_FINISHED);
         Driver_ResetChips();
         ESP_LOGI(TAG, "reached end of music");
     } else {
@@ -427,17 +428,20 @@ void Driver_Main() {
             Driver_PsgLastChannel = 0; //psg can't really be reset, so technically this is kinda wrong? but it's consistent.
 
             //update status flags
+            xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_FINISHED);
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_START_REQUEST);
             xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_RUNNING);
             commandeventbits &= ~DRIVER_EVENT_START_REQUEST;
             commandeventbits |= DRIVER_EVENT_RUNNING;
         } else if (commandeventbits & DRIVER_EVENT_RESET_REQUEST) {
             Driver_ResetChips();
+            xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_FINISHED);
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_RESET_REQUEST);
             xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_RESET_ACK);
             commandeventbits &= ~DRIVER_EVENT_RESET_REQUEST;
             commandeventbits |= DRIVER_EVENT_RESET_ACK;
         } else if (commandeventbits & DRIVER_EVENT_STOP_REQUEST) {
+            xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_FINISHED);
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_RUNNING);
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_STOP_REQUEST);
             commandeventbits &= ~(DRIVER_EVENT_RUNNING | DRIVER_EVENT_STOP_REQUEST);
