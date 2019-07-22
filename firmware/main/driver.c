@@ -176,7 +176,7 @@ void Driver_PsgOut(uint8_t Data) {
     if (Data & 0x80) {
         Driver_PsgLastChannel = (Data & 0b01100000) >> 5;
     }
-    uint8_t ch = 7 + Driver_PsgLastChannel; //7 = psg ch offset in array
+    uint8_t ch = 6 + Driver_PsgLastChannel; //6 = psg ch offset in array
     if ((Data & 0b10010000) == 0b10010000) { //attenuation
         uint8_t atten = Data & 0b00001111;
         if (atten == 0b1111) { //full atten, off.
