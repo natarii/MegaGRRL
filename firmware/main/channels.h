@@ -9,8 +9,15 @@ enum ChannelStates {
     CHSTATE_PARAM = 0x02,
 };
 
-extern volatile uint8_t ChannelMgr_States[7+4];
-extern uint8_t ChannelMgr_States_Old[7+4];
+typedef enum {
+    LEDSTATE_OFF,
+    LEDSTATE_BRIGHT,
+    LEDSTATE_ON,
+    LEDSTATE_COUNT
+} ChannelLedState_t;
+
+extern volatile uint8_t ChannelMgr_States[6+4];
+extern uint8_t ChannelMgr_States_Old[6+4];
 extern volatile uint32_t ChannelMgr_PcmAccu;
 extern volatile uint32_t ChannelMgr_PcmCount;
 

@@ -7,9 +7,10 @@
 
 static const char* TAG = "ChannelMgr";
 
-volatile uint8_t ChannelMgr_States[7+4];
-uint32_t ChannelMgr_BrTime[7+4];
-uint8_t ChannelMgr_States_Old[7+4];
+volatile uint8_t ChannelMgr_States[6+4];
+ChannelLedState_t ChannelMgr_LedStates[6+4];
+uint32_t ChannelMgr_BrTime[6+4];
+uint8_t ChannelMgr_States_Old[6+4];
 volatile uint32_t ChannelMgr_PcmAccu;
 volatile uint32_t ChannelMgr_PcmCount;
 
@@ -28,22 +29,35 @@ bool ChannelMgr_Setup() {
 
 void ChannelMgr_Main() {
     while (1) {
-        for (uint8_t i=0;i<7+4;i++) { //fm, psg
+        for (uint8_t i=0;i<6+4;i++) { //fm, psg
+            if (ChannelMgr_LedStates[i] == LEDSTATE_BRIGHT && xthal_get_ccount() - ChannelMgr_BrTime[i] >= 50*240000) {
+                ChannelMgr_LedStates[i] = LEDSTATE_ON;
+            }
             if ((ChannelMgr_States_Old[i] & CHSTATE_KON) == 0 && (ChannelMgr_States[i] & CHSTATE_KON)) { //kon rising edge
-                ChannelMgr_BrTime[i] = esp_timer_get_time();
+                ChannelMgr_BrTime[i] = xthal_get_ccount();
+                ChannelMgr_LedStates[i] = LEDSTATE_BRIGHT;
             } else if ((ChannelMgr_States[i] & CHSTATE_PARAM) && (ChannelMgr_States[i] & CHSTATE_KON)) { //param rising edge
-                ChannelMgr_BrTime[i] = esp_timer_get_time();
+                ChannelMgr_BrTime[i] = xthal_get_ccount();
+                ChannelMgr_LedStates[i] = LEDSTATE_BRIGHT;
+            } else if ((ChannelMgr_States[i] & CHSTATE_KON) == 0) {
+                ChannelMgr_LedStates[i] = LEDSTATE_OFF;
             }
 
             ChannelMgr_States[i] &= ~CHSTATE_PARAM;
             
-            uint8_t br = 0;
-            if (ChannelMgr_States[i] & CHSTATE_KON) {
-                br = 96;
-                if (esp_timer_get_time() - ChannelMgr_BrTime[i] <= (1000000/1000)*50) br = 255; //this will overflow eventually but it's not really a big deal
-            } else {
+            switch (ChannelMgr_LedStates[i]) {
+                case LEDSTATE_BRIGHT:
+                LedDrv_States[i] = 255;
+                    break;
+                case LEDSTATE_ON:
+                LedDrv_States[i] = 96;
+                    break;
+                case LEDSTATE_OFF:
+                LedDrv_States[i] = 0;
+                    break;
+                default:
+                    break;
             }
-            LedDrv_States[i] = br;
 
             ChannelMgr_States_Old[i] = ChannelMgr_States[i];
         }
@@ -54,7 +68,7 @@ void ChannelMgr_Main() {
             avg <<= 1;
             if (avg > 255) avg = 255;
         }
-        LedDrv_States[6] = avg;
+        LedDrv_States[6+4] = avg;
         if (!I2cMgr_Seize(false, pdMS_TO_TICKS(1000))) {
             ESP_LOGE(TAG, "Couldn't seize bus !!");
             return false;
