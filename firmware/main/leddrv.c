@@ -37,11 +37,14 @@ const uint8_t led_curve_lut[256] = {
 uint8_t led_channel_assignment[] = {
     //PCA9634 LED numbers 0-indexed
     
-    //FM 1-6 + PCM
-    7, 5, 0, 2, 3, 8+6, 8+5,
+    //FM 1-6
+    7, 5, 0, 2, 3, 8+6,
 
     //PSG 1-3 + noise
     6, 4, 1, 8+4,
+
+    //FM PCM
+    8+5,
 
     //ABC
     8+3, 8+2, 8+1,
