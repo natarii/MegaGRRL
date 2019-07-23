@@ -61,6 +61,8 @@ uint32_t Driver_LastCc = 0;     //copy of the above var
 uint32_t Driver_NextSample = 0; //sample number at which the next command needs to be run
 uint8_t Driver_FmAlgo[6] = {0,0,0,0,0,0};
 uint8_t Driver_PsgLastChannel = 0;
+bool Driver_FirstWait = true;
+uint8_t Driver_FmPans[6] = {0,0,0,0,0,0};
 
 //dacstream specific
 uint32_t DacStreamSeq = 0;              //sequence no of the current stream
@@ -301,6 +303,20 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
         if (Value & 0x80) ChannelMgr_States[5] |= CHSTATE_KON;
     }
 }
+
+void Driver_SetFirstWait() {
+    Driver_Cycle = 0;
+    Driver_LastCc = Driver_Cc = xthal_get_ccount();
+    Driver_FirstWait = false;
+    //more code space but it's faster lolol
+    Driver_FmOut(0, 0xb4, Driver_FmPans[0]);
+    Driver_FmOut(0, 0xb5, Driver_FmPans[1]);
+    Driver_FmOut(0, 0xb6, Driver_FmPans[2]);
+    Driver_FmOut(1, 0xb4, Driver_FmPans[3]);
+    Driver_FmOut(1, 0xb5, Driver_FmPans[4]);
+    Driver_FmOut(1, 0xb6, Driver_FmPans[5]);
+}
+
 uint8_t Driver_SeqToSlot(uint32_t seq) {
     for (uint8_t i=0;i<DACSTREAM_PRE_COUNT;i++) {
         if (!DacStreamEntries[i].SlotFree && DacStreamEntries[i].Seq == seq) {
@@ -336,23 +352,40 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
             Driver_PsgOut(cmd[1]);
         }
     } else if (cmd[0] == 0x52) { //YM2612 port 0
+        if (Driver_FirstWait && cmd[1] >= 0xb4 && cmd[1] <= 0xb6) {
+            Driver_FmPans[cmd[1]-0xb4] = cmd[2];
+            cmd[2] &= 0b00111111;
+        }
         Driver_FmOut(0, cmd[1], cmd[2]);
     } else if (cmd[0] == 0x53) { //YM2612 port 1
+        if (Driver_FirstWait && cmd[1] >= 0xb4 && cmd[1] <= 0xb6) {
+            Driver_FmPans[3+cmd[1]-0xb4] = cmd[2];
+            cmd[2] &= 0b00111111;
+        }
         Driver_FmOut(1, cmd[1], cmd[2]);
     } else if (cmd[0] == 0x61) { //16bit wait
         Driver_NextSample += *(uint16_t*)&cmd[1];
+        if (Driver_FirstWait && *(uint16_t*)&cmd[1] > 0) {
+            Driver_SetFirstWait();
+        }
     } else if (cmd[0] == 0x62) { //60Hz wait
         Driver_NextSample += 735;
+        if (Driver_FirstWait) Driver_SetFirstWait();
     } else if (cmd[0] == 0x63) { //50Hz wait
         Driver_NextSample += 882;
+        if (Driver_FirstWait) Driver_SetFirstWait();
     } else if ((cmd[0] & 0xf0) == 0x70) { //4bit wait
         Driver_NextSample += (cmd[0] & 0x0f) + 1;
+        if (Driver_FirstWait) Driver_SetFirstWait();
     } else if ((cmd[0] & 0xf0) == 0x80) { //YM2612 DAC + wait
         uint8_t sample;
         //TODO check if queue is empty
         xQueueReceive(Driver_PcmQueue, &sample, 0);
         Driver_FmOut(0, 0x2a, sample);
         Driver_NextSample += cmd[0] & 0x0f;
+        if (Driver_FirstWait && (cmd[0] & 0x0f) > 0) {
+            Driver_SetFirstWait();
+        }
     } else if (cmd[0] == 0x93 || cmd[0] == 0x95) { //dac stream start
         DacStreamSeq++;
         if (DacStreamLastSeqPlayed > 0) {
@@ -425,6 +458,8 @@ void Driver_Main() {
             DacStreamSeq = 0;
             memset(&Driver_FmAlgo[0], 0, sizeof(Driver_FmAlgo));
             Driver_PsgLastChannel = 0; //psg can't really be reset, so technically this is kinda wrong? but it's consistent.
+            Driver_FirstWait = true;
+            memset(&Driver_FmPans[0], 0, sizeof(Driver_FmPans));
 
             //update status flags
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_FINISHED);
