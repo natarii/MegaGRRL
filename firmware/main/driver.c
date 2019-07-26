@@ -406,11 +406,11 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
             DacStreamPort = DacStreamEntries[DacStreamId].ChipPort;
             DacStreamCommand = DacStreamEntries[DacStreamId].ChipCommand;
             DacStreamSampleTime = xthal_get_ccount();
-            ESP_LOGD(TAG, "playing %d q size %d rate %d", DacStreamSeq, uxQueueMessagesWaiting(DacStreamEntries[DacStreamId].Queue), DacStreamSampleRate);
             DacStreamLastSeqPlayed = DacStreamSeq;
             DacStreamSamplesPlayed = 0;
             DacStreamLengthMode = DacStreamEntries[DacStreamId].LengthMode;
             DacStreamDataLength = DacStreamEntries[DacStreamId].DataLength;
+            ESP_LOGD(TAG, "playing %d q size %d rate %d LM %d len %d", DacStreamSeq, uxQueueMessagesWaiting(DacStreamEntries[DacStreamId].Queue), DacStreamSampleRate, DacStreamLengthMode, DacStreamDataLength);
             DacStreamActive = true;
         }
     } else if (cmd[0] == 0x94) { //dac stream stop
@@ -539,7 +539,7 @@ void Driver_Main() {
                         Driver_FmOut(DacStreamPort, DacStreamCommand, sample);
                         DacStreamSampleTime += (DRIVER_CLOCK_RATE/DacStreamSampleRate);
                         DacStreamSamplesPlayed++;
-                        if (DacStreamSamplesPlayed == DacStreamDataLength && (DacStreamLengthMode == 0 || DacStreamLengthMode == 3)) {
+                        if (DacStreamSamplesPlayed == DacStreamDataLength && (DacStreamLengthMode == 0 || DacStreamLengthMode == 1 || DacStreamLengthMode == 3)) {
                             DacStreamActive = false;
                         }
                     }
