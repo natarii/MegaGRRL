@@ -237,7 +237,9 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
     //channel led stuff
     //todo: clean this up, there's so much code duplication.
     if (Register >= 0xb0 && Register <= 0xb2) {
-        Driver_FmAlgo[(Port?3:0)+(Register-0xb0)] = Value & 0b111;
+        uint8_t ch = (Port?3:0)+(Register-0xb0);
+        Driver_FmAlgo[ch] = Value & 0b111;
+        ChannelMgr_States[ch] |= CHSTATE_PARAM;
     } else if (Port == 0 && Register == 0x28) { //KON
         uint8_t ch = Value & 0b111;
         if (ch >= 0b100) ch = 0b11 + (ch - 0b100);
