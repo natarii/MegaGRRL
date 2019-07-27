@@ -16,6 +16,7 @@
 #define DRIVER_EVENT_RESET_REQUEST  0x20 //incoming request to reset chips - only driver has access to spi
 #define DRIVER_EVENT_RESET_ACK      0x10 //reset is finished
 #define DRIVER_EVENT_ERROR          0x40 //status flag
+#define DRIVER_EVENT_RESUME_REQUEST 0x80 //unpause
 
 //QueueEvents
 #define DRIVER_EVENT_COMMAND_UNDERRUN       0x01 //status flag

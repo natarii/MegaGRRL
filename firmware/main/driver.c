@@ -63,6 +63,9 @@ uint8_t Driver_FmAlgo[6] = {0,0,0,0,0,0};
 uint8_t Driver_PsgLastChannel = 0;
 bool Driver_FirstWait = true;
 uint8_t Driver_FmPans[6] = {0,0,0,0,0,0};
+uint32_t Driver_PauseSample = 0; //sample no before stop
+uint8_t Driver_PsgAttenuation[4] = {0x10, 0x10, 0x10, 0x10}; //garbage values, initial ones are set properly in start
+bool Driver_NoLeds = false;
 
 //dacstream specific
 uint32_t DacStreamSeq = 0;              //sequence no of the current stream
@@ -175,6 +178,7 @@ void Driver_PsgOut(uint8_t Data) {
     Driver_Sleep(20);
 
     //channel led stuff
+    if (Driver_NoLeds) return;
     if (Data & 0x80) {
         Driver_PsgLastChannel = (Data & 0b01100000) >> 5;
     }
@@ -235,6 +239,7 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
     Driver_Sleep(5);
 
     //channel led stuff
+    if (Driver_NoLeds) return;
     //todo: clean this up, there's so much code duplication.
     if (Register >= 0xb0 && Register <= 0xb2) {
         uint8_t ch = (Port?3:0)+(Register-0xb0);
@@ -351,18 +356,21 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
         } else if ((cmd[1] & 0b10010000) == 0b10000000 && (cmd[1]&0b01100000)>>5 != 3) { //channel frequency low byte
             Driver_PsgFreqLow = cmd[1];
         } else {
+            if ((cmd[1] & 0b10010000) == 0b1001000) {
+                Driver_PsgAttenuation[(cmd[1]>>5)&0b00000011] = cmd[2];
+            }
             Driver_PsgOut(cmd[1]);
         }
     } else if (cmd[0] == 0x52) { //YM2612 port 0
-        if (Driver_FirstWait && cmd[1] >= 0xb4 && cmd[1] <= 0xb6) {
+        if (cmd[1] >= 0xb4 && cmd[1] <= 0xb6) {
             Driver_FmPans[cmd[1]-0xb4] = cmd[2];
-            cmd[2] &= 0b00111111;
+            if (Driver_FirstWait) cmd[2] &= 0b00111111;
         }
         Driver_FmOut(0, cmd[1], cmd[2]);
     } else if (cmd[0] == 0x53) { //YM2612 port 1
-        if (Driver_FirstWait && cmd[1] >= 0xb4 && cmd[1] <= 0xb6) {
+        if (cmd[1] >= 0xb4 && cmd[1] <= 0xb6) {
             Driver_FmPans[3+cmd[1]-0xb4] = cmd[2];
-            cmd[2] &= 0b00111111;
+            if (Driver_FirstWait) cmd[2] &= 0b00111111;
         }
         Driver_FmOut(1, cmd[1], cmd[2]);
     } else if (cmd[0] == 0x61) { //16bit wait
@@ -462,6 +470,9 @@ void Driver_Main() {
             Driver_PsgLastChannel = 0; //psg can't really be reset, so technically this is kinda wrong? but it's consistent.
             Driver_FirstWait = true;
             memset(&Driver_FmPans[0], 0, sizeof(Driver_FmPans));
+            for (uint8_t i=0;i<4;i++) {
+                Driver_PsgAttenuation[i] = 0b10011111 | (i<<5);
+            }
 
             //update status flags
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_FINISHED);
@@ -477,10 +488,41 @@ void Driver_Main() {
             commandeventbits &= ~DRIVER_EVENT_RESET_REQUEST;
             commandeventbits |= DRIVER_EVENT_RESET_ACK;
         } else if (commandeventbits & DRIVER_EVENT_STOP_REQUEST) {
+            Driver_PauseSample = Driver_Sample;
+            Driver_NoLeds = true;
+            Driver_FmOut(0, 0xb4, Driver_FmPans[0] & 0b00111111);
+            Driver_FmOut(0, 0xb5, Driver_FmPans[1] & 0b00111111);
+            Driver_FmOut(0, 0xb6, Driver_FmPans[2] & 0b00111111);
+            Driver_FmOut(1, 0xb4, Driver_FmPans[3] & 0b00111111);
+            Driver_FmOut(1, 0xb5, Driver_FmPans[4] & 0b00111111);
+            Driver_FmOut(1, 0xb6, Driver_FmPans[5] & 0b00111111);
+            for (uint8_t i=0;i<4;i++) {
+                Driver_PsgOut(0b10011111 | (i<<5));
+            }
+            Driver_NoLeds = false;
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_FINISHED);
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_RUNNING);
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_STOP_REQUEST);
             commandeventbits &= ~(DRIVER_EVENT_RUNNING | DRIVER_EVENT_STOP_REQUEST);
+        } else if (commandeventbits & DRIVER_EVENT_RESUME_REQUEST) {
+            //todo: what if higher up resumes before stopping?
+            Driver_NoLeds = true;
+            Driver_FmOut(0, 0xb4, Driver_FmPans[0]);
+            Driver_FmOut(0, 0xb5, Driver_FmPans[1]);
+            Driver_FmOut(0, 0xb6, Driver_FmPans[2]);
+            Driver_FmOut(1, 0xb4, Driver_FmPans[3]);
+            Driver_FmOut(1, 0xb5, Driver_FmPans[4]);
+            Driver_FmOut(1, 0xb6, Driver_FmPans[5]);
+            for (uint8_t i=0;i<4;i++) {
+                Driver_PsgOut(Driver_PsgAttenuation[i]);
+            }
+            Driver_NoLeds = false;
+            Driver_Cc = Driver_LastCc = DacStreamSampleTime = xthal_get_ccount(); //dacstreams may end up being off by a sample or two upon resume - not going to worry about it
+            Driver_Sample = Driver_PauseSample;
+            xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_RUNNING);
+            xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_RESUME_REQUEST);
+            commandeventbits &= ~DRIVER_EVENT_RESUME_REQUEST;
+            commandeventbits |= DRIVER_EVENT_RUNNING;
         } else if (commandeventbits & DRIVER_EVENT_RUNNING) {
             Driver_Cycle += (Driver_Cc - Driver_LastCc);
             Driver_LastCc = Driver_Cc;
