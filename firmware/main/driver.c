@@ -203,16 +203,16 @@ void Driver_PsgOut(uint8_t Data) {
 }
 
 void Driver_ResetChips() {
+        Driver_PsgOut(0b10011111);
+        Driver_PsgOut(0b10111111);
+        Driver_PsgOut(0b11011111);
+        Driver_PsgOut(0b11111111);
         Driver_SrBuf[0] ^= SR_BIT_IC;
         Driver_Output();
         Driver_Sleep(1000);
         Driver_SrBuf[0] |= SR_BIT_IC;
         Driver_Output();
         Driver_Sleep(1000);
-        Driver_PsgOut(0b10011111);
-        Driver_PsgOut(0b10111111);
-        Driver_PsgOut(0b11011111);
-        Driver_PsgOut(0b11111111);
 }
 
 void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
