@@ -7,7 +7,7 @@
 #include "taskmgr.h"
 #include <string.h>
 
-static const char* TAG = "ChannelMgr";
+static const char* TAG = "UserLed";
 
 volatile uint8_t UserLedMgr_States[3];
 
