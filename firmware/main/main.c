@@ -72,6 +72,7 @@ void crash() {
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     textarea_style.body.main_color = LV_COLOR_MAKE(255,0,0);
     textarea_style.body.grad_color = LV_COLOR_MAKE(255,0,0);
+    textarea_style.text.color = LV_COLOR_MAKE(255,255,255);
     lv_obj_report_style_mod(&textarea_style);
     LcdDma_Mutex_Give();
     ESP_LOGE(TAG, "CRASHING !!");
