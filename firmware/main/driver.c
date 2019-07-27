@@ -347,34 +347,36 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
     }
 
     if (cmd[0] == 0x50) { //SN76489
+        //psg writes need to be intercepted to fix frequency register differences between TI PSG <-> SEGA VDP PSG
         //TODO: only do this for vgms where ver >= 1.51 and header 0x2b bit 0 is set
-        if ((cmd[1] & 0x80) == 0) { //channel frequency high byte
-            if ((Driver_PsgFreqLow & 0b00001111) == 0) { //low byte is all 0 for freq
-                if ((cmd[1] & 0b00111111) == 0) { //high byte is all 0 for freq
+        if ((cmd[1] & 0x80) == 0) { //ch 1~3 frequency high byte write
+            if ((Driver_PsgFreqLow & 0b00001111) == 0) { //if low byte is all 0 for freq
+                if ((cmd[1] & 0b00111111) == 0) { //if high byte is all 0 for freq
                     Driver_PsgFreqLow |= 1; //set bit 0 of freq to 1
                 }
             }
+            //write both registers now
             Driver_PsgOut(Driver_PsgFreqLow);
             Driver_PsgOut(cmd[1]);
-        } else if ((cmd[1] & 0b10010000) == 0b10000000 && (cmd[1]&0b01100000)>>5 != 3) { //channel frequency low byte
-            Driver_PsgFreqLow = cmd[1];
-        } else {
-            if ((cmd[1] & 0b10010000) == 0b1001000) {
+        } else if ((cmd[1] & 0b10010000) == 0b10000000 && (cmd[1]&0b01100000)>>5 != 3) { //ch 1~3 frequency low byte write
+            Driver_PsgFreqLow = cmd[1]; //just store the value for now, don't write anything until we get the high byte
+        } else { //attenuation or noise ch control write
+            if ((cmd[1] & 0b10010000) == 0b1001000) { //attenuation
                 Driver_PsgAttenuation[(cmd[1]>>5)&0b00000011] = cmd[2];
-                if (Driver_FirstWait) cmd[2] |= 0b00001111;
+                if (Driver_FirstWait) cmd[2] |= 0b00001111; //if we haven't reached the first wait, force full attenuation
             }
             Driver_PsgOut(cmd[1]);
         }
     } else if (cmd[0] == 0x52) { //YM2612 port 0
-        if (cmd[1] >= 0xb4 && cmd[1] <= 0xb6) {
+        if (cmd[1] >= 0xb4 && cmd[1] <= 0xb6) { //pan, FMS, AMS
             Driver_FmPans[cmd[1]-0xb4] = cmd[2];
-            if (Driver_FirstWait) cmd[2] &= 0b00111111;
+            if (Driver_FirstWait) cmd[2] &= 0b00111111; //if we haven't reached the first wait, disable both L and R
         }
         Driver_FmOut(0, cmd[1], cmd[2]);
     } else if (cmd[0] == 0x53) { //YM2612 port 1
-        if (cmd[1] >= 0xb4 && cmd[1] <= 0xb6) {
+        if (cmd[1] >= 0xb4 && cmd[1] <= 0xb6) { //pan, FMS, AMS
             Driver_FmPans[3+cmd[1]-0xb4] = cmd[2];
-            if (Driver_FirstWait) cmd[2] &= 0b00111111;
+            if (Driver_FirstWait) cmd[2] &= 0b00111111; //if we haven't reached the first wait, disable both L and R
         }
         Driver_FmOut(1, cmd[1], cmd[2]);
     } else if (cmd[0] == 0x61) { //16bit wait
