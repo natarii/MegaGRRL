@@ -322,6 +322,9 @@ void Driver_SetFirstWait() {
     Driver_FmOut(1, 0xb4, Driver_FmPans[3]);
     Driver_FmOut(1, 0xb5, Driver_FmPans[4]);
     Driver_FmOut(1, 0xb6, Driver_FmPans[5]);
+    for (uint8_t i=0;i<4;i++) {
+        Driver_PsgOut(Driver_PsgAttenuation[i]);
+    }
 }
 
 uint8_t Driver_SeqToSlot(uint32_t seq) {
@@ -358,6 +361,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
         } else {
             if ((cmd[1] & 0b10010000) == 0b1001000) {
                 Driver_PsgAttenuation[(cmd[1]>>5)&0b00000011] = cmd[2];
+                if (Driver_FirstWait) cmd[2] |= 0b00001111;
             }
             Driver_PsgOut(cmd[1]);
         }
