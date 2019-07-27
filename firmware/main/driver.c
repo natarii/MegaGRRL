@@ -506,17 +506,19 @@ void Driver_Main() {
             commandeventbits &= ~(DRIVER_EVENT_RUNNING | DRIVER_EVENT_STOP_REQUEST);
         } else if (commandeventbits & DRIVER_EVENT_RESUME_REQUEST) {
             //todo: what if higher up resumes before stopping?
-            Driver_NoLeds = true;
-            Driver_FmOut(0, 0xb4, Driver_FmPans[0]);
-            Driver_FmOut(0, 0xb5, Driver_FmPans[1]);
-            Driver_FmOut(0, 0xb6, Driver_FmPans[2]);
-            Driver_FmOut(1, 0xb4, Driver_FmPans[3]);
-            Driver_FmOut(1, 0xb5, Driver_FmPans[4]);
-            Driver_FmOut(1, 0xb6, Driver_FmPans[5]);
-            for (uint8_t i=0;i<4;i++) {
-                Driver_PsgOut(Driver_PsgAttenuation[i]);
+            if (!Driver_FirstWait) {
+                Driver_NoLeds = true;
+                Driver_FmOut(0, 0xb4, Driver_FmPans[0]);
+                Driver_FmOut(0, 0xb5, Driver_FmPans[1]);
+                Driver_FmOut(0, 0xb6, Driver_FmPans[2]);
+                Driver_FmOut(1, 0xb4, Driver_FmPans[3]);
+                Driver_FmOut(1, 0xb5, Driver_FmPans[4]);
+                Driver_FmOut(1, 0xb6, Driver_FmPans[5]);
+                for (uint8_t i=0;i<4;i++) {
+                    Driver_PsgOut(Driver_PsgAttenuation[i]);
+                }
+                Driver_NoLeds = false;
             }
-            Driver_NoLeds = false;
             Driver_Cc = Driver_LastCc = DacStreamSampleTime = xthal_get_ccount(); //dacstreams may end up being off by a sample or two upon resume - not going to worry about it
             Driver_Sample = Driver_PauseSample;
             xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_RUNNING);
