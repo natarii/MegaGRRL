@@ -210,7 +210,7 @@ void DacStream_FindTask() {
                         } else if (d == 0x66) { //end of music, optionally loop
                             ESP_LOGI(TAG, "reached end of music");
                             if (DacStream_FoundAny) { //some were found so what we do now matters
-                                if (DacStream_VgmInfo->LoopOffset == 0 || DacStream_VgmInfo->LoopSamples == 0) { //no loop point. LoopSamples is checked, see "Warning! Ignored Zero-Sample-Loop!" in vgmplay, todo make this an option
+                                if (DacStream_VgmInfo->LoopOffset == 0) { //no loop point
                                     ESP_LOGI(TAG, "no loop point");
                                     DacStream_FindRunning = false;
                                     break;
