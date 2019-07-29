@@ -308,6 +308,7 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
         ChannelMgr_States[ch] |= CHSTATE_PARAM;
     } else if (Register == 0x2b) { //dac enable
         if (Value & 0x80) ChannelMgr_States[5] |= CHSTATE_KON;
+        else ChannelMgr_States[5] &= ~CHSTATE_KON;
     }
 }
 
