@@ -62,7 +62,7 @@ uint32_t Driver_NextSample = 0; //sample number at which the next command needs 
 uint8_t Driver_FmAlgo[6] = {0,0,0,0,0,0};
 uint8_t Driver_PsgLastChannel = 0;
 bool Driver_FirstWait = true;
-uint8_t Driver_FmPans[6] = {0,0,0,0,0,0};
+uint8_t Driver_FmPans[6] = {0b11000000,0b11000000,0b11000000,0b11000000,0b11000000,0b11000000};
 uint32_t Driver_PauseSample = 0; //sample no before stop
 uint8_t Driver_PsgAttenuation[4] = {0x10, 0x10, 0x10, 0x10}; //garbage values, initial ones are set properly in start
 bool Driver_NoLeds = false;
@@ -476,7 +476,7 @@ void Driver_Main() {
             memset(&Driver_FmAlgo[0], 0, sizeof(Driver_FmAlgo));
             Driver_PsgLastChannel = 0; //psg can't really be reset, so technically this is kinda wrong? but it's consistent.
             Driver_FirstWait = true;
-            memset(&Driver_FmPans[0], 0, sizeof(Driver_FmPans));
+            memset(&Driver_FmPans[0], 0b11000000, sizeof(Driver_FmPans));
             for (uint8_t i=0;i<4;i++) {
                 Driver_PsgAttenuation[i] = 0b10011111 | (i<<5);
             }
