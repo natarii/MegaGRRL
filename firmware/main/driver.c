@@ -480,6 +480,7 @@ void Driver_Main() {
             for (uint8_t i=0;i<4;i++) {
                 Driver_PsgAttenuation[i] = 0b10011111 | (i<<5);
             }
+            memset(&ChannelMgr_States[0], 0, 6+4);
 
             //update status flags
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_FINISHED);
