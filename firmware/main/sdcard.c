@@ -81,3 +81,7 @@ bool Sdcard_Setup() {
 
     return true;
 }
+
+void Sdcard_Destroy() {
+    esp_vfs_fat_sdmmc_unmount();
+}

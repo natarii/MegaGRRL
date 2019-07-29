@@ -4,6 +4,7 @@
 #include "esp_log.h"
 #include "key.h"
 #include "ioexp.h"
+#include "sdcard.h"
 
 static const char* TAG = "KeyMgr";
 
@@ -86,6 +87,8 @@ void KeyMgr_Main() {
                     KeyMgr_SendEvent(bit, KEY_EVENT_PRESS | KEY_EVENT_REPEAT);
                     KeyStates[bit].TsLastRepeat = now;
                     if (bit == KEY_A && now - KeyStates[bit].TsDown >= 2500) {
+                        Sdcard_Destroy();
+                        vTaskDelay(pdMS_TO_TICKS(500));
                         /*do shutdown stuff*/
                         IoExp_PowerControl(false);
                         vTaskDelay(pdMS_TO_TICKS(500));

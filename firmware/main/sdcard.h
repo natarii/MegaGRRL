@@ -10,5 +10,6 @@
 #include "diskio.h"
 
 bool Sdcard_Setup();
+void Sdcard_Destroy();
 
 #endif
