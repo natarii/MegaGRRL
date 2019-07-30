@@ -102,7 +102,7 @@ void Loader_Main() {
                 xEventGroupSetBits(Loader_BufStatus, LOADER_BUF_LOW);
                 xEventGroupClearBits(Loader_BufStatus, 0xff ^ LOADER_BUF_LOW);
             }
-            if (!Loader_EndReached && (spaces > DRIVER_QUEUE_SIZE/6)) {
+            if (!Loader_EndReached && (spaces > DRIVER_QUEUE_SIZE/8)) {
                 UserLedMgr_States[0] = 255;
                 UserLedMgr_Notify();
                 while (running && uxQueueSpacesAvailable(Driver_CommandQueue)) {
