@@ -7,6 +7,7 @@
 #include "freertos/task.h"
 #include "freertos/queue.h"
 #include "freertos/event_groups.h"
+#include "mallocs.h"
 
 //PlayEvents
 #define DRIVER_EVENT_START_REQUEST  0x01 //incoming request to begin playback
@@ -23,8 +24,13 @@
 #define DRIVER_EVENT_PCM_UNDERRUN           0x02 //status flag - this should never ever happen, this should throw up a big error if it is ever set
 #define DRIVER_EVENT_COMMAND_HALF           0x04 //status flag
 
+extern uint8_t Driver_CommandQueueBuf[DRIVER_QUEUE_SIZE];
+extern uint8_t Driver_PcmBuf[DACSTREAM_BUF_SIZE*DACSTREAM_PRE_COUNT];
+
 extern QueueHandle_t Driver_CommandQueue;
 extern QueueHandle_t Driver_PcmQueue;
+extern StaticQueue_t Driver_CommandStaticQueue;
+extern StaticQueue_t Driver_PcmStaticQueue;
 extern EventGroupHandle_t Driver_CommandEvents;
 extern EventGroupHandle_t Driver_QueueEvents;
 extern uint8_t DacStreamId;

@@ -31,6 +31,10 @@ QueueHandle_t Driver_CommandQueue; //queue of incoming vgm data
 QueueHandle_t Driver_PcmQueue; //queue of attached pcm data (if any)
 EventGroupHandle_t Driver_CommandEvents; //driver status flags
 EventGroupHandle_t Driver_QueueEvents; //queue status flags
+StaticQueue_t Driver_CommandStaticQueue;
+StaticQueue_t Driver_PcmStaticQueue;
+uint8_t Driver_CommandQueueBuf[DRIVER_QUEUE_SIZE];
+uint8_t Driver_PcmBuf[DACSTREAM_BUF_SIZE*DACSTREAM_PRE_COUNT];
 
 volatile uint32_t Driver_CpuPeriod = 0;
 volatile uint32_t Driver_CpuUsageVgm = 0;
@@ -91,12 +95,12 @@ void Driver_Output() { //output data to shift registers
 bool Driver_Setup() {
     //create the queues and event groups
     ESP_LOGI(TAG, "Setting up");
-    Driver_CommandQueue = xQueueCreate(DRIVER_QUEUE_SIZE, sizeof(uint8_t));
+    Driver_CommandQueue = xQueueCreateStatic(DRIVER_QUEUE_SIZE, sizeof(uint8_t), &Driver_CommandQueueBuf[0], &Driver_CommandStaticQueue);
     if (Driver_CommandQueue == NULL) {
         ESP_LOGE(TAG, "Command queue create failed !!");
         return false;
     }
-    Driver_PcmQueue = xQueueCreate(DRIVER_QUEUE_SIZE, sizeof(uint8_t));
+    Driver_PcmQueue = xQueueCreateStatic(DRIVER_QUEUE_SIZE, sizeof(uint8_t), &Driver_PcmBuf[0], &Driver_PcmStaticQueue);
     if (Driver_PcmQueue == NULL) {
         ESP_LOGE(TAG, "Pcm queue create failed !!");
         return false;

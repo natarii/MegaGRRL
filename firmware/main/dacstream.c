@@ -35,7 +35,7 @@ bool DacStream_Setup() {
     for (uint8_t i=0; i<DACSTREAM_PRE_COUNT; i++) {
         DacStreamEntries[i].SlotFree = true;
         DacStreamEntries[i].Seq = 0;
-        DacStreamEntries[i].Queue = xQueueCreateStatic(DACSTREAM_BUF_SIZE, sizeof(uint8_t), &DacStreamEntries[i].QueueBuf[0], &DacStreamEntries[i].StaticQueue);
+        DacStreamEntries[i].Queue = xQueueCreateStatic(DACSTREAM_BUF_SIZE, sizeof(uint8_t), &Driver_PcmBuf[i*DACSTREAM_BUF_SIZE], &DacStreamEntries[i].StaticQueue);
         if (DacStreamEntries[i].Queue == NULL) {
             ESP_LOGE(TAG, "Fail to create queue for entry %d !!", i);
             return false;

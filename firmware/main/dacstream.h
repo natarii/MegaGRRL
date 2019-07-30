@@ -21,7 +21,6 @@ typedef struct {
     uint8_t LengthMode;
     uint32_t DataLength;
     uint32_t ReadOffset;
-    uint8_t QueueBuf[DACSTREAM_BUF_SIZE];
     uint32_t BytesFilled;
     QueueHandle_t Queue;
     StaticQueue_t StaticQueue;

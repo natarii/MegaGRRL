@@ -1,7 +1,7 @@
 #ifndef AGR_MALLOCS_H
 #define AGR_MALLOCS_H
 
-#define DRIVER_QUEUE_SIZE 10000
+#define DRIVER_QUEUE_SIZE 20000 //also used for old-style 2612 pcm. must be less than DACSTREAM_BUF_SIZE*DACSTREAM_PRE_COUNT!!
 #define DACSTREAM_BUF_SIZE 5000
 #define DACSTREAM_PRE_COUNT 16
 #define CARD_BLOCK_SIZE 1024
