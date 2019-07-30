@@ -1,6 +1,9 @@
 #include "clk.h"
 #include "driver/ledc.h"
 #include "pins.h"
+#include "esp_log.h"
+
+static const char* TAG = "ClkMgr";
 
 uint8_t Clk_GPIOs[2] = {PIN_CLK_FM,PIN_CLK_PSG};
 bool Clk_ffinstalled = false;
