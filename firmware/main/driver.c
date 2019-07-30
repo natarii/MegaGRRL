@@ -477,8 +477,15 @@ void Driver_Main() {
             Driver_PsgLastChannel = 0; //psg can't really be reset, so technically this is kinda wrong? but it's consistent.
             Driver_FirstWait = true;
             memset(&Driver_FmPans[0], 0b11000000, sizeof(Driver_FmPans));
+            Driver_FmOut(0, 0xb4, 0);
+            Driver_FmOut(0, 0xb5, 0);
+            Driver_FmOut(0, 0xb6, 0);
+            Driver_FmOut(1, 0xb4, 0);
+            Driver_FmOut(1, 0xb5, 0);
+            Driver_FmOut(1, 0xb6, 0);
             for (uint8_t i=0;i<4;i++) {
                 Driver_PsgAttenuation[i] = 0b10011111 | (i<<5);
+                Driver_PsgOut(Driver_PsgAttenuation[i]);
             }
             memset(&ChannelMgr_States[0], 0, 6+4);
 
