@@ -90,6 +90,7 @@ void KeyMgr_Main() {
                         Sdcard_Destroy();
                         vTaskDelay(pdMS_TO_TICKS(500));
                         /*do shutdown stuff*/
+                        IoExp_BacklightControl(false);
                         IoExp_PowerControl(false);
                         vTaskDelay(pdMS_TO_TICKS(500));
                         //if we're still alive, we must be on usb power...

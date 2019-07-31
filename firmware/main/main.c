@@ -127,6 +127,8 @@ void app_main(void)
     //it's also possible the ioexpander is very borked
     IoExp_PowerControl(true);
 
+    IoExp_BacklightControl(true);
+
     ESP_LOGI(TAG, "Early LcdDma setup... let's hope this doesn't fail !!");
     LcdDma_Setup();
 

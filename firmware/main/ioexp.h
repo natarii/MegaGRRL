@@ -19,6 +19,7 @@ bool IoExp_WriteLed(uint8_t LedNo, bool LedStatus);
 bool IoExp_WriteLeds(bool FlashlightStatus, bool Led1Status, bool Led2Status);
 bool IoExp_WriteLedsBin(uint8_t ThreeBits);
 bool IoExp_PowerControl(bool HoldPower);
+bool IoExp_BacklightControl(bool On);
 bool IoExp_ChargeStatus();
 bool IoExp_BatSenseControl(bool SenseEn);
 
