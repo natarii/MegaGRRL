@@ -367,8 +367,8 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
             Driver_PsgFreqLow = cmd[1]; //just store the value for now, don't write anything until we get the high byte
         } else { //attenuation or noise ch control write
             if ((cmd[1] & 0b10010000) == 0b10010000) { //attenuation
-                Driver_PsgAttenuation[(cmd[1]>>5)&0b00000011] = cmd[2];
-                if (Driver_FirstWait) cmd[2] |= 0b00001111; //if we haven't reached the first wait, force full attenuation
+                Driver_PsgAttenuation[(cmd[1]>>5)&0b00000011] = cmd[1];
+                if (Driver_FirstWait) cmd[1] |= 0b00001111; //if we haven't reached the first wait, force full attenuation
             }
             Driver_PsgOut(cmd[1]);
         }
