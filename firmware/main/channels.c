@@ -43,6 +43,13 @@ void ChannelMgr_Main() {
                 ChannelMgr_LedStates[i] = LEDSTATE_OFF;
             }
 
+            //dac override
+            if (i == 5) {
+                if (ChannelMgr_States[5] & CHSTATE_DAC) {
+                    ChannelMgr_LedStates[5] = LEDSTATE_ON;
+                }
+            }
+
             ChannelMgr_States[i] &= ~CHSTATE_PARAM;
             
             switch (ChannelMgr_LedStates[i]) {
