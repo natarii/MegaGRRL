@@ -26,6 +26,17 @@ VgmInfoStruct_t *Loader_VgmInfo;
 uint8_t Loader_VgmDataBlockIndex = 0;
 VgmDataBlockStruct_t Loader_VgmDataBlocks[MAX_REALTIME_DATABLOCKS];
 bool Loader_RequestedDacStreamFindStart = false;
+uint8_t Loader_VgmBuf[FREAD_LOCAL_BUF];
+uint16_t Loader_VgmBufPos = FREAD_LOCAL_BUF;
+uint32_t Loader_VgmFilePos = 0;
+
+//local buffer thingie. big speedup
+#define LOADER_BUF_FILL fseek(Loader_File, Loader_VgmFilePos, SEEK_SET); fread(&Loader_VgmBuf[0], 1, sizeof(Loader_VgmBuf), Loader_File); Loader_VgmBufPos = 0; //todo fix read past eof
+#define LOADER_BUF_CHECK if (Loader_VgmBufPos >= sizeof(Loader_VgmBuf)) {LOADER_BUF_FILL;}
+#define LOADER_BUF_SEEK_SET(offset) Loader_VgmFilePos = offset; fseek(Loader_File, offset, SEEK_SET); LOADER_BUF_FILL;
+#define LOADER_BUF_SEEK_REL(offset) Loader_VgmFilePos += offset; Loader_VgmBufPos += offset; LOADER_BUF_CHECK;
+#define LOADER_BUF_READ(var) var = Loader_VgmBuf[Loader_VgmBufPos]; Loader_VgmBufPos++; Loader_VgmFilePos++; LOADER_BUF_CHECK;
+#define LOADER_BUF_READ4(var) if (sizeof(Loader_VgmBuf)-Loader_VgmBufPos < 4) {LOADER_BUF_FILL;} var = *(uint32_t*)&Loader_VgmBuf[Loader_VgmBufPos]; Loader_VgmBufPos += 4; Loader_VgmFilePos += 4; LOADER_BUF_CHECK;
 
 bool Loader_Setup() {
     ESP_LOGI(TAG, "Setting up");
@@ -106,12 +117,12 @@ void Loader_Main() {
                 UserLedMgr_States[0] = 255;
                 UserLedMgr_Notify();
                 while (running && uxQueueSpacesAvailable(Driver_CommandQueue)) {
-                    uint8_t d;
-                    fread(&d,1,1,Loader_File);
+                    uint8_t d = 0x00;
+                    LOADER_BUF_READ(d);
                     if (Loader_Pending == 0) {
                         if (d == 0xe0) { //pcm seek
                             uint32_t NewPos = 0;
-                            fread(&NewPos,4,1,Loader_File);
+                            LOADER_BUF_READ4(NewPos);
                             uint32_t NewOff = Loader_GetPcmOffset(NewPos);
                             if (NewOff != (Loader_PcmOff+1)) {
                                 ESP_LOGD(TAG, "Pcm seeking to %d", NewOff);
@@ -126,7 +137,10 @@ void Loader_Main() {
                                 ESP_LOGE(TAG, "loader datablocks over !!");
                                 return;
                             } else {
+                                //here are some hacks to wrap around VgmParseDataBlock not using our local buffer thing
+                                fseek(Loader_File, Loader_VgmFilePos, SEEK_SET);
                                 VgmParseDataBlock(Loader_File, &Loader_VgmDataBlocks[Loader_VgmDataBlockIndex++]);
+                                LOADER_BUF_SEEK_SET(ftell(Loader_File));
                             }
                             continue;
                         } else if ((d&0xf0) == 0x80) { //pcm and wait
@@ -167,12 +181,12 @@ void Loader_Main() {
                                 break;
                             } else {
                                 ESP_LOGI(TAG, "looping");
-                                fseek(Loader_File, Loader_VgmInfo->LoopOffset, SEEK_SET);
+                                LOADER_BUF_SEEK_SET(Loader_VgmInfo->LoopOffset);
                                 continue; //dont let driver get 0x66
                             }
                         } else if (d >= 0x90 && d <= 0x95) { //dacstream command
                             if (!Loader_RequestedDacStreamFindStart) {
-                                DacStream_BeginFinding(&Loader_VgmDataBlocks, Loader_VgmDataBlockIndex, ftell(Loader_File)-1);
+                                DacStream_BeginFinding(&Loader_VgmDataBlocks, Loader_VgmDataBlockIndex, Loader_VgmFilePos-1);
                                 Loader_RequestedDacStreamFindStart = true;
                             }
                             if (VgmCommandIsFixedSize(d)) {
@@ -217,8 +231,9 @@ bool Loader_Start(FILE *File, FILE *PcmFile, VgmInfoStruct_t *info) {
     Loader_RequestedDacStreamFindStart = false;
     Loader_VgmDataBlockIndex = 0;
     Loader_CurLoop = 0;
-    
-    fseek(Loader_File, Loader_VgmInfo->DataOffset, SEEK_SET);
+
+    Loader_VgmFilePos = Loader_VgmInfo->DataOffset;
+    LOADER_BUF_FILL;
 
     xEventGroupSetBits(Loader_Status, LOADER_START_REQUEST);
 
