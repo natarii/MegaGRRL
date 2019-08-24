@@ -21,8 +21,8 @@ bool Ui_StatusBar_Setup(lv_obj_t *uiscreen) {
 
     static lv_style_t style;
     lv_style_copy(&style, &lv_style_plain);
-    style.body.main_color = LV_COLOR_MAKE(0,0,255);
-    style.body.grad_color = LV_COLOR_MAKE(0,127,0);
+    style.body.main_color = LV_COLOR_MAKE(0,0,64);
+    style.body.grad_color = LV_COLOR_MAKE(0,0,127);
     style.body.radius = 0;
     style.text.font = &lv_font_dejavu_20;
     style.text.color = LV_COLOR_MAKE(255,255,255);
@@ -59,13 +59,13 @@ void Ui_StatusBar_Tick() {
         } else {
             lv_label_set_text(charge, "");
         }
-        if (BatteryMgr_Voltage >= 4050) {
+        if (BatteryMgr_Voltage >= 4000) {
             lv_label_set_text(battery, SYMBOL_BATTERY_FULL);
-        } else if (BatteryMgr_Voltage >= 3850) {
-            lv_label_set_text(battery, SYMBOL_BATTERY_3);
         } else if (BatteryMgr_Voltage >= 3600) {
+            lv_label_set_text(battery, SYMBOL_BATTERY_3);
+        } else if (BatteryMgr_Voltage >= 3400) {
             lv_label_set_text(battery, SYMBOL_BATTERY_2);
-        } else if (BatteryMgr_Voltage >= 3350) {
+        } else if (BatteryMgr_Voltage >= 3300) {
             lv_label_set_text(battery, SYMBOL_BATTERY_1);
         } else {
             lv_label_set_text(battery, SYMBOL_BATTERY_EMPTY);
