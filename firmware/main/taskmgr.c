@@ -37,8 +37,8 @@ void Taskmgr_CreateTasks() {
     xTaskCreatePinnedToCore(DacStream_FillTask, "DacStream_Fill", 4096, NULL, 11, &Taskmgr_Handles[TASK_DACSTREAM_FILL], 0);
     xTaskCreatePinnedToCore(Player_Main, "Player", 4096, NULL, 5, &Taskmgr_Handles[TASK_PLAYER], 0);
     xTaskCreatePinnedToCore(ChannelMgr_Main, "ChannelMgr", 1024, NULL, 18, &Taskmgr_Handles[TASK_CHANNELMGR], 0);
-    xTaskCreatePinnedToCore(Ui_Main, "Ui", 2048, NULL, 5, &Taskmgr_Handles[TASK_UI], 0);
-    xTaskCreatePinnedToCore(UserLedMgr_Main, "UserLed", 1024, NULL, 5, &Taskmgr_Handles[TASK_USERLED], 0);
+    xTaskCreatePinnedToCore(Ui_Main, "Ui", 3000, NULL, 12, &Taskmgr_Handles[TASK_UI], 0);
+    xTaskCreatePinnedToCore(UserLedMgr_Main, "UserLed", 1024, NULL, 17, &Taskmgr_Handles[TASK_USERLED], 0);
 
     xTaskCreatePinnedToCore(Driver_Main, "Driver", 4096, NULL, configMAX_PRIORITIES-2, &Taskmgr_Handles[TASK_DRIVER], 1);
 }
