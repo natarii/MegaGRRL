@@ -8,7 +8,7 @@
 #include "mallocs.h"
 
 static const char* TAG = "IoExpander";
-volatile uint8_t IoExp_OLATB = 0;
+volatile uint8_t IoExp_OLATB = (1<<0);
 static const uint8_t MCP23017_Config[] = {
     0x0a,0b01100010,    /* banking off, since that's the default and we don't know if this is POR or just esp reset
                          * INT pin mirroring on
@@ -32,7 +32,7 @@ static const uint8_t MCP23017_Config[] = {
     0x07,0x00,          //DEFVALB
     0x09,0x00,          //INTCONB
     0x0d,0b00000000,    //GPPUB
-    0x15,0,             //OLATB
+    0x15,(1<<0),        //OLATB
 };
 
 static uint8_t PORTAQueueBuf[IOEXP_PORTA_QUEUE_SIZE * sizeof(PORTAQueueItem_t)];
