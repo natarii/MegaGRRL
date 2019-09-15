@@ -26,6 +26,9 @@
     OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+//uncomment to build firmware update app
+//#define FWUPDATE
+
 #include "freertos/FreeRTOS.h"
 #include "esp_wifi.h"
 #include "esp_system.h"
@@ -35,30 +38,39 @@
 #include "driver/gpio.h"
 #include "esp_log.h"
 #include "rom/rtc.h"
+#include "esp_flash_partitions.h"
+#include "esp_partition.h"
+#include "esp_ota_ops.h"
 
 #include "driver.h"
 #include "taskmgr.h"
+#include "clk.h"
+#include "sdcard.h"
 #include "i2c.h"
 #include "ioexp.h"
+#include "lvgl.h"
+#include "lcddma.h"
+#include "ui.h"
+#ifndef FWUPDATE
 #include "battery.h"
 #include "key.h"
-#include "sdcard.h"
 #include "dacstream.h"
-#include "lcddma.h"
 #include "loader.h"
 #include "queue.h"
 #include "player.h"
 #include "leddrv.h"
 #include "channels.h"
-#include "lvgl.h"
-#include "ui.h"
-#include "clk.h"
 #include "userled.h"
+#endif
 
 #include <stdio.h>
 #include <dirent.h>
 
 static const char* TAG = "Main";
+
+#ifdef FWUPDATE
+uint8_t buf[10240];
+#endif
 
 esp_err_t event_handler(void *ctx, system_event_t *event)
 {
@@ -95,7 +107,11 @@ void app_main(void)
 {
     uint8_t r = rtc_get_reset_reason(0);
 
+    #ifdef FWUPDATE
+    ESP_LOGI(TAG, "MegaGRRL Firmware Updater");
+    #else
     ESP_LOGI(TAG, "MegaGRRL boot");
+    #endif
     ESP_LOGI(TAG, "Copyright (c) 2018-2019, kunoichi labs / natalie null");
     ESP_LOGI(TAG, "https://kunoichilabs.dev");
     ESP_LOGI(TAG, "Compiled on %s at %s", __DATE__, __TIME__);
@@ -115,25 +131,27 @@ void app_main(void)
 
     ESP_LOGI(TAG, "Init I2C...");
     bool I2cUp = I2cMgr_Setup();
-    
+
     ESP_LOGI(TAG, "Init IoExp...");
     bool IoUp = IoExp_Setup();
 
+    #ifndef FWUPDATE
     //turn off our own power. if we crashed previously, let's not just auto-reboot...
     ESP_LOGI(TAG, "Try poweroff...");
     IoExp_PowerControl(false);
     vTaskDelay(pdMS_TO_TICKS(250));
     //if we're still running at this point, either the user is holding the power button, or usb power is connected, so continue with booting...
     //it's also possible the ioexpander is very borked
-    IoExp_PowerControl(true);
-
-    IoExp_BacklightControl(true);
+    #endif
 
     ESP_LOGI(TAG, "Early LcdDma setup... let's hope this doesn't fail !!");
     LcdDma_Setup();
 
     ESP_LOGI(TAG, "Early UI setup... let's hope this doesn't fail !!");
     Ui_EarlySetup();
+
+    IoExp_PowerControl(true);
+    IoExp_BacklightControl(true);
 
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
 
@@ -150,7 +168,11 @@ void app_main(void)
     lv_ta_set_cursor_type(textarea, LV_CURSOR_NONE);
     lv_ta_set_cursor_pos(textarea, 0);
 
+    #ifdef FWUPDATE
+    lv_ta_set_text(textarea, "MegaGRRL\nby kunoichi labs\n\nFirmware Updater\n\n");
+    #else
     lv_ta_set_text(textarea, "MegaGRRL\nby kunoichi labs\n\nBoot\n");
+    #endif
 
     LcdDma_Mutex_Give();
 
@@ -181,6 +203,82 @@ void app_main(void)
         LcdDma_Mutex_Give();
         crash();
     }
+
+    #ifdef FWUPDATE
+    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    lv_ta_add_text(textarea, "Looking for update file...\n");
+    LcdDma_Mutex_Give();
+    FILE *fw;
+    fw = fopen("/sd/.mega/firmware.mgf", "r");
+    if (fw == NULL) {
+        LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+        lv_ta_add_text(textarea, "No update file found!\nRebooting into previous app");
+        LcdDma_Mutex_Give();
+        esp_partition_t *ota0;
+        ota0 = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_0, NULL);
+        esp_ota_set_boot_partition(ota0);
+        crash();
+    }
+
+    //ready to flash
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    //stick up pretty graphics by akira
+
+    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    lv_ta_set_text(textarea, "Locating boot partition\n");
+    LcdDma_Mutex_Give();
+    vTaskDelay(pdMS_TO_TICKS(500));
+    esp_partition_t *partition;
+    partition = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_0, NULL);
+    esp_ota_handle_t update = 0;
+    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    lv_ta_set_text(textarea, "Starting update\n");
+    LcdDma_Mutex_Give();
+    vTaskDelay(pdMS_TO_TICKS(500));
+    esp_ota_begin(partition, OTA_SIZE_UNKNOWN, &update);
+    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    lv_ta_set_text(textarea, "Flashing");
+    LcdDma_Mutex_Give();
+    vTaskDelay(pdMS_TO_TICKS(500));
+    while (!feof(fw)) {
+        uint16_t read;
+        read = fread(&buf[0], sizeof(uint8_t), sizeof(buf), fw);
+        esp_ota_write(update, &buf[0], read);
+        LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+        lv_ta_add_text(textarea, ".");
+        LcdDma_Mutex_Give();
+        vTaskDelay(2);
+    }
+    fclose(fw);
+
+    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    lv_ta_set_text(textarea, "Removing update file\n");
+    LcdDma_Mutex_Give();
+    vTaskDelay(2);
+    remove("/sd/.mega/firmware.mgf");
+
+    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    lv_ta_set_text(textarea, "Finishing update\n");
+    LcdDma_Mutex_Give();
+    vTaskDelay(2);
+    esp_ota_end(update);
+
+    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    lv_ta_set_text(textarea, "Setting boot partition\n");
+    LcdDma_Mutex_Give();
+    vTaskDelay(2);
+    esp_ota_set_boot_partition(partition);
+
+    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    lv_ta_set_text(textarea, "Rebooting");
+    LcdDma_Mutex_Give();
+
+    vTaskDelay(pdMS_TO_TICKS(1000));
+
+    esp_restart();
+    #endif
+
+    #ifndef FWUPDATE
 
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_ta_add_text(textarea, "Setting up KeyMgr... ");
@@ -326,4 +424,6 @@ void app_main(void)
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_obj_del(textarea);
     LcdDma_Mutex_Give();
+
+    #endif
 }
