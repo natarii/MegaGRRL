@@ -589,6 +589,7 @@ void Driver_Main() {
                 Driver_CpuUsageVgm += (xthal_get_ccount() - Driver_BusyStart);
             } else {
                 //not time for next sample yet
+                if (Driver_NextSample - Driver_Sample > 2000 && !DacStreamActive) vTaskDelay(2);
             }
 
             //dacstream stuff
@@ -616,6 +617,7 @@ void Driver_Main() {
             }
         } else {
             //not running
+            vTaskDelay(2);
         }
     }
 }
