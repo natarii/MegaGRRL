@@ -63,10 +63,27 @@
 #include "userled.h"
 #endif
 
+LV_IMG_DECLARE(img_frame);
+LV_IMG_DECLARE(img_blank);
+LV_IMG_DECLARE(img_lcdsd);
+LV_IMG_DECLARE(img_lcdsdq);
+LV_IMG_DECLARE(img_lcdhappy);
+LV_IMG_DECLARE(img_lcdsad);
+
 #include <stdio.h>
 #include <dirent.h>
 
 static const char* TAG = "Main";
+
+lv_obj_t *frame;
+lv_obj_t *progress;
+lv_style_t progressstyle;
+lv_obj_t *lcd;
+#define MAIN_PROGRESS_MAX 12
+uint8_t progressval = 0;
+#define MAIN_PROGRESS_UPDATE LcdDma_Mutex_Take(pdMS_TO_TICKS(1000)); lv_obj_set_width(progress, main_map(++progressval,0,MAIN_PROGRESS_MAX,0,50)); LcdDma_Mutex_Give(); vTaskDelay(2);
+lv_obj_t * textarea;
+lv_style_t textarea_style;
 
 #ifdef FWUPDATE
 uint8_t buf[10240];
@@ -77,19 +94,25 @@ esp_err_t event_handler(void *ctx, system_event_t *event)
     return ESP_OK;
 }
 
-lv_obj_t * textarea;
-lv_style_t textarea_style;
+
+uint32_t main_map(uint32_t x, uint32_t in_min, uint32_t in_max, uint32_t out_min, uint32_t out_max) {
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
 
 void crash() {
+    ESP_LOGE(TAG, "CRASHING !!");
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     textarea_style.body.main_color = LV_COLOR_MAKE(255,0,0);
     textarea_style.body.grad_color = LV_COLOR_MAKE(255,0,0);
     textarea_style.text.color = LV_COLOR_MAKE(255,255,255);
     lv_obj_report_style_mod(&textarea_style);
+    lv_obj_set_hidden(progress, true);
+    lv_img_set_src(lcd, &img_lcdsad);
     LcdDma_Mutex_Give();
-    ESP_LOGE(TAG, "CRASHING !!");
+    for (uint8_t i=0;i<5;i++) vTaskDelay(pdMS_TO_TICKS(1000));
     for (uint8_t i=0;i<5;i++) {
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+        lv_obj_set_hidden(textarea, false);
         lv_ta_add_text(textarea, ".");
         LcdDma_Mutex_Give();
         uint32_t s = xthal_get_ccount();
@@ -100,6 +123,25 @@ void crash() {
     IoExp_PowerControl(false);
     vTaskDelay(pdMS_TO_TICKS(500));
     //if we get here, either usb power is present or the user is holding the power button. either way, reboot...
+    esp_restart();
+}
+
+void crash_sd() {
+    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    lv_obj_set_hidden(progress, true);
+    LcdDma_Mutex_Give();
+    for (uint8_t i=0;i<10;i++) {
+        LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+        lv_img_set_src(lcd, &img_lcdsdq);
+        LcdDma_Mutex_Give();
+        vTaskDelay(pdMS_TO_TICKS(500));
+        LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+        lv_img_set_src(lcd, &img_lcdsd);
+        LcdDma_Mutex_Give();
+        vTaskDelay(pdMS_TO_TICKS(500));
+    }
+    IoExp_PowerControl(false);
+    vTaskDelay(pdMS_TO_TICKS(500));
     esp_restart();
 }
 
@@ -155,6 +197,26 @@ void app_main(void)
 
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
 
+    frame = lv_img_create(lv_layer_top(), NULL);
+    lv_img_set_src(frame, &img_frame);
+    lv_obj_set_pos(frame, 95, 126);
+
+    lcd = lv_img_create(lv_layer_top(), NULL);
+    lv_img_set_src(lcd, &img_blank);
+    lv_obj_set_pos(lcd, 95+21, 126+8);
+
+    lv_obj_set_opa_scale_enable(frame, true);
+    lv_obj_set_opa_scale_enable(lcd, true);
+
+    lv_style_copy(&progressstyle, &lv_style_plain);
+    progressstyle.body.main_color = LV_COLOR_MAKE(255,255,255);
+    progressstyle.body.grad_color = LV_COLOR_MAKE(255,255,255);
+
+    progress = lv_obj_create(lv_layer_top(), NULL);
+    lv_obj_set_height(progress, 10);
+    lv_obj_set_pos(progress, 95, 126+67+10);
+    lv_obj_set_style(progress, &progressstyle);
+
     lv_style_copy(&textarea_style, &lv_style_plain);
     textarea_style.text.color = LV_COLOR_MAKE(0,0,0);
     textarea_style.body.main_color = LV_COLOR_MAKE(0x74,0xd7,0xec);
@@ -167,6 +229,7 @@ void app_main(void)
     lv_ta_set_style(textarea, LV_TA_STYLE_BG, &textarea_style);
     lv_ta_set_cursor_type(textarea, LV_CURSOR_NONE);
     lv_ta_set_cursor_pos(textarea, 0);
+    lv_obj_set_hidden(textarea, true);
 
     #ifdef FWUPDATE
     lv_ta_set_text(textarea, "MegaGRRL\nby kunoichi labs\n\nFirmware Updater\n\n");
@@ -182,12 +245,14 @@ void app_main(void)
         LcdDma_Mutex_Give();
         crash();
     }
+    MAIN_PROGRESS_UPDATE;
     if (!IoUp) {
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         lv_ta_add_text(textarea, "IO init failed !!\n");
         LcdDma_Mutex_Give();
         crash();
     }
+    MAIN_PROGRESS_UPDATE;
 
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_ta_add_text(textarea, "Setting up Sdcard... ");
@@ -197,11 +262,12 @@ void app_main(void)
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         lv_ta_add_text(textarea, "ok\n");
         LcdDma_Mutex_Give();
+        MAIN_PROGRESS_UPDATE;
     } else {
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         lv_ta_add_text(textarea, "failed !!\n");
         LcdDma_Mutex_Give();
-        crash();
+        crash_sd();
     }
 
     #ifdef FWUPDATE
@@ -288,6 +354,7 @@ void app_main(void)
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         lv_ta_add_text(textarea, "ok\n");
         LcdDma_Mutex_Give();
+        MAIN_PROGRESS_UPDATE;
     } else {
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         lv_ta_add_text(textarea, "failed !!\n");
@@ -303,6 +370,7 @@ void app_main(void)
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         lv_ta_add_text(textarea, "ok\n");
         LcdDma_Mutex_Give();
+        MAIN_PROGRESS_UPDATE;
     } else {
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         lv_ta_add_text(textarea, "failed !!\n");
@@ -318,6 +386,7 @@ void app_main(void)
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         lv_ta_add_text(textarea, "ok\n");
         LcdDma_Mutex_Give();
+        MAIN_PROGRESS_UPDATE;
     } else {
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         lv_ta_add_text(textarea, "failed !!\n");
@@ -333,6 +402,7 @@ void app_main(void)
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         lv_ta_add_text(textarea, "ok\n");
         LcdDma_Mutex_Give();
+        MAIN_PROGRESS_UPDATE;
     } else {
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         lv_ta_add_text(textarea, "failed !!\n");
@@ -348,6 +418,7 @@ void app_main(void)
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         lv_ta_add_text(textarea, "ok\n");
         LcdDma_Mutex_Give();
+        MAIN_PROGRESS_UPDATE;
     } else {
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         lv_ta_add_text(textarea, "failed !!\n");
@@ -363,6 +434,7 @@ void app_main(void)
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         lv_ta_add_text(textarea, "ok\n");
         LcdDma_Mutex_Give();
+        MAIN_PROGRESS_UPDATE;
     } else {
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         lv_ta_add_text(textarea, "failed !!\n");
@@ -378,6 +450,7 @@ void app_main(void)
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         lv_ta_add_text(textarea, "ok\n");
         LcdDma_Mutex_Give();
+        MAIN_PROGRESS_UPDATE;
     } else {
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         lv_ta_add_text(textarea, "failed !!\n");
@@ -393,6 +466,7 @@ void app_main(void)
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         lv_ta_add_text(textarea, "ok\n");
         LcdDma_Mutex_Give();
+        MAIN_PROGRESS_UPDATE;
     } else {
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         lv_ta_add_text(textarea, "failed !!\n");
@@ -408,6 +482,7 @@ void app_main(void)
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         lv_ta_add_text(textarea, "ok\n");
         LcdDma_Mutex_Give();
+        MAIN_PROGRESS_UPDATE;
     } else {
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         lv_ta_add_text(textarea, "failed !!\n");
@@ -418,11 +493,15 @@ void app_main(void)
     ESP_LOGI(TAG, "Starting tasks !!");
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_ta_add_text(textarea, "Starting tasks!");
+    lv_obj_set_hidden(progress, true);
+    lv_img_set_src(lcd, &img_lcdhappy);
     LcdDma_Mutex_Give();
     Taskmgr_CreateTasks();
-    vTaskDelay(pdMS_TO_TICKS(250));
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_obj_del(textarea);
+    lv_obj_del(frame);
+    lv_obj_del(lcd);
+    lv_obj_del(progress);
     LcdDma_Mutex_Give();
 
     #endif
