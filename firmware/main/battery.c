@@ -39,6 +39,14 @@ void BatteryMgr_Main() {
         v *= 2; //voltage divider on input
         BatteryMgr_Voltage = v;
         ESP_LOGI(TAG, "bat %dmV", v);
+        if (v < 3200) {
+            //do shutdown stuff
+            IoExp_PowerControl(false);
+            vTaskDelay(pdMS_TO_TICKS(500));
+            //if we're still alive, we must be on usb power...
+            ESP_LOGE(TAG, "Reset by holding back !!");
+            esp_restart();
+        }
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
