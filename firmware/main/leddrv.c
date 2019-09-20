@@ -142,7 +142,7 @@ bool LedDrv_Setup() {
             I2cMgr_Release(false);
             return false;
         }
-        if (!LedDrv_WriteRegister(i, 0x0a, 0xff)) {         //GRPPWM
+        if (!LedDrv_WriteRegister(i, 0x0a, 0x40)) {         //GRPPWM
             I2cMgr_Release(false);
             return false;
         }
