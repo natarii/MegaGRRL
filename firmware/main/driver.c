@@ -10,6 +10,7 @@
 #include "pins.h"
 #include "dacstream.h"
 #include "channels.h"
+#include "hal.h"
 
 static const char* TAG = "Driver";
 
@@ -17,13 +18,25 @@ static const char* TAG = "Driver";
 #define DRIVER_VGM_SAMPLE_RATE 44100
 #define DRIVER_CYCLES_PER_SAMPLE (DRIVER_CLOCK_RATE/DRIVER_VGM_SAMPLE_RATE)
 
-//bits on the control shift reg
+#if defined HWVER_PORTABLE
+#define SR_CONTROL      0
+#define SR_DATABUS      1
 #define SR_BIT_PSG_CS   0x01 // PSG /CS
 #define SR_BIT_WR       0x04 // /WR
 #define SR_BIT_FM_CS    0x20 // FM /CS
-#define SR_BIT_A0       0x08 // A0 (only used by FM)
-#define SR_BIT_A1       0x10 // A1 (only used by FM)
-#define SR_BIT_IC       0x02 // /IC (only used by FM)
+#define SR_BIT_A0       0x08 // A0
+#define SR_BIT_A1       0x10 // A1
+#define SR_BIT_IC       0x02 // /IC
+#elif defined HWVER_DESKTOP
+#define SR_CONTROL      1
+#define SR_DATABUS      0
+#define SR_BIT_PSG_CS   0x40 // PSG /CS
+#define SR_BIT_WR       0x20 // /WR
+#define SR_BIT_FM_CS    0x80 // FM /CS
+#define SR_BIT_A0       0x08 // A0
+#define SR_BIT_A1       0x04 // A1
+#define SR_BIT_IC       0x10 // /IC
+#endif
 
 uint8_t Driver_SrBuf[2] = {0xff & ~SR_BIT_IC,0x00}; //buffer to transmit to the shift registers - first byte is the control register, second is data bus
 

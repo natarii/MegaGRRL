@@ -6,9 +6,15 @@
 #include "i2c.h"
 #include "taskmgr.h"
 #include "mallocs.h"
+#include "hal.h"
 
 static const char* TAG = "IoExpander";
-volatile uint8_t IoExp_OLATB = (1<<0);
+#if defined HWVER_PORTABLE
+#define OLATB_DEFAULT (1<<0)
+#elif defined HWVER_DESKTOP
+#define OLATB_DEFAULT 0
+#endif
+volatile uint8_t IoExp_OLATB = OLATB_DEFAULT;
 static const uint8_t MCP23017_Config[] = {
     0x0a,0b01100010,    /* banking off, since that's the default and we don't know if this is POR or just esp reset
                          * INT pin mirroring on
@@ -32,7 +38,7 @@ static const uint8_t MCP23017_Config[] = {
     0x07,0x00,          //DEFVALB
     0x09,0x00,          //INTCONB
     0x0d,0b00000000,    //GPPUB
-    0x15,(1<<0),        //OLATB
+    0x15,OLATB_DEFAULT, //OLATB
 };
 
 static uint8_t PORTAQueueBuf[IOEXP_PORTA_QUEUE_SIZE * sizeof(PORTAQueueItem_t)];
@@ -160,6 +166,7 @@ void IoExp_Main() {
 }
 
 bool IoExp_PowerControl(bool HoldPower) {
+    #if defined HWVER_PORTABLE
     if (!I2cMgr_Seize(false, pdMS_TO_TICKS(1000))) {
         ESP_LOGE(TAG, "Couldn't seize bus !!");
         return false;
@@ -171,10 +178,12 @@ bool IoExp_PowerControl(bool HoldPower) {
     }
     IoExp_OLATB = n;
     I2cMgr_Release(false);
+    #endif
     return true;
 }
 
 bool IoExp_BacklightControl(bool On) {
+    #if defined HWVER_PORTABLE
     if (!I2cMgr_Seize(false, pdMS_TO_TICKS(1000))) {
         ESP_LOGE(TAG, "Couldn't seize bus !!");
         return false;
@@ -186,10 +195,12 @@ bool IoExp_BacklightControl(bool On) {
     }
     IoExp_OLATB = n;
     I2cMgr_Release(false);
+    #endif
     return true;
 }
 
 bool IoExp_BatSenseControl(bool SenseEn) {
+    #if defined HWVER_PORTABLE
     if (!I2cMgr_Seize(false, pdMS_TO_TICKS(1000))) {
         ESP_LOGE(TAG, "Couldn't seize bus !!");
         return false;
@@ -201,10 +212,12 @@ bool IoExp_BatSenseControl(bool SenseEn) {
     }
     IoExp_OLATB = n;
     I2cMgr_Release(false);
+    #endif
     return true;
 }
 
 bool IoExp_ChargeStatus() {
+    #if defined HWVER_PORTABLE
     if (!I2cMgr_Seize(false, pdMS_TO_TICKS(1000))) {
         ESP_LOGE(TAG, "Couldn't seize bus !!");
         return false;
@@ -212,4 +225,7 @@ bool IoExp_ChargeStatus() {
     uint8_t r = IoExp_ReadRegister(0x13);
     I2cMgr_Release(false);
     return (r & (1<<1)) == 0;
+    #elif defined HWVER_DESKTOP
+    return 0;
+    #endif
 }

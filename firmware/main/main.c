@@ -51,6 +51,7 @@
 #include "lvgl.h"
 #include "lcddma.h"
 #include "ui.h"
+#include "hal.h"
 #ifndef FWUPDATE
 #include "battery.h"
 #include "key.h"
@@ -157,6 +158,11 @@ void app_main(void)
     ESP_LOGI(TAG, "Copyright (c) 2018-2019, kunoichi labs / natalie null");
     ESP_LOGI(TAG, "https://kunoichilabs.dev");
     ESP_LOGI(TAG, "Compiled on %s at %s", __DATE__, __TIME__);
+    #if defined HWVER_PORTABLE
+    ESP_LOGI(TAG, "For hardware version: Portable");
+    #elif defined HWVER_DESKTOP
+    ESP_LOGI(TAG, "For hardware version: Desktop");
+    #endif
         
     bool setup_ret = false;
 

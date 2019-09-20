@@ -5,6 +5,7 @@
 #include "freertos/queue.h"
 #include "mallocs.h"
 #include "esp_system.h"
+#include "hal.h"
 
 typedef struct KeyState {
     uint8_t RawState;
@@ -28,6 +29,7 @@ typedef struct KeyEvent {
 #define KEY_EVENT_HOLD      0x10
 #define KEY_EVENT_HELD      0x20    //flag
 
+#if defined HWVER_PORTABLE
 #define KEY_A       0
 #define KEY_B       1
 #define KEY_C       2
@@ -36,6 +38,16 @@ typedef struct KeyEvent {
 #define KEY_LEFT    5
 #define KEY_UP      6
 #define KEY_COUNT   7
+#elif defined HWVER_DESKTOP
+#define KEY_A       2
+#define KEY_B       1
+#define KEY_C       0
+#define KEY_DOWN    4
+#define KEY_RIGHT   3
+#define KEY_LEFT    5
+#define KEY_UP      6
+#define KEY_COUNT   7
+#endif
 
 #define KEY_DEBOUNCE_TIME 30
 #define KEY_REPEAT_INTERVAL 100
