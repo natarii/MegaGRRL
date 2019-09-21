@@ -55,7 +55,6 @@ bool Sdcard_Setup() {
     ff_diskio_register_sdmmc(pdrv, Sdcard_Card);
 
     char drv[3] = {(char)('0'+pdrv),':',0};
-    ESP_LOGI(TAG, "drv %s", drv);
     err = esp_vfs_fat_register(Sdcard_BasePath, drv, Sdcard_Mount.max_files, &Sdcard_Fs);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Fail to register with vfs !! 0x%x", err);
