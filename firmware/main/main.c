@@ -286,11 +286,8 @@ void app_main(void)
     if (fw == NULL) fw = fopen("/sd/factory.mgf", "r");
     if (fw == NULL) {
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
-        lv_ta_add_text(textarea, "No update file found!\nRebooting into previous app");
+        lv_ta_add_text(textarea, "No update file found!");
         LcdDma_Mutex_Give();
-        esp_partition_t *ota0;
-        ota0 = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_0, NULL);
-        esp_ota_set_boot_partition(ota0);
         crash();
     }
 
