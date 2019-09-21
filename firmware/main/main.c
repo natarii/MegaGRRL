@@ -278,10 +278,15 @@ void app_main(void)
 
     #ifdef FWUPDATE
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    lv_obj_set_hidden(textarea, false);
+    lv_obj_set_hidden(frame, true);
+    lv_obj_set_hidden(lcd, true);
+    lv_obj_set_hidden(progress, true);
     lv_ta_add_text(textarea, "Looking for update file...\n");
     LcdDma_Mutex_Give();
     FILE *fw;
     fw = fopen("/sd/.mega/firmware.mgf", "r");
+    if (fw == NULL) fw = fopen("/sd/factory.mgf", "r");
     if (fw == NULL) {
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         lv_ta_add_text(textarea, "No update file found!\nRebooting into previous app");
@@ -293,25 +298,20 @@ void app_main(void)
     }
 
     //ready to flash
-    vTaskDelay(pdMS_TO_TICKS(1000));
-    //stick up pretty graphics by akira
-
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_ta_set_text(textarea, "Locating boot partition\n");
     LcdDma_Mutex_Give();
-    vTaskDelay(pdMS_TO_TICKS(500));
     esp_partition_t *partition;
     partition = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_0, NULL);
     esp_ota_handle_t update = 0;
+    vTaskDelay(pdMS_TO_TICKS(500)); //if we go right into esp_ota_begin, lcddma has a hard time running, so give it some time to draw
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_ta_set_text(textarea, "Starting update\n");
     LcdDma_Mutex_Give();
-    vTaskDelay(pdMS_TO_TICKS(500));
     esp_ota_begin(partition, OTA_SIZE_UNKNOWN, &update);
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_ta_set_text(textarea, "Flashing");
     LcdDma_Mutex_Give();
-    vTaskDelay(pdMS_TO_TICKS(500));
     while (!feof(fw)) {
         uint16_t read;
         read = fread(&buf[0], sizeof(uint8_t), sizeof(buf), fw);
@@ -328,6 +328,7 @@ void app_main(void)
     LcdDma_Mutex_Give();
     vTaskDelay(2);
     remove("/sd/.mega/firmware.mgf");
+    remove("/sd/factory.mgf");
 
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_ta_set_text(textarea, "Finishing update\n");
@@ -342,10 +343,14 @@ void app_main(void)
     esp_ota_set_boot_partition(partition);
 
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
-    lv_ta_set_text(textarea, "Rebooting");
+    //lv_ta_set_text(textarea, "Rebooting");
+    lv_obj_set_hidden(textarea, true);
+    lv_obj_set_hidden(frame, false);
+    lv_obj_set_hidden(lcd, false);
+    lv_img_set_src(lcd, &img_lcdhappy);
     LcdDma_Mutex_Give();
 
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    vTaskDelay(pdMS_TO_TICKS(5000));
 
     esp_restart();
     #endif
