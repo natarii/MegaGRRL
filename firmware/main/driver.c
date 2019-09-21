@@ -27,6 +27,7 @@ static const char* TAG = "Driver";
 #define SR_BIT_A0       0x08 // A0
 #define SR_BIT_A1       0x10 // A1
 #define SR_BIT_IC       0x02 // /IC
+uint8_t Driver_SrBuf[2] = {0xff & ~SR_BIT_IC,0x00};
 #elif defined HWVER_DESKTOP
 #define SR_CONTROL      1
 #define SR_DATABUS      0
@@ -36,9 +37,8 @@ static const char* TAG = "Driver";
 #define SR_BIT_A0       0x08 // A0
 #define SR_BIT_A1       0x04 // A1
 #define SR_BIT_IC       0x10 // /IC
+uint8_t Driver_SrBuf[2] = {0x00,0xff & ~SR_BIT_IC};
 #endif
-
-uint8_t Driver_SrBuf[2] = {0xff & ~SR_BIT_IC,0x00}; //buffer to transmit to the shift registers - first byte is the control register, second is data bus
 
 QueueHandle_t Driver_CommandQueue; //queue of incoming vgm data
 QueueHandle_t Driver_PcmQueue; //queue of attached pcm data (if any)
@@ -178,19 +178,19 @@ void Driver_Sleep(uint32_t us) { //quick and dirty spin sleep
 
 void Driver_PsgOut(uint8_t Data) {
     //data bus is reversed for the psg because it made pcb layout easier
-    Driver_SrBuf[1] = 0;
+    Driver_SrBuf[SR_DATABUS] = 0;
     for (uint8_t i=0;i<=7;i++) {
-        Driver_SrBuf[1] |= ((Data>>(7-i))&1)<<i;
+        Driver_SrBuf[SR_DATABUS] |= ((Data>>(7-i))&1)<<i;
     }
     Driver_Output();
-    Driver_SrBuf[0] &= ~SR_BIT_PSG_CS;
-    Driver_SrBuf[0] &= ~SR_BIT_WR;
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_PSG_CS;
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR;
     Driver_Output();
     Driver_Sleep(20);
-    Driver_SrBuf[0] |= SR_BIT_WR;
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR;
     Driver_Output();
     //Driver_Sleep(20);
-    Driver_SrBuf[0] |= SR_BIT_PSG_CS;
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_PSG_CS;
     Driver_Output();
     Driver_Sleep(5);
 
@@ -224,34 +224,34 @@ void Driver_ResetChips() {
         Driver_PsgOut(0b10111111);
         Driver_PsgOut(0b11011111);
         Driver_PsgOut(0b11111111);
-        Driver_SrBuf[0] ^= SR_BIT_IC;
+        Driver_SrBuf[SR_CONTROL] ^= SR_BIT_IC;
         Driver_Output();
         Driver_Sleep(1000);
-        Driver_SrBuf[0] |= SR_BIT_IC;
+        Driver_SrBuf[SR_CONTROL] |= SR_BIT_IC;
         Driver_Output();
         Driver_Sleep(1000);
 }
 
 void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
     if (Port == 0) {
-        Driver_SrBuf[0] &= ~SR_BIT_A1; //clear A1
+        Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_A1; //clear A1
     } else if (Port == 1) {
-        Driver_SrBuf[0] |= SR_BIT_A1; //set A1
+        Driver_SrBuf[SR_CONTROL] |= SR_BIT_A1; //set A1
     }
-    Driver_SrBuf[0] &= ~SR_BIT_A0; //clear A0
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_A0; //clear A0
     Driver_Output();
-    Driver_SrBuf[0] &= ~SR_BIT_FM_CS; // /cs low
-    Driver_SrBuf[0] &= ~SR_BIT_WR; // /wr low
-    Driver_SrBuf[1] = Register;
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_FM_CS; // /cs low
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR; // /wr low
+    Driver_SrBuf[SR_DATABUS] = Register;
     Driver_Output();
-    Driver_SrBuf[0] |= SR_BIT_WR; // /wr high
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; // /wr high
     Driver_Output();
-    Driver_SrBuf[0] |= SR_BIT_A0; //set A0
-    Driver_SrBuf[0] &= ~SR_BIT_WR; // /wr low
-    Driver_SrBuf[1] = Value;
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_A0; //set A0
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR; // /wr low
+    Driver_SrBuf[SR_DATABUS] = Value;
     Driver_Output();
-    Driver_SrBuf[0] |= SR_BIT_WR; // /wr high
-    Driver_SrBuf[0] |= SR_BIT_FM_CS; // /cs high
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; // /wr high
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_FM_CS; // /cs high
     Driver_Output();
     Driver_Sleep(5);
 
