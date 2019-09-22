@@ -122,7 +122,7 @@ static void LcdDma_Lvgl_Flush(int32_t x1, int32_t y1, int32_t x2, int32_t y2, co
     while (pixels > 240*8) { //max we can fit in a dma transfer
         LcdDma_Data((uint8_t*)color_p, 240*8*2);
         pixels -= 240*8;
-        color_p += 240*8*2;
+        color_p += 240*8;
     }
     LcdDma_Data((uint8_t*)color_p, pixels*2);
 
