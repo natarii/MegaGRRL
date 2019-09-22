@@ -460,6 +460,8 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
 
     } else if (cmd[0] == 0x4f) { //gamegear psg stereo
         ESP_LOGW(TAG, "Game Gear PSG stereo not implemented !!");
+    } else if (cmd[0] == 0xb2) {
+        if (cmd[1] & 0b11000000) ESP_LOGW(TAG, "Unsupported 32x pwm reg write %d !!", cmd[1]>>4);
     } else if (cmd[0] == 0x66) { //end of music
         xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_RUNNING);
         xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_FINISHED);
