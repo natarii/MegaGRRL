@@ -77,7 +77,7 @@ lv_obj_t *frame;
 lv_obj_t *progress;
 lv_style_t progressstyle;
 lv_obj_t *lcd;
-#define MAIN_PROGRESS_MAX 12
+#define MAIN_PROGRESS_MAX 13
 uint8_t progressval = 0;
 #define MAIN_PROGRESS_UPDATE LcdDma_Mutex_Take(pdMS_TO_TICKS(1000)); lv_obj_set_width(progress, main_map(++progressval,0,MAIN_PROGRESS_MAX,0,50)); LcdDma_Mutex_Give(); vTaskDelay(2);
 lv_obj_t * textarea;
@@ -141,6 +141,58 @@ void crash_sd() {
     IoExp_PowerControl(false);
     vTaskDelay(pdMS_TO_TICKS(500));
     esp_restart();
+}
+
+void checkcore() {
+    ESP_LOGI(TAG, "looking for core...");
+    esp_partition_t *corepart;
+    corepart = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_COREDUMP, NULL);
+    if (corepart) {
+        uint8_t *core;
+        spi_flash_mmap_handle_t handle;
+        esp_err_t err;
+        err = esp_partition_mmap(corepart, 0, corepart->size, SPI_FLASH_MMAP_DATA, (const void**)&core, &handle);
+        if (err == ESP_OK) {
+            ESP_LOGI(TAG, "core mmap ok");
+            for (uint32_t i=0;i<corepart->size;i++) {
+                if (*(core+i) != 0xff) {
+                    ESP_LOGI(TAG, "there's a dump here, first byte at %d, copying it to sdcard", i);
+                    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+                    lv_obj_set_hidden(textarea, false);
+                    lv_ta_add_text(textarea, "Core dump found!\nCopying core to card...\n");
+                    LcdDma_Mutex_Give();
+                    vTaskDelay(pdMS_TO_TICKS(500));
+                    FILE *f;
+                    f = fopen("/sd/.mega/core.bin", "w");
+                    fwrite(core, corepart->size, 1, f);
+                    fclose(f);
+                    ESP_LOGI(TAG, "erasing core part");
+                    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+                    lv_ta_add_text(textarea, "Removing core from flash...\n");
+                    LcdDma_Mutex_Give();
+                    vTaskDelay(pdMS_TO_TICKS(100));
+                    spi_flash_munmap(handle);
+                    err = esp_partition_erase_range(corepart, 0, corepart->size);
+                    if (err != ESP_OK) {
+                        ESP_LOGE(TAG, "core part erase failed %d", err);
+                        LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+                        lv_ta_add_text(textarea, "Flash erase failed !!\n");
+                        LcdDma_Mutex_Give();
+                        vTaskDelay(pdMS_TO_TICKS(3000));
+                    }
+                    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+                    lv_obj_set_hidden(textarea, true);
+                    LcdDma_Mutex_Give();
+                    return;
+                }
+            }
+            ESP_LOGI(TAG, "no core found");
+        } else {
+            ESP_LOGI(TAG, "failed to mmap core !!");
+        }
+    } else {
+        ESP_LOGI(TAG, "no core partition found");
+    }
 }
 
 void app_main(void)
@@ -272,6 +324,9 @@ void app_main(void)
         LcdDma_Mutex_Give();
         crash_sd();
     }
+
+    checkcore();
+    MAIN_PROGRESS_UPDATE;
 
     #ifdef FWUPDATE
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
