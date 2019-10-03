@@ -1,3 +1,0 @@
-[submodule "firmware/components/lvgl"]
-	path = firmware/components/lvgl
-	url = https://github.com/littlevgl/lvgl.git
