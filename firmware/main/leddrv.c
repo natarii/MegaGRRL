@@ -9,6 +9,7 @@
 #include "mallocs.h"
 #include <string.h>
 #include <math.h>
+#include "hal.h"
 
 static const char* TAG = "LedDrv";
 
@@ -34,24 +35,33 @@ const uint8_t led_curve_lut[256] = {
     0xFD, 0xFD, 0xFD, 0xFD, 0xFD, 0xFD, 0xFD, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFF, 0xFF
 };
 
-uint8_t led_channel_assignment[] = {
-    //PCA9634 LED numbers 0-indexed
-    
+#if defined HWVER_PORTABLE
+const uint8_t led_channel_assignment[] = {
     //FM 1-6
     7, 5, 0, 2, 3, 8+6,
-
     //PSG 1-3 + noise
     6, 4, 1, 8+4,
-
     //FM PCM
     8+5,
-
     //ABC
     8+3, 8+2, 8+1,
-
     //unused
-    8+0,8+7,
+    8+0, 8+7,
 };
+#elif defined HWVER_DESKTOP
+const uint8_t led_channel_assignment[] = {
+    //FM 1-6
+    7, 1, 2, 3, 8+1, 8+2,
+    //PSG 1-3 + noise
+    0, 6, 5, 4,
+    //FM PCM
+    8+3,
+    //ABC
+    8+5, 8+6, 8+7,
+    //unused
+    8+0, 8+4,
+};
+#endif
 
 const uint8_t pca9634_addr[2] = {0x40,0x01};
 
@@ -142,7 +152,7 @@ bool LedDrv_Setup() {
             I2cMgr_Release(false);
             return false;
         }
-        if (!LedDrv_WriteRegister(i, 0x0a, 0x40)) {         //GRPPWM
+        if (!LedDrv_WriteRegister(i, 0x0a, 0x80)) {         //GRPPWM //x040
             I2cMgr_Release(false);
             return false;
         }
