@@ -6,17 +6,20 @@
 #include "esp_log.h"
 #include "pins.h"
 #include "ioexp.h"
+#include "hal.h"
 
 static const char* TAG = "BatteryMgr";
 static esp_adc_cal_characteristics_t *BatteryMgr_AdcChars;
 uint16_t BatteryMgr_Voltage = 0;
 
 bool BatteryMgr_Setup() {
+    #if defined HWVER_PORTABLE
     ESP_LOGI(TAG, "Setting up ADC");
     adc1_config_width(ADC_WIDTH_BIT_12);
     adc1_config_channel_atten(ADC_CHANNEL_6, ADC_ATTEN_DB_11);
     BatteryMgr_AdcChars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
     esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, BatteryMgr_AdcChars);
+    #endif
 
     return true;
 }
@@ -35,6 +38,7 @@ uint16_t BatteryMgr_Sample() {
 void BatteryMgr_Main() {
     ESP_LOGI(TAG, "Task start");
     while (1) {
+        #if defined HWVER_PORTABLE
         uint32_t v = esp_adc_cal_raw_to_voltage(BatteryMgr_Sample(), BatteryMgr_AdcChars);
         v *= 2; //voltage divider on input
         BatteryMgr_Voltage = v;
@@ -47,6 +51,7 @@ void BatteryMgr_Main() {
             ESP_LOGE(TAG, "Reset by holding back !!");
             esp_restart();
         }
+        #endif
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
