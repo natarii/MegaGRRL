@@ -37,6 +37,7 @@ extern uint8_t DacStreamId;
 extern volatile uint32_t Driver_CpuPeriod;
 extern volatile uint32_t Driver_CpuUsageVgm;
 extern volatile uint32_t Driver_CpuUsageDs;
+extern volatile bool Driver_FixPsgFrequency;
 
 extern uint32_t Driver_Sample;
 extern uint32_t Driver_NextSample;
