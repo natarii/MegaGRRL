@@ -29,6 +29,7 @@ bool Loader_RequestedDacStreamFindStart = false;
 uint8_t Loader_VgmBuf[FREAD_LOCAL_BUF];
 uint16_t Loader_VgmBufPos = FREAD_LOCAL_BUF;
 uint32_t Loader_VgmFilePos = 0;
+volatile bool Loader_IgnoreZeroSampleLoops = true;
 
 //local buffer thingie. big speedup
 #define LOADER_BUF_FILL fseek(Loader_File, Loader_VgmFilePos, SEEK_SET); fread(&Loader_VgmBuf[0], 1, sizeof(Loader_VgmBuf), Loader_File); Loader_VgmBufPos = 0; //todo fix read past eof
@@ -168,19 +169,21 @@ void Loader_Main() {
                             #endif
                         } else if (d == 0x66) { //end of music, optionally loop
                             ESP_LOGI(TAG, "reached end of music");
-                            if (Loader_VgmInfo->LoopOffset == 0 || Loader_VgmInfo->LoopSamples == 0) { //no loop point. LoopSamples is checked, see "Warning! Ignored Zero-Sample-Loop!" in vgmplay, todo make this an option
+                            if (Loader_VgmInfo->LoopOffset == 0 || (Loader_IgnoreZeroSampleLoops && Loader_VgmInfo->LoopSamples == 0)) { //there is no loop point at all
                                 ESP_LOGI(TAG, "no loop point");
                                 xQueueSendToBack(Driver_CommandQueue, &d, 0); //let driver figure out it's the end
                                 Loader_EndReached = true;
                                 break;
                             }
                             if (Player_LoopCount != 255 && ++Loader_CurLoop == Player_LoopCount) {
-                                ESP_LOGI(TAG, "stopping");
+                                ESP_LOGI(TAG, "looped enough, stopping");
                                 xQueueSendToBack(Driver_CommandQueue, &d, 0); //let driver figure out it's the end
                                 Loader_EndReached = true;
                                 break;
-                            } else {
+                            }
+                            if (!Loader_IgnoreZeroSampleLoops || Loader_VgmInfo->LoopSamples > 0) {
                                 ESP_LOGI(TAG, "looping");
+                                if (Loader_VgmInfo->LoopSamples == 0) ESP_LOGW(TAG, "looping despite LoopSamples == 0 !!");
                                 LOADER_BUF_SEEK_SET(Loader_VgmInfo->LoopOffset);
                                 continue; //dont let driver get 0x66
                             }

@@ -210,7 +210,26 @@ void DacStream_FindTask() {
                         } else if (d == 0x66) { //end of music, optionally loop
                             ESP_LOGI(TAG, "reached end of music");
                             if (DacStream_FoundAny) { //some were found so what we do now matters
-                                if (DacStream_VgmInfo->LoopOffset == 0 || DacStream_VgmInfo->LoopSamples == 0) { //no loop point. LoopSamples is checked, see "Warning! Ignored Zero-Sample-Loop!" in vgmplay, todo make this an option
+                                if (DacStream_VgmInfo->LoopOffset == 0 || (Loader_IgnoreZeroSampleLoops && DacStream_VgmInfo->LoopSamples == 0)) { //there is no loop point at all
+                                    ESP_LOGI(TAG, "no loop point");
+                                    DacStream_FindRunning = false;
+                                    break;
+                                }
+                                if (Player_LoopCount != 255 && ++DacStream_CurLoop == Player_LoopCount) {
+                                    ESP_LOGI(TAG, "looped enough, stopping");
+                                    DacStream_FindRunning = false;
+                                    break;
+                                }
+                                if (!Loader_IgnoreZeroSampleLoops || DacStream_VgmInfo->LoopSamples > 0) {
+                                    ESP_LOGI(TAG, "looping");
+                                    if (DacStream_VgmInfo->LoopSamples == 0) ESP_LOGW(TAG, "looping despite LoopSamples == 0 !!");
+                                    fseek(DacStream_FindFile, DacStream_VgmInfo->LoopOffset, SEEK_SET);
+                                    continue;
+                                }
+
+
+
+                                if (DacStream_VgmInfo->LoopOffset == 0 || (Loader_IgnoreZeroSampleLoops && DacStream_VgmInfo->LoopSamples == 0)) { //no loop point. see "Warning! Ignored Zero-Sample-Loop!" in vgmplay
                                     ESP_LOGI(TAG, "no loop point");
                                     DacStream_FindRunning = false;
                                     break;
