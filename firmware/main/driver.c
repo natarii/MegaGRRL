@@ -54,6 +54,7 @@ volatile uint32_t Driver_CpuUsageVgm = 0;
 volatile uint32_t Driver_CpuUsageDs = 0;
 
 volatile bool Driver_FixPsgFrequency = true;
+volatile bool Driver_MitigateVgmTrim = true;
 
 //we abuse the esp32's spi hardware to drive the shift registers
 spi_bus_config_t Driver_SpiBusConfig = {
@@ -335,15 +336,16 @@ void Driver_SetFirstWait() {
     Driver_Cycle = 0;
     Driver_LastCc = Driver_Cc = xthal_get_ccount();
     Driver_FirstWait = false;
-    //more code space but it's faster lolol
-    Driver_FmOut(0, 0xb4, Driver_FmPans[0]);
-    Driver_FmOut(0, 0xb5, Driver_FmPans[1]);
-    Driver_FmOut(0, 0xb6, Driver_FmPans[2]);
-    Driver_FmOut(1, 0xb4, Driver_FmPans[3]);
-    Driver_FmOut(1, 0xb5, Driver_FmPans[4]);
-    Driver_FmOut(1, 0xb6, Driver_FmPans[5]);
-    for (uint8_t i=0;i<4;i++) {
-        Driver_PsgOut(Driver_PsgAttenuation[i]);
+    if (Driver_MitigateVgmTrim) {
+        Driver_FmOut(0, 0xb4, Driver_FmPans[0]);
+        Driver_FmOut(0, 0xb5, Driver_FmPans[1]);
+        Driver_FmOut(0, 0xb6, Driver_FmPans[2]);
+        Driver_FmOut(1, 0xb4, Driver_FmPans[3]);
+        Driver_FmOut(1, 0xb5, Driver_FmPans[4]);
+        Driver_FmOut(1, 0xb6, Driver_FmPans[5]);
+        for (uint8_t i=0;i<4;i++) {
+            Driver_PsgOut(Driver_PsgAttenuation[i]);
+        }
     }
 }
 
@@ -384,7 +386,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
             } else { //attenuation or noise ch control write
                 if ((cmd[1] & 0b10010000) == 0b10010000) { //attenuation
                     Driver_PsgAttenuation[(cmd[1]>>5)&0b00000011] = cmd[1];
-                    if (Driver_FirstWait) cmd[1] |= 0b00001111; //if we haven't reached the first wait, force full attenuation
+                    if (Driver_MitigateVgmTrim && Driver_FirstWait) cmd[1] |= 0b00001111; //if we haven't reached the first wait, force full attenuation
                 }
                 Driver_PsgOut(cmd[1]);
             }
@@ -394,13 +396,13 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
     } else if (cmd[0] == 0x52) { //YM2612 port 0
         if (cmd[1] >= 0xb4 && cmd[1] <= 0xb6) { //pan, FMS, AMS
             Driver_FmPans[cmd[1]-0xb4] = cmd[2];
-            if (Driver_FirstWait) cmd[2] &= 0b00111111; //if we haven't reached the first wait, disable both L and R
+            if (Driver_MitigateVgmTrim && Driver_FirstWait) cmd[2] &= 0b00111111; //if we haven't reached the first wait, disable both L and R
         }
         Driver_FmOut(0, cmd[1], cmd[2]);
     } else if (cmd[0] == 0x53) { //YM2612 port 1
         if (cmd[1] >= 0xb4 && cmd[1] <= 0xb6) { //pan, FMS, AMS
             Driver_FmPans[3+cmd[1]-0xb4] = cmd[2];
-            if (Driver_FirstWait) cmd[2] &= 0b00111111; //if we haven't reached the first wait, disable both L and R
+            if (Driver_MitigateVgmTrim && Driver_FirstWait) cmd[2] &= 0b00111111; //if we haven't reached the first wait, disable both L and R
         }
         Driver_FmOut(1, cmd[1], cmd[2]);
     } else if (cmd[0] == 0x61) { //16bit wait
@@ -502,12 +504,14 @@ void Driver_Main() {
             Driver_PsgLastChannel = 0; //psg can't really be reset, so technically this is kinda wrong? but it's consistent.
             Driver_FirstWait = true;
             memset(&Driver_FmPans[0], 0b11000000, sizeof(Driver_FmPans));
-            Driver_FmOut(0, 0xb4, 0);
-            Driver_FmOut(0, 0xb5, 0);
-            Driver_FmOut(0, 0xb6, 0);
-            Driver_FmOut(1, 0xb4, 0);
-            Driver_FmOut(1, 0xb5, 0);
-            Driver_FmOut(1, 0xb6, 0);
+            if (Driver_MitigateVgmTrim) {
+                Driver_FmOut(0, 0xb4, 0);
+                Driver_FmOut(0, 0xb5, 0);
+                Driver_FmOut(0, 0xb6, 0);
+                Driver_FmOut(1, 0xb4, 0);
+                Driver_FmOut(1, 0xb5, 0);
+                Driver_FmOut(1, 0xb6, 0);
+            }
             for (uint8_t i=0;i<4;i++) {
                 Driver_PsgAttenuation[i] = 0b10011111 | (i<<5);
                 Driver_PsgOut(Driver_PsgAttenuation[i]);

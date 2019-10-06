@@ -30,7 +30,7 @@ static const option_t Options[] = {
         "Silence erroneous notes at start of track caused by vgm_trim.",
         OPTION_CATEGORY_PLAYBACK,
         OPTION_TYPE_BOOL,
-        NULL, //
+        &Driver_MitigateVgmTrim,
         true
     },
     {
