@@ -9,9 +9,11 @@
 static const char* TAG = "Ui_StatusBar";
 
 lv_obj_t *container;
+#if defined HWVER_PORTABLE
 lv_obj_t *charge;
 lv_obj_t *battery;
 lv_obj_t *voltage;
+#endif
 char tempbuf[10];
 
 bool Ui_StatusBar_Setup(lv_obj_t *uiscreen) {
@@ -31,6 +33,7 @@ bool Ui_StatusBar_Setup(lv_obj_t *uiscreen) {
     lv_obj_set_width(container, 240);
     lv_cont_set_fit(container, false, false);
 
+    #if defined HWVER_PORTABLE
     charge = lv_label_create(container, NULL);
     lv_obj_set_pos(charge, 2, 5);
     lv_label_set_text(charge, SYMBOL_CHARGE);
@@ -45,6 +48,7 @@ bool Ui_StatusBar_Setup(lv_obj_t *uiscreen) {
     lv_obj_set_pos(voltage, 2+24+2+24+2+5/*?*/, 5);
     lv_label_set_text(voltage, "????mV");
     lv_obj_set_width(voltage, 100);
+    #endif
 
     LcdDma_Mutex_Give();
     return true;
@@ -54,6 +58,7 @@ uint32_t last = 0;
 void Ui_StatusBar_Tick() {
     if (xthal_get_ccount() - last >= 240000000) {
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+        #if defined HWVER_PORTABLE
         if (IoExp_ChargeStatus()) {
             lv_label_set_text(charge, SYMBOL_CHARGE);
         } else {
@@ -72,6 +77,7 @@ void Ui_StatusBar_Tick() {
         }
         sprintf(tempbuf, "%dmV", BatteryMgr_Voltage);
         lv_label_set_text(voltage, tempbuf);
+        #endif
         LcdDma_Mutex_Give();
         last = xthal_get_ccount();
     }
