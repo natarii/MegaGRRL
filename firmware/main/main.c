@@ -59,6 +59,7 @@
 #include "leddrv.h"
 #include "channels.h"
 #include "userled.h"
+#include "options.h"
 #endif
 
 LV_IMG_DECLARE(img_frame);
@@ -77,7 +78,7 @@ lv_obj_t *frame;
 lv_obj_t *progress;
 lv_style_t progressstyle;
 lv_obj_t *lcd;
-#define MAIN_PROGRESS_MAX 13
+#define MAIN_PROGRESS_MAX 14
 uint8_t progressval = 0;
 #define MAIN_PROGRESS_UPDATE LcdDma_Mutex_Take(pdMS_TO_TICKS(1000)); lv_obj_set_width(progress, main_map(++progressval,0,MAIN_PROGRESS_MAX,0,50)); LcdDma_Mutex_Give(); vTaskDelay(2);
 lv_obj_t * textarea;
@@ -437,6 +438,12 @@ void app_main(void)
         LcdDma_Mutex_Give();
         //crash();
     }
+
+    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    lv_ta_add_text(textarea, "Setting up OptionsMgr...");
+    LcdDma_Mutex_Give();
+    OptionsMgr_Setup();
+    MAIN_PROGRESS_UPDATE;
 
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_ta_add_text(textarea, "Setting up ChannelMgr... ");

@@ -21,6 +21,7 @@ enum Tasks {
     TASK_CHANNELMGR,
     TASK_UI,
     TASK_USERLED,
+    TASK_OPTIONS,
     TASK_COUNT
 };
 

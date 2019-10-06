@@ -13,6 +13,7 @@
 #include "channels.h"
 #include "ui.h"
 #include "userled.h"
+#include "options.h"
 
 static const char* TAG = "Taskmgr";
 
@@ -39,6 +40,7 @@ void Taskmgr_CreateTasks() {
     xTaskCreatePinnedToCore(ChannelMgr_Main, "ChannelMgr", 1024, NULL, 18, &Taskmgr_Handles[TASK_CHANNELMGR], 0);
     xTaskCreatePinnedToCore(Ui_Main, "Ui", 3000, NULL, 12, &Taskmgr_Handles[TASK_UI], 0);
     xTaskCreatePinnedToCore(UserLedMgr_Main, "UserLed", 1024, NULL, 17, &Taskmgr_Handles[TASK_USERLED], 0);
+    xTaskCreatePinnedToCore(OptionsMgr_Main, "OptionsMgr", 2048, NULL, 8, &Taskmgr_Handles[TASK_OPTIONS], 0);
 
     xTaskCreatePinnedToCore(Driver_Main, "Driver", 4096, NULL, configMAX_PRIORITIES-2, &Taskmgr_Handles[TASK_DRIVER], 1);
 }
