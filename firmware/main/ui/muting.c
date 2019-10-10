@@ -38,7 +38,7 @@ uint8_t ch_sel = 0;
 lv_obj_t *title;
 lv_style_t title_style;
 
-void Muting_Destroy() {
+void Ui_Muting_Destroy() {
     lv_obj_del(container);
 }
 
