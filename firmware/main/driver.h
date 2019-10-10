@@ -16,7 +16,7 @@
 #define DRIVER_EVENT_FINISHED       0x08 //status flag
 #define DRIVER_EVENT_RESET_REQUEST  0x20 //incoming request to reset chips - only driver has access to spi
 #define DRIVER_EVENT_RESET_ACK      0x10 //reset is finished
-#define DRIVER_EVENT_ERROR          0x40 //status flag
+#define DRIVER_EVENT_UPDATE_MUTING  0x40 //force muting update
 #define DRIVER_EVENT_RESUME_REQUEST 0x80 //unpause
 
 //QueueEvents
@@ -40,6 +40,8 @@ extern volatile uint32_t Driver_CpuUsageDs;
 extern volatile bool Driver_FixPsgFrequency;
 extern volatile bool Driver_MitigateVgmTrim;
 extern volatile bool Driver_FirstWait;
+extern volatile uint8_t Driver_FmMask;
+extern volatile uint8_t Driver_PsgMask;
 
 extern uint32_t Driver_Sample;
 extern uint32_t Driver_NextSample;

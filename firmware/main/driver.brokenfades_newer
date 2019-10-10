@@ -86,6 +86,7 @@ uint8_t Driver_FmPans[6] = {0b11000000,0b11000000,0b11000000,0b11000000,0b110000
 uint32_t Driver_PauseSample = 0; //sample no before stop
 uint8_t Driver_PsgAttenuation[4] = {0x10, 0x10, 0x10, 0x10}; //garbage values, initial ones are set properly in start
 bool Driver_NoLeds = false;
+uint8_t Driver_TL[4*6];
 
 //dacstream specific
 uint32_t DacStreamSeq = 0;              //sequence no of the current stream
@@ -99,10 +100,6 @@ uint8_t DacStreamCommand = 0;           //chip command to use
 uint32_t DacStreamSamplesPlayed = 0;    //how many samples played so far
 uint8_t DacStreamLengthMode = 0;
 uint32_t DacStreamDataLength = 0;
-
-volatile uint8_t Driver_FmMask = 0b01111111;
-volatile uint8_t Driver_PsgMask = 0b00001111;
-uint8_t Driver_DacEn = 0;
 
 #define min(a,b) ((a) < (b) ? (a) : (b)) //sigh.
 
@@ -267,7 +264,6 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
     //todo: clean this up, there's so much code duplication.
     if (Register >= 0xb0 && Register <= 0xb2) {
         uint8_t ch = (Port?3:0)+(Register-0xb0);
-        Driver_FmAlgo[ch] = Value & 0b111;
         ChannelMgr_States[ch] |= CHSTATE_PARAM;
     } else if (Port == 0 && Register == 0x28) { //KON
         uint8_t ch = Value & 0b111;
@@ -336,57 +332,21 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
     }
 }
 
-void Driver_UpdateCh6Muting() {
-    if (Driver_MitigateVgmTrim) {
-        if (Driver_FirstWait) {
-            Driver_FmOut(1, 0xb6, Driver_FmPans[5] & 0b00111111);
-            return;
-        }
-    }
-    if (Driver_DacEn) {
-        Driver_FmOut(1, 0xb6, Driver_FmPans[5] & ((Driver_FmMask & (1<<6))?0b11111111:0b00111111));
-    } else {
-        Driver_FmOut(1, 0xb6, Driver_FmPans[5] & ((Driver_FmMask & (1<<5))?0b11111111:0b00111111));
-    }
-}
-
-void Driver_UpdateMuting() {
-    if (Driver_MitigateVgmTrim) {
-        if (Driver_FirstWait) {
-            //force everything off no matter what
-            Driver_FmOut(0, 0xb4, Driver_FmPans[0] & 0b00111111);
-            Driver_FmOut(0, 0xb5, Driver_FmPans[1] & 0b00111111);
-            Driver_FmOut(0, 0xb6, Driver_FmPans[2] & 0b00111111);
-            Driver_FmOut(1, 0xb4, Driver_FmPans[3] & 0b00111111);
-            Driver_FmOut(1, 0xb5, Driver_FmPans[4] & 0b00111111);
-            Driver_FmOut(1, 0xb6, Driver_FmPans[5] & 0b00111111);
-            for (uint8_t i=0;i<4;i++) {
-                Driver_PsgOut(0b10011111 | (i<<5));
-            }
-            return;
-        }
-    }
-    for (uint8_t i=0;i<5;i++) {
-        uint8_t mask = (Driver_FmMask & (1<<i))?0b11111111:0b00111111;
-        Driver_FmOut((i<3)?0:1, 0xb4 + ((i<3)?i:(i-3)), Driver_FmPans[i] & mask);
-    }
-    Driver_UpdateCh6Muting();
-    for (uint8_t i=0;i<4;i++) {
-        uint8_t atten = 0;
-        if (Driver_PsgMask & (1<<i)) {
-            atten = Driver_PsgAttenuation[i];
-        } else {
-            atten = 0b10011111 | (i<<5);
-        }
-        Driver_PsgOut(atten);
-    }
-}
-
 void Driver_SetFirstWait() {
-    Driver_FirstWait = false;
-    Driver_UpdateMuting();
     Driver_Cycle = 0;
     Driver_LastCc = Driver_Cc = xthal_get_ccount();
+    Driver_FirstWait = false;
+    if (Driver_MitigateVgmTrim) {
+        Driver_FmOut(0, 0xb4, Driver_FmPans[0]);
+        Driver_FmOut(0, 0xb5, Driver_FmPans[1]);
+        Driver_FmOut(0, 0xb6, Driver_FmPans[2]);
+        Driver_FmOut(1, 0xb4, Driver_FmPans[3]);
+        Driver_FmOut(1, 0xb5, Driver_FmPans[4]);
+        Driver_FmOut(1, 0xb6, Driver_FmPans[5]);
+        for (uint8_t i=0;i<4;i++) {
+            Driver_PsgOut(Driver_PsgAttenuation[i]);
+        }
+    }
 }
 
 uint8_t Driver_SeqToSlot(uint32_t seq) {
@@ -397,6 +357,50 @@ uint8_t Driver_SeqToSlot(uint32_t seq) {
     }
     ESP_LOGE(TAG, "Dacstream sync error - failed to find entry for seq %d !!", seq);
     return 0xff;
+}
+
+uint8_t Driver_ProcessTL(uint8_t op, uint8_t ch) {
+    uint8_t algo = Driver_FmAlgo[ch];
+    bool scale = false;
+    if (op == 3) {
+        scale = true;
+    } else if (op == 0) {
+        if (algo == 7) {
+            scale = true;
+        } else {
+            scale = false;
+        }
+    } else if (op == 1) {
+        if (algo >= 5) {
+            scale = true;
+        } else {
+            scale = false;
+        }
+    } else if (op == 2) {
+        if (algo >= 4) {
+            scale = true;
+        } else {
+            scale = false;
+        }
+    }
+    uint8_t tl = Driver_TL[(ch*4)+op] & 0b01111111;
+    tl += (Driver_Sample/44100);
+    if (tl > 0x7f) tl = 0x7f;
+    return tl;
+}
+
+void Driver_UpdateTLs() {
+    //return;
+    for (uint8_t ch=0;ch<3;ch++) {
+        for (uint8_t op=0;op<4;op++) {
+            Driver_FmOut(0, 0x40+ch+(4*op), Driver_ProcessTL(op,ch));
+        }
+    }
+    for (uint8_t ch=0;ch<3;ch++) {
+        for (uint8_t op=0;op<4;op++) {
+            Driver_FmOut(1, 0x40+ch+(4*op), Driver_ProcessTL(op,3+ch));
+        }
+    }
 }
 
 uint8_t Driver_PsgFreqLow = 0; //used for sega psg fix
@@ -411,7 +415,6 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
     if (cmd[0] == 0x50) { //SN76489
         //psg writes need to be intercepted to fix frequency register differences between TI PSG <-> SEGA VDP PSG
         //TODO: only do this for vgms where ver >= 1.51 and header 0x2b bit 0 is set
-        //TODO: fix all the logic here - it's fucked up if fixpsgfreq = false
         if (Driver_FixPsgFrequency) {
             if ((cmd[1] & 0x80) == 0) { //ch 1~3 frequency high byte write
                 if ((Driver_PsgFreqLow & 0b00001111) == 0) { //if low byte is all 0 for freq
@@ -426,12 +429,8 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
                 Driver_PsgFreqLow = cmd[1]; //just store the value for now, don't write anything until we get the high byte
             } else { //attenuation or noise ch control write
                 if ((cmd[1] & 0b10010000) == 0b10010000) { //attenuation
-                    uint8_t ch = (cmd[1]>>5)&0b00000011;
-                    Driver_PsgAttenuation[ch] = cmd[1];
+                    Driver_PsgAttenuation[(cmd[1]>>5)&0b00000011] = cmd[1];
                     if (Driver_MitigateVgmTrim && Driver_FirstWait) cmd[1] |= 0b00001111; //if we haven't reached the first wait, force full attenuation
-                    if ((Driver_PsgMask & (1<<ch)) == 0) {
-                        cmd[1] |= 0b00001111;
-                    }
                 }
                 Driver_PsgOut(cmd[1]);
             }
@@ -442,29 +441,46 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
         if (cmd[1] >= 0xb4 && cmd[1] <= 0xb6) { //pan, FMS, AMS
             Driver_FmPans[cmd[1]-0xb4] = cmd[2];
             if (Driver_MitigateVgmTrim && Driver_FirstWait) cmd[2] &= 0b00111111; //if we haven't reached the first wait, disable both L and R
-            cmd[2] &= (Driver_FmMask & (1<<(cmd[1]-0xb4)))?0b11111111:0b00111111;
         }
-        if (cmd[1] == 0x2b && (cmd[2] & 0x80) != Driver_DacEn) {
-            Driver_DacEn = cmd[2] & 0x80; //we shouldn't have to mask off the other bits but who knows what kind of crazy shit games do
-            ESP_LOGD(TAG, "dac mode change %02x", Driver_DacEn);
-            Driver_UpdateCh6Muting();
+        if (cmd[1] >= 0x40 && cmd[1] <= 0x4e) {
+            uint8_t op = ((cmd[1] - 0x40) / 4);
+            uint8_t ch = (cmd[1]%3);
+            //ESP_LOGW(TAG, "port%d ch %d op %d", 0, ch, op);
+            Driver_TL[(ch*4)+op] = cmd[2];
+            cmd[2] = Driver_ProcessTL(op, ch);
         }
         Driver_FmOut(0, cmd[1], cmd[2]);
+        if (cmd[1] >= 0xb0 && cmd[1] <= 0xb2) {
+            uint8_t ch = (cmd[1]-0xb0);
+            Driver_FmAlgo[ch] = cmd[2] & 0b111;
+            ESP_LOGW(TAG, "port%d ch%d algo %d", 0, ch, cmd[2] & 0b111);
+            //Driver_UpdateTLs();
+            for (uint8_t op=0;op<4;op++) {
+                Driver_FmOut(0, 0x40+(op*4)+ch, Driver_TL[(ch*4)+op]);
+            }
+        }
     } else if (cmd[0] == 0x53) { //YM2612 port 1
         if (cmd[1] >= 0xb4 && cmd[1] <= 0xb6) { //pan, FMS, AMS
             Driver_FmPans[3+cmd[1]-0xb4] = cmd[2];
-            if (cmd[1] == 0xb6) { //ch6, we need to check if it's in dac mode or not
-                if (Driver_DacEn) {
-                    cmd[2] &= (Driver_FmMask & (1<<6))?0b11111111:0b00111111;
-                } else {
-                    cmd[2] &= (Driver_FmMask & (1<<5))?0b11111111:0b00111111;
-                }
-            } else { //otherwise apply muting masks as normal
-                cmd[2] &= (Driver_FmMask & (1<<(3+(cmd[1]-0xb4))))?0b11111111:0b00111111;
-            }
-            if (Driver_MitigateVgmTrim && Driver_FirstWait) cmd[2] &= 0b00111111; //if we haven't reached the first wait, disable both L and R. do this after the muting logic
+            if (Driver_MitigateVgmTrim && Driver_FirstWait) cmd[2] &= 0b00111111; //if we haven't reached the first wait, disable both L and R
+        }
+        if (cmd[1] >= 0x40 && cmd[1] <= 0x4e) {
+            uint8_t op = ((cmd[1] - 0x40) / 4);
+            uint8_t ch = 3+(cmd[1]%3);
+            //ESP_LOGW(TAG, "port%d ch %d op %d", 1, ch, op);
+            Driver_TL[(ch*4)+op] = cmd[2];
+            cmd[2] = Driver_ProcessTL(op, ch);
         }
         Driver_FmOut(1, cmd[1], cmd[2]);
+        if (cmd[1] >= 0xb0 && cmd[1] <= 0xb2) {
+            uint8_t ch = 3+(cmd[1]-0xb0);
+            Driver_FmAlgo[ch] = cmd[2] & 0b111;
+            ESP_LOGW(TAG, "port%d ch%d algo %d", 1, ch, cmd[2] & 0b111);
+            //Driver_UpdateTLs();
+            for (uint8_t op=0;op<4;op++) {
+                Driver_FmOut(1, 0x40+(op*4)+(ch-3), Driver_TL[(ch*4)+op]);
+            }
+        }
     } else if (cmd[0] == 0x61) { //16bit wait
         Driver_NextSample += *(uint16_t*)&cmd[1];
         if (Driver_FirstWait && *(uint16_t*)&cmd[1] > 0) {
@@ -544,6 +560,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
 
 uint32_t Driver_BusyStart = 0;
 //uint32_t Driver_BusyEnd = 0;
+uint32_t fuck = 0;
 
 void Driver_Main() {
     //driver task. never pet watchdog or come up for air at all - nothing else is running on CPU1.
@@ -561,15 +578,25 @@ void Driver_Main() {
             DacStreamActive = false;
             DacStreamSeq = 0;
             memset(&Driver_FmAlgo[0], 0, sizeof(Driver_FmAlgo));
-            Driver_DacEn = 0;
             Driver_PsgLastChannel = 0; //psg can't really be reset, so technically this is kinda wrong? but it's consistent.
             Driver_FirstWait = true;
             memset(&Driver_FmPans[0], 0b11000000, sizeof(Driver_FmPans));
+            if (Driver_MitigateVgmTrim) {
+                Driver_FmOut(0, 0xb4, 0);
+                Driver_FmOut(0, 0xb5, 0);
+                Driver_FmOut(0, 0xb6, 0);
+                Driver_FmOut(1, 0xb4, 0);
+                Driver_FmOut(1, 0xb5, 0);
+                Driver_FmOut(1, 0xb6, 0);
+            }
             for (uint8_t i=0;i<4;i++) {
                 Driver_PsgAttenuation[i] = 0b10011111 | (i<<5);
+                Driver_PsgOut(Driver_PsgAttenuation[i]);
             }
-            Driver_UpdateMuting();
             memset(&ChannelMgr_States[0], 0, 6+4);
+            memset(&Driver_TL[0], 0, sizeof(Driver_TL));
+
+            fuck = xthal_get_ccount();
 
             //update status flags
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_FINISHED);
@@ -577,11 +604,6 @@ void Driver_Main() {
             xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_RUNNING);
             commandeventbits &= ~DRIVER_EVENT_START_REQUEST;
             commandeventbits |= DRIVER_EVENT_RUNNING;
-        } else if (commandeventbits & DRIVER_EVENT_UPDATE_MUTING) {
-            ESP_LOGI(TAG, "updating muting upon request");
-            Driver_UpdateMuting();
-            xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_UPDATE_MUTING);
-            commandeventbits &= ~DRIVER_EVENT_UPDATE_MUTING;
         } else if (commandeventbits & DRIVER_EVENT_RESET_REQUEST) {
             Driver_ResetChips();
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_FINISHED);
@@ -608,9 +630,19 @@ void Driver_Main() {
             commandeventbits &= ~(DRIVER_EVENT_RUNNING | DRIVER_EVENT_STOP_REQUEST);
         } else if (commandeventbits & DRIVER_EVENT_RESUME_REQUEST) {
             //todo: what if higher up resumes before stopping?
-            Driver_NoLeds = true;
-            Driver_UpdateMuting();
-            Driver_NoLeds = false;
+            if (!Driver_FirstWait) {
+                Driver_NoLeds = true;
+                Driver_FmOut(0, 0xb4, Driver_FmPans[0]);
+                Driver_FmOut(0, 0xb5, Driver_FmPans[1]);
+                Driver_FmOut(0, 0xb6, Driver_FmPans[2]);
+                Driver_FmOut(1, 0xb4, Driver_FmPans[3]);
+                Driver_FmOut(1, 0xb5, Driver_FmPans[4]);
+                Driver_FmOut(1, 0xb6, Driver_FmPans[5]);
+                for (uint8_t i=0;i<4;i++) {
+                    Driver_PsgOut(Driver_PsgAttenuation[i]);
+                }
+                Driver_NoLeds = false;
+            }
             Driver_Cc = Driver_LastCc = DacStreamSampleTime = xthal_get_ccount(); //dacstreams may end up being off by a sample or two upon resume - not going to worry about it
             Driver_Sample = Driver_PauseSample;
             xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_RUNNING);
@@ -644,8 +676,8 @@ void Driver_Main() {
                         if (!ret) {
                             printf("ERR command run fail");
                             fflush(stdout);
-                            /*xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_ERROR);
-                            commandeventbits |= DRIVER_EVENT_ERROR;*/
+                            xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_ERROR);
+                            commandeventbits |= DRIVER_EVENT_ERROR;
                         }
                     } else { //not enough data in queue - underrun
                         xEventGroupSetBits(Driver_QueueEvents, DRIVER_EVENT_COMMAND_UNDERRUN);
@@ -663,6 +695,11 @@ void Driver_Main() {
             } else {
                 //not time for next sample yet
                 if (Driver_NextSample - Driver_Sample > 2000 && !DacStreamActive) vTaskDelay(2);
+            }
+
+            if (xthal_get_ccount() - fuck >= 24000000) {
+                Driver_UpdateTLs();
+                fuck = xthal_get_ccount();
             }
 
             //dacstream stuff
