@@ -51,7 +51,6 @@ bool ch_en(uint8_t ch_sel) {
 }
 
 void ch_set(uint8_t ch_sel, bool en) {
-    uint8_t msk;
     if (ch_sel <= 6) {
         Driver_FmMask = ((Driver_FmMask&~(1<<ch_sel)) | ((en?1:0)<<ch_sel));
     } else {
