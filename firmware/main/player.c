@@ -302,6 +302,9 @@ bool Player_StopTrack() {
     ESP_LOGI(TAG, "Waiting for driver to stop...");
     while (xEventGroupGetBits(Driver_CommandEvents) & DRIVER_EVENT_RUNNING) vTaskDelay(pdMS_TO_TICKS(10));
 
+    ESP_LOGI(TAG, "Signalling driver reset");
+    xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_RESET_REQUEST);
+
     ESP_LOGI(TAG, "Requesting loader stop...");
     bool ret = Loader_Stop();
     if (!ret) {
@@ -323,6 +326,14 @@ bool Player_StopTrack() {
         fclose(Player_DsFillFile);
         return false;
     }
+
+    ESP_LOGI(TAG, "Wait for driver to reset...");
+    EventBits_t bits = xEventGroupWaitBits(Driver_CommandEvents, DRIVER_EVENT_RESET_ACK, false, false, pdMS_TO_TICKS(3000));
+    if ((bits & DRIVER_EVENT_RESET_ACK) == 0) {
+        ESP_LOGE(TAG, "Driver reset ack timeout !!");
+        return false;
+    }
+    xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_RESET_ACK);
 
     fclose(Player_VgmFile);
     fclose(Player_PcmFile);
