@@ -5,6 +5,7 @@
 #include "../lcddma.h"
 #include "../battery.h"
 #include "../ioexp.h"
+#include "../hal.h"
 
 static const char* TAG = "Ui_StatusBar";
 
