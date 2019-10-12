@@ -39,7 +39,9 @@ lv_obj_t *title;
 lv_style_t title_style;
 
 void Ui_Muting_Destroy() {
+    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_obj_del(container);
+    LcdDma_Mutex_Give();
 }
 
 bool ch_en(uint8_t ch_sel) {
