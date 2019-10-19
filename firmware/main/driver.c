@@ -103,6 +103,7 @@ uint32_t DacStreamDataLength = 0;
 volatile uint8_t Driver_FmMask = 0b01111111;
 volatile uint8_t Driver_PsgMask = 0b00001111;
 uint8_t Driver_DacEn = 0;
+volatile bool Driver_ForceMono = false;
 
 #define min(a,b) ((a) < (b) ? (a) : (b)) //sigh.
 
@@ -343,11 +344,9 @@ void Driver_UpdateCh6Muting() {
             return;
         }
     }
-    if (Driver_DacEn) {
-        Driver_FmOut(1, 0xb6, Driver_FmPans[5] & ((Driver_FmMask & (1<<6))?0b11111111:0b00111111));
-    } else {
-        Driver_FmOut(1, 0xb6, Driver_FmPans[5] & ((Driver_FmMask & (1<<5))?0b11111111:0b00111111));
-    }
+    uint8_t reg = Driver_FmPans[5] & (Driver_FmMask & (1<<(Driver_DacEn?6:5))?0b11111111:0b00111111);
+    if (Driver_ForceMono && (reg & 0b11000000)) reg |= 0b11000000;
+    Driver_FmOut(1, 0xb6, reg);
 }
 
 void Driver_UpdateMuting() {
@@ -368,7 +367,9 @@ void Driver_UpdateMuting() {
     }
     for (uint8_t i=0;i<5;i++) {
         uint8_t mask = (Driver_FmMask & (1<<i))?0b11111111:0b00111111;
-        Driver_FmOut((i<3)?0:1, 0xb4 + ((i<3)?i:(i-3)), Driver_FmPans[i] & mask);
+        uint8_t reg = Driver_FmPans[i] & mask;
+        if (Driver_ForceMono && (reg & 0b11000000)) reg |= 0b11000000;
+        Driver_FmOut((i<3)?0:1, 0xb4 + ((i<3)?i:(i-3)), reg);
     }
     Driver_UpdateCh6Muting();
     for (uint8_t i=0;i<4;i++) {
@@ -443,6 +444,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
             Driver_FmPans[cmd[1]-0xb4] = cmd[2];
             if (Driver_MitigateVgmTrim && Driver_FirstWait) cmd[2] &= 0b00111111; //if we haven't reached the first wait, disable both L and R
             cmd[2] &= (Driver_FmMask & (1<<(cmd[1]-0xb4)))?0b11111111:0b00111111;
+            if (Driver_ForceMono && (cmd[2] & 0b11000000)) cmd[2] |= 0b11000000;
         }
         if (cmd[1] == 0x2b && (cmd[2] & 0x80) != Driver_DacEn) {
             Driver_DacEn = cmd[2] & 0x80; //we shouldn't have to mask off the other bits but who knows what kind of crazy shit games do
@@ -463,6 +465,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
                 cmd[2] &= (Driver_FmMask & (1<<(3+(cmd[1]-0xb4))))?0b11111111:0b00111111;
             }
             if (Driver_MitigateVgmTrim && Driver_FirstWait) cmd[2] &= 0b00111111; //if we haven't reached the first wait, disable both L and R. do this after the muting logic
+            if (Driver_ForceMono && (cmd[2] & 0b11000000)) cmd[2] |= 0b11000000;
         }
         Driver_FmOut(1, cmd[1], cmd[2]);
     } else if (cmd[0] == 0x61) { //16bit wait

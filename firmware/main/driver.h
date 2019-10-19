@@ -42,6 +42,7 @@ extern volatile bool Driver_MitigateVgmTrim;
 extern volatile bool Driver_FirstWait;
 extern volatile uint8_t Driver_FmMask;
 extern volatile uint8_t Driver_PsgMask;
+extern volatile bool Driver_ForceMono;
 
 extern uint32_t Driver_Sample;
 extern uint32_t Driver_NextSample;

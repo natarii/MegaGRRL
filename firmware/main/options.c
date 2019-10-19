@@ -57,6 +57,14 @@ static const option_t Options[] = {
         &Driver_FixPsgFrequency,
         true
     },
+    {
+        "Stereo/Mono toggle",
+        "Setting this to mono will force mono sound in all VGMs.",
+        OPTION_CATEGORY_PLAYBACK,
+        OPTION_TYPE_STEREOMONO,
+        &Driver_ForceMono,
+        false
+    },
 
     {
         "Backlight timer",
@@ -69,6 +77,8 @@ static const option_t Options[] = {
 };
 
 void OptionsMgr_Save() {
+    ESP_LOGE(TAG, "saving disabled during testing");
+    return;
     FILE *f = fopen("/sd/.mega/options.mgo", "w");
     uint8_t tmp = OPTIONS_VER;
     fwrite(&tmp, 1, 1, f);
