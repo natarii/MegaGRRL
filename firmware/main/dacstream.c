@@ -144,7 +144,7 @@ void DacStream_FindTask() {
             }
             if (FreeSlot != 0xff) {
                 uint32_t start = xTaskGetTickCount();
-                UserLedMgr_States[1] = 255;
+                UserLedMgr_DiskState[DISKSTATE_DACSTREAM_FIND] = true;
                 UserLedMgr_Notify();
                 while (xTaskGetTickCount() - start <= pdMS_TO_TICKS(50)) {
                     fread(&d,1,1,DacStream_FindFile);
@@ -255,7 +255,7 @@ void DacStream_FindTask() {
                         }
                     }
                 }
-                UserLedMgr_States[1] = 0;
+                UserLedMgr_DiskState[DISKSTATE_DACSTREAM_FIND] = false;
                 UserLedMgr_Notify();
             }
             xSemaphoreGive(DacStream_Mutex);
@@ -269,7 +269,7 @@ void DacStream_FillTask_DoPre(uint8_t idx) {
     xSemaphoreTake(DacStream_Mutex, pdMS_TO_TICKS(1000));
     if (!DacStreamEntries[idx].SlotFree) {
         if (uxQueueSpacesAvailable(DacStreamEntries[idx].Queue) > DACSTREAM_BUF_SIZE/3 && DacStreamEntries[idx].ReadOffset < DacStreamEntries[idx].DataLength) {
-            UserLedMgr_States[2] = 255;
+            UserLedMgr_DiskState[DISKSTATE_DACSTREAM_FILL] = true;
             UserLedMgr_Notify();
             uint32_t o = DacStream_GetDataOffset(DacStreamEntries[idx].DataBankId, DacStreamEntries[idx].DataStart + DacStreamEntries[idx].ReadOffset);
             fseek(DacStream_FillFile,o,SEEK_SET);
@@ -285,7 +285,7 @@ void DacStream_FillTask_DoPre(uint8_t idx) {
                 DacStreamEntries[idx].ReadOffset++;
                 a--;
             }
-            UserLedMgr_States[2] = 0;
+            UserLedMgr_DiskState[DISKSTATE_DACSTREAM_FILL] = false;
             UserLedMgr_Notify();
         }
     }

@@ -115,7 +115,7 @@ void Loader_Main() {
                 xEventGroupClearBits(Loader_BufStatus, 0xff ^ LOADER_BUF_LOW);
             }
             if (!Loader_EndReached && (spaces > DRIVER_QUEUE_SIZE/8)) {
-                UserLedMgr_States[0] = 255;
+                UserLedMgr_DiskState[DISKSTATE_VGM] = true;
                 UserLedMgr_Notify();
                 while (running && uxQueueSpacesAvailable(Driver_CommandQueue)) {
                     uint8_t d = 0x00;
@@ -209,7 +209,7 @@ void Loader_Main() {
                     }
                     xQueueSendToBack(Driver_CommandQueue, &d, 0);
                 }
-                UserLedMgr_States[0] = 0;
+                UserLedMgr_DiskState[DISKSTATE_VGM] = false;
                 UserLedMgr_Notify();
             } else {
             }
