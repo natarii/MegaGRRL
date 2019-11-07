@@ -11,6 +11,7 @@
 #include "dacstream.h"
 #include "userled.h"
 #include "player.h"
+#include "ringbuf.h"
 
 static const char* TAG = "Loader";
 
@@ -99,7 +100,7 @@ void Loader_Main() {
             xEventGroupClearBits(Loader_Status, LOADER_STOP_REQUEST);
         }
         if (running) {
-            uint16_t spaces = uxQueueSpacesAvailable(Driver_CommandQueue);
+            uint16_t spaces = Ringbuf_Available(&Driver_CommandRingbuf);
             EventBits_t bbits = xEventGroupGetBits(Loader_BufStatus);
             if (spaces == 0 && !(bbits & LOADER_BUF_FULL)) {
                 xEventGroupSetBits(Loader_BufStatus, LOADER_BUF_FULL);
@@ -117,7 +118,7 @@ void Loader_Main() {
             if (!Loader_EndReached && (spaces > DRIVER_QUEUE_SIZE/8)) {
                 UserLedMgr_DiskState[DISKSTATE_VGM] = true;
                 UserLedMgr_Notify();
-                while (running && uxQueueSpacesAvailable(Driver_CommandQueue)) {
+                while (running && Ringbuf_Available(&Driver_CommandRingbuf)) {
                     uint8_t d = 0x00;
                     LOADER_BUF_READ(d);
                     if (Loader_Pending == 0) {
@@ -154,7 +155,7 @@ void Loader_Main() {
                                 fread(&Loader_PcmBuf[0], 1, FREAD_LOCAL_BUF, Loader_PcmFile); //todo: fix read past eof
                                 Loader_PcmBufUsed = 0;
                             }
-                            xQueueSendToBack(Driver_PcmQueue, &Loader_PcmBuf[Loader_PcmBufUsed++], 0); //theoretically pcmqueue should never ever be full while there are still spaces in commandqueue
+                            Ringbuf_Push_SingleByte(&Driver_PcmRingbuf, Loader_PcmBuf[Loader_PcmBufUsed++]); //theoretically pcmringbuf should never ever be full while there are still spaces in commandringbuf
                             Loader_PcmPos++;
                             #ifdef PARANOID_THAT_THERE_MIGHT_BE_VGMS_THAT_PLAY_PCM_ACROSS_BLOCK_BOUNDARIES
                             uint32_t NewOff = Loader_GetPcmOffset(Loader_PcmPos);
@@ -171,13 +172,13 @@ void Loader_Main() {
                             ESP_LOGI(TAG, "reached end of music");
                             if (Loader_VgmInfo->LoopOffset == 0 || (Loader_IgnoreZeroSampleLoops && Loader_VgmInfo->LoopSamples == 0)) { //there is no loop point at all
                                 ESP_LOGI(TAG, "no loop point");
-                                xQueueSendToBack(Driver_CommandQueue, &d, 0); //let driver figure out it's the end
+                                Ringbuf_Push_SingleByte(&Driver_CommandRingbuf, d); //let driver figure out it's the end
                                 Loader_EndReached = true;
                                 break;
                             }
                             if (Player_LoopCount != 255 && ++Loader_CurLoop == Player_LoopCount) {
                                 ESP_LOGI(TAG, "looped enough, stopping");
-                                xQueueSendToBack(Driver_CommandQueue, &d, 0); //let driver figure out it's the end
+                                Ringbuf_Push_SingleByte(&Driver_CommandRingbuf, d); //let driver figure out it's the end
                                 Loader_EndReached = true;
                                 break;
                             }
@@ -207,7 +208,7 @@ void Loader_Main() {
                     } else {
                         Loader_Pending--;
                     }
-                    xQueueSendToBack(Driver_CommandQueue, &d, 0);
+                    Ringbuf_Push_SingleByte(&Driver_CommandRingbuf, d);
                 }
                 UserLedMgr_DiskState[DISKSTATE_VGM] = false;
                 UserLedMgr_Notify();
@@ -253,8 +254,8 @@ bool Loader_Stop() {
         //cleanup stuff
         Loader_VgmDataBlockIndex = 0;
         xEventGroupClearBits(Loader_BufStatus, 0xff);
-        xQueueReset(Driver_CommandQueue);
-        xQueueReset(Driver_PcmQueue);
+        Ringbuf_Init(&Driver_CommandRingbuf);
+        Ringbuf_Init(&Driver_PcmRingbuf);
         return true;
     } else {
         ESP_LOGE(TAG, "Loader stop request timeout !!");

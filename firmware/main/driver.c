@@ -11,6 +11,7 @@
 #include "dacstream.h"
 #include "channels.h"
 #include "hal.h"
+#include "ringbuf.h"
 
 static const char* TAG = "Driver";
 
@@ -40,12 +41,10 @@ uint8_t Driver_SrBuf[2] = {0xff & ~SR_BIT_IC,0x00};
 uint8_t Driver_SrBuf[2] = {0x00,0xff & ~SR_BIT_IC};
 #endif
 
-QueueHandle_t Driver_CommandQueue; //queue of incoming vgm data
-QueueHandle_t Driver_PcmQueue; //queue of attached pcm data (if any)
+volatile Ringbuf_t Driver_CommandRingbuf; //incoming vgm data
+volatile Ringbuf_t Driver_PcmRingbuf; //attached pcm data (if any)
 EventGroupHandle_t Driver_CommandEvents; //driver status flags
 EventGroupHandle_t Driver_QueueEvents; //queue status flags
-StaticQueue_t Driver_CommandStaticQueue;
-StaticQueue_t Driver_PcmStaticQueue;
 uint8_t Driver_CommandQueueBuf[DRIVER_QUEUE_SIZE];
 uint8_t Driver_PcmBuf[DACSTREAM_BUF_SIZE*DACSTREAM_PRE_COUNT];
 
@@ -123,18 +122,16 @@ void Driver_Output() { //output data to shift registers
 }
 
 bool Driver_Setup() {
-    //create the queues and event groups
+    //create the ringbufs and event groups
     ESP_LOGI(TAG, "Setting up");
-    Driver_CommandQueue = xQueueCreateStatic(DRIVER_QUEUE_SIZE, sizeof(uint8_t), &Driver_CommandQueueBuf[0], &Driver_CommandStaticQueue);
-    if (Driver_CommandQueue == NULL) {
-        ESP_LOGE(TAG, "Command queue create failed !!");
-        return false;
-    }
-    Driver_PcmQueue = xQueueCreateStatic(DRIVER_QUEUE_SIZE, sizeof(uint8_t), &Driver_PcmBuf[0], &Driver_PcmStaticQueue);
-    if (Driver_PcmQueue == NULL) {
-        ESP_LOGE(TAG, "Pcm queue create failed !!");
-        return false;
-    }
+    Driver_CommandRingbuf.Buf = &Driver_CommandQueueBuf;
+    Driver_CommandRingbuf.Size = sizeof(Driver_CommandQueueBuf);
+    Ringbuf_Init(&Driver_CommandRingbuf);
+
+    Driver_PcmRingbuf.Buf = &Driver_PcmBuf;
+    Driver_PcmRingbuf.Size = sizeof(Driver_PcmBuf);
+    Ringbuf_Init(&Driver_PcmRingbuf);
+
     Driver_CommandEvents = xEventGroupCreate();
     if (Driver_CommandEvents == NULL) {
         ESP_LOGE(TAG, "Command event group create failed !!");
@@ -415,7 +412,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
     
     //read command + data from the queue
     for (uint8_t i=0;i<CommandLength;i++) {
-        xQueueReceive(Driver_CommandQueue, &cmd[i], 0);
+        cmd[i] = Ringbuf_Pop_Single(&Driver_CommandRingbuf);
     }
 
     if (cmd[0] == 0x50) { //SN76489
@@ -494,7 +491,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
     } else if ((cmd[0] & 0xf0) == 0x80) { //YM2612 DAC + wait
         uint8_t sample;
         //TODO check if queue is empty
-        xQueueReceive(Driver_PcmQueue, &sample, 0);
+        sample = Ringbuf_Pop_Single(&Driver_PcmRingbuf);
         Driver_FmOut(0, 0x2a, sample);
         Driver_NextSample += cmd[0] & 0x0f;
         if (Driver_FirstWait && (cmd[0] & 0x0f) > 0) {
@@ -637,7 +634,7 @@ void Driver_Main() {
             //vgm stuff
             if (Driver_Sample >= Driver_NextSample) { //time to move on to the next sample
                 Driver_BusyStart = xthal_get_ccount();
-                uint32_t waiting = uxQueueMessagesWaiting(Driver_CommandQueue);
+                uint32_t waiting = Driver_CommandRingbuf.Size - Ringbuf_Available(&Driver_CommandRingbuf);
                 if (waiting > 0) { //is any data available?
                     //update half-empty event bit
                     if ((queueeventbits & DRIVER_EVENT_COMMAND_HALF) == 0 && waiting <= DRIVER_QUEUE_SIZE/2) {
@@ -649,7 +646,7 @@ void Driver_Main() {
                     }
 
                     uint8_t peeked;
-                    xQueuePeek(Driver_CommandQueue, &peeked, 0); //peek at first command in the queue
+                    peeked = Ringbuf_Peek_Single(&Driver_CommandRingbuf); //peek at first command in the queue
                     uint8_t cmdlen = VgmCommandLength(peeked); //look up the length of this command + attached data
                     if (waiting >= cmdlen) { //if the entire command + data is in the queue
                         bool ret = Driver_RunCommand(cmdlen);
