@@ -63,22 +63,13 @@ spi_bus_config_t Driver_SpiBusConfig = {
     .quadwp_io_num=-1,
     .quadhd_io_num=-1,
 };
-#ifdef HWVER_PORTABLE
 spi_device_interface_config_t Driver_SpiDeviceConfig = {
-    .clock_speed_hz=26600000, //shift registers are spec'd at typ 52MHz @ 25C but signal integrity is too poor at 40MHz (3.3v data is probably not helping either). 26.6 is rock solid though.
+    .clock_speed_hz=26600000, /*incredibly loud green hill zone music plays*/
     .mode=0,
     .spics_io_num=PIN_DRIVER_SHSTO,
     .queue_size=10,
+    //.flags = SPI_DEVICE_NO_DUMMY
 };
-#elif defined HWVER_DESKTOP
-spi_device_interface_config_t Driver_SpiDeviceConfig = {
-    .clock_speed_hz=40000000, //signal integrity at 40MHz is good as of desktop pcb ver 1.1. however, if you are breadboarding this, 40MHz is probably too hairy, so decrease this
-    .mode=0,
-    .spics_io_num=PIN_DRIVER_SHSTO,
-    .queue_size=10,
-    .flags = SPI_DEVICE_NO_DUMMY,
-};
-#endif
 spi_device_handle_t Driver_SpiDevice;
 
 //vgm / 2612 pcm stuff
