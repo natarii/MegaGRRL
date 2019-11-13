@@ -8,7 +8,6 @@
 #include "freertos/queue.h"
 #include "freertos/event_groups.h"
 #include "mallocs.h"
-#include "ringbuf.h"
 
 //PlayEvents
 #define DRIVER_EVENT_START_REQUEST  0x01 //incoming request to begin playback
@@ -28,8 +27,10 @@
 extern uint8_t Driver_CommandQueueBuf[DRIVER_QUEUE_SIZE];
 extern uint8_t Driver_PcmBuf[DACSTREAM_BUF_SIZE*DACSTREAM_PRE_COUNT];
 
-extern volatile Ringbuf_t Driver_CommandRingbuf;
-extern volatile Ringbuf_t Driver_PcmRingbuf;
+extern QueueHandle_t Driver_CommandQueue;
+extern QueueHandle_t Driver_PcmQueue;
+extern StaticQueue_t Driver_CommandStaticQueue;
+extern StaticQueue_t Driver_PcmStaticQueue;
 extern EventGroupHandle_t Driver_CommandEvents;
 extern EventGroupHandle_t Driver_QueueEvents;
 extern uint8_t DacStreamId;
