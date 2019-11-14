@@ -77,7 +77,7 @@
 #define LV_COLOR_TRANSP    LV_COLOR_MAKE(0x12,0x34,0x56)          /*Images pixels with this color will not be drawn (with chroma keying)*/
 
 /*Text settings*/
-#define LV_TXT_UTF8             0                /*Enable UTF-8 coded Unicode character usage */
+#define LV_TXT_UTF8             1                /*Enable UTF-8 coded Unicode character usage */
 #define LV_TXT_BREAK_CHARS     " ,.;:-_"         /*Can break texts on these chars*/
 
 /*Graphics feature usage*/
@@ -103,7 +103,7 @@
 
 
 /*Log settings*/
-#define USE_LV_LOG      0   /*Enable/disable the log module*/
+#define USE_LV_LOG      1   /*Enable/disable the log module*/
 #if USE_LV_LOG
 /* How important log should be added:
  * LV_LOG_LEVEL_TRACE       A lot of logs to give detailed information
@@ -111,10 +111,10 @@
  * LV_LOG_LEVEL_WARN        Log if something unwanted happened but didn't caused problem
  * LV_LOG_LEVEL_ERROR       Only critical issue, when the system may fail
  */
-#define LV_LOG_LEVEL    LV_LOG_LEVEL_INFO
+#define LV_LOG_LEVEL    LV_LOG_LEVEL_WARN
 /* 1: Print the log with 'printf'; 0: user need to register a callback*/
 
-#define LV_LOG_PRINTF   0
+#define LV_LOG_PRINTF   1
 #endif  /*USE_LV_LOG*/
 
 /*================
@@ -144,11 +144,11 @@
 #define USE_LV_FONT_SYMBOL_10              0
 
 #define USE_LV_FONT_DEJAVU_20              4
-#define USE_LV_FONT_DEJAVU_20_LATIN_SUP    0
-#define USE_LV_FONT_DEJAVU_20_CYRILLIC     0
+#define USE_LV_FONT_DEJAVU_20_LATIN_SUP    4
+#define USE_LV_FONT_DEJAVU_20_CYRILLIC     4
 #define USE_LV_FONT_SYMBOL_20              4
 
-#define USE_LV_FONT_DEJAVU_30              0
+#define USE_LV_FONT_DEJAVU_30              4
 #define USE_LV_FONT_DEJAVU_30_LATIN_SUP    0
 #define USE_LV_FONT_DEJAVU_30_CYRILLIC     0
 #define USE_LV_FONT_SYMBOL_30              0
