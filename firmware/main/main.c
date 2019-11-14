@@ -62,7 +62,11 @@
 #include "options.h"
 #endif
 
+#ifdef HWVER_PORTABLE
 LV_IMG_DECLARE(img_frame);
+#elif defined HWVER_DESKTOP
+LV_IMG_DECLARE(img_desktopframe);
+#endif
 LV_IMG_DECLARE(img_blank);
 LV_IMG_DECLARE(img_lcdsd);
 LV_IMG_DECLARE(img_lcdsdq);
@@ -254,12 +258,21 @@ void app_main(void)
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
 
     frame = lv_img_create(lv_layer_top(), NULL);
+    #ifdef HWVER_PORTABLE
     lv_img_set_src(frame, &img_frame);
     lv_obj_set_pos(frame, 95, 126);
+    #elif defined HWVER_DESKTOP
+    lv_img_set_src(frame, &img_desktopframe);
+    lv_obj_set_pos(frame, 86, 126);
+    #endif
 
     lcd = lv_img_create(lv_layer_top(), NULL);
     lv_img_set_src(lcd, &img_blank);
+    #ifdef HWVER_PORTABLE
     lv_obj_set_pos(lcd, 95+21, 126+8);
+    #elif defined HWVER_DESKTOP
+    lv_obj_set_pos(lcd, 86+22, 126+5);
+    #endif
 
     lv_obj_set_opa_scale_enable(frame, true);
     lv_obj_set_opa_scale_enable(lcd, true);
