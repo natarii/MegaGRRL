@@ -556,6 +556,11 @@ void app_main(void)
     }
 
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    lv_obj_set_hidden(progress, true);
+    lv_img_set_src(lcd, &img_lcdhappy);
+    LcdDma_Mutex_Give();
+    vTaskDelay(pdMS_TO_TICKS(500));
+    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_ta_add_text(textarea, "Setting up UI... ");
     LcdDma_Mutex_Give();
     setup_ret = Ui_Setup();
@@ -570,20 +575,15 @@ void app_main(void)
         LcdDma_Mutex_Give();
         crash();
     }
-
     ESP_LOGI(TAG, "Starting tasks !!");
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_ta_add_text(textarea, "Starting tasks!");
-    lv_obj_set_hidden(progress, true);
-    lv_img_set_src(lcd, &img_lcdhappy);
-    LcdDma_Mutex_Give();
-    Taskmgr_CreateTasks();
-    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_obj_del(textarea);
     lv_obj_del(frame);
     lv_obj_del(lcd);
     lv_obj_del(progress);
     LcdDma_Mutex_Give();
+    Taskmgr_CreateTasks();
 
     #endif
 }
