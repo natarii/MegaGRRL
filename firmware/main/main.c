@@ -283,6 +283,7 @@ void app_main(void)
 
     progress = lv_obj_create(lv_layer_top(), NULL);
     lv_obj_set_height(progress, 10);
+    lv_obj_set_width(progress, 0);
     lv_obj_set_pos(progress, 95, 126+67+10);
     lv_obj_set_style(progress, &progressstyle);
 
