@@ -99,6 +99,7 @@ uint8_t DacStreamCommand = 0;           //chip command to use
 uint32_t DacStreamSamplesPlayed = 0;    //how many samples played so far
 uint8_t DacStreamLengthMode = 0;
 uint32_t DacStreamDataLength = 0;
+bool DacStreamFailed = false;
 
 volatile uint8_t Driver_FmMask = 0b01111111;
 volatile uint8_t Driver_PsgMask = 0b00001111;
@@ -684,9 +685,13 @@ void Driver_Main() {
                         if (DacStreamSamplesPlayed == DacStreamDataLength && (DacStreamLengthMode == 0 || DacStreamLengthMode == 1 || DacStreamLengthMode == 3)) {
                             DacStreamActive = false;
                         }
+                        DacStreamFailed = false;
                     }
                 } else {
-                    ESP_LOGW(TAG, "DacStream sample queue under !! pos %d length %d", DacStreamSamplesPlayed, DacStreamDataLength);
+                    if (!DacStreamFailed) {
+                        ESP_LOGW(TAG, "DacStream sample queue under !! pos %d length %d", DacStreamSamplesPlayed, DacStreamDataLength);
+                        DacStreamFailed = true;
+                    }
                     //DacStreamActive = false;
                 }
                 Driver_CpuUsageDs += (xthal_get_ccount() - Driver_BusyStart);
