@@ -10,6 +10,11 @@ static const char* TAG = "KeyMgr";
 
 volatile QueueHandle_t KeyMgr_TargetQueue = NULL;
 KeyState_t KeyStates[KEY_COUNT];
+volatile bool KeyLockout[KEY_COUNT];
+
+void KeyMgr_Consume(uint8_t key) {
+    KeyLockout[key] = true;
+}
 
 bool KeyMgr_Setup() {
     ESP_LOGI(TAG, "Setting up");
@@ -17,6 +22,7 @@ bool KeyMgr_Setup() {
     for (uint8_t i=0;i<KEY_COUNT;i++) {
         KeyStates[i].RawState = 0;
         KeyStates[i].DebouncedState = 0;
+        KeyLockout[i] = false;
     }
 
     ESP_LOGI(TAG, "OK");
@@ -71,20 +77,21 @@ void KeyMgr_Main() {
                     KeyStates[bit].TsUp = now;
 
                     //edge
-                    KeyMgr_SendEvent(bit, KEY_EVENT_UP | (KeyStates[bit].AlreadyHeld?KEY_EVENT_HELD:0));
+                    if (!KeyLockout[bit]) KeyMgr_SendEvent(bit, KEY_EVENT_UP | (KeyStates[bit].AlreadyHeld?KEY_EVENT_HELD:0));
+                    else KeyLockout[bit] = false;
                 }
             }
 
             //hold notif
             if (KeyStates[bit].DebouncedState && !KeyStates[bit].AlreadyHeld && now - KeyStates[bit].TsDown >= KEY_HOLD_DELAY) {
-                KeyMgr_SendEvent(bit, KEY_EVENT_HOLD);
+                if (!KeyLockout[bit]) KeyMgr_SendEvent(bit, KEY_EVENT_HOLD);
                 KeyStates[bit].AlreadyHeld = true;
             }
 
             //repeat
             if (KeyStates[bit].DebouncedState && now - KeyStates[bit].TsDown >= KEY_REPEAT_DELAY) {
                 if (now - KeyStates[bit].TsLastRepeat >= KEY_REPEAT_INTERVAL) {
-                    KeyMgr_SendEvent(bit, KEY_EVENT_PRESS | KEY_EVENT_REPEAT);
+                    if (!KeyLockout[bit]) KeyMgr_SendEvent(bit, KEY_EVENT_PRESS | KEY_EVENT_REPEAT);
                     KeyStates[bit].TsLastRepeat = now;
                     if (bit == KEY_A && now - KeyStates[bit].TsDown >= 2500) {
                         Sdcard_Destroy();

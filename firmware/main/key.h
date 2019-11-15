@@ -58,5 +58,6 @@ bool KeyMgr_Setup();
 void KeyMgr_Main();
 
 volatile QueueHandle_t KeyMgr_TargetQueue;
+void KeyMgr_Consume(uint8_t key);
 
 #endif

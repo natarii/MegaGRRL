@@ -217,6 +217,7 @@ void Ui_MainMenu_Key(KeyEvent_t event) {
                 }
                 break;
             case KEY_C:
+                KeyMgr_Consume(KEY_C);
                 Ui_Screen = mm_icontable[mm_curicon].newscreen;
                 break;
             default:
