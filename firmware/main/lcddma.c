@@ -17,9 +17,15 @@ static const char* TAG = "LcdDma";
 StaticSemaphore_t LcdDma_MutexBuffer;
 SemaphoreHandle_t LcdDma_Mutex = NULL;
 
-void LcdDma_PreTransferCallback(spi_transaction_t *t) {
-    uint8_t dc = (uint8_t)t->user;
-    gpio_set_level(PIN_DISP_DC, dc);
+DRAM_ATTR static uint8_t LcdDma_Lvgl_Buf[LV_VDB_SIZE_IN_BYTES];
+DRAM_ATTR static uint8_t LcdDma_Lvgl_Buf2[LV_VDB_SIZE_IN_BYTES];
+
+void IRAM_ATTR LcdDma_PostTransferCallback(spi_transaction_t *t) {
+    if ((uint8_t)t->user & 1<<1) lv_flush_ready();
+}
+
+void IRAM_ATTR LcdDma_PreTransferCallback(spi_transaction_t *t) {
+    gpio_set_level(PIN_DISP_DC, (uint8_t)t->user); //no need to mask off the end of sequence bit - gpio driver just does "if (level)"
 }
 
 spi_bus_config_t LcdDma_SpiBusConfig = {
@@ -28,21 +34,22 @@ spi_bus_config_t LcdDma_SpiBusConfig = {
     .sclk_io_num = PIN_DISP_SCK,
     .quadwp_io_num = -1,
     .quadhd_io_num = -1,
-    .max_transfer_sz = 3840,   
+    .max_transfer_sz = 4094,
 };
 spi_device_interface_config_t LcdDma_SpiDeviceConfig = {
     .clock_speed_hz = 40000000,
     .mode = 0,
     .spics_io_num = PIN_DISP_CS,
-    .queue_size = 1,
+    .queue_size = 6,
     .pre_cb = LcdDma_PreTransferCallback,
-    .flags = SPI_DEVICE_NO_DUMMY,
+    .post_cb = LcdDma_PostTransferCallback,
+    .flags = SPI_DEVICE_NO_DUMMY
 };
 spi_device_handle_t LcdDma_SpiDevice;
 
 //this is awful and based on loboris library init format
 static DRAM_ATTR uint8_t ILI9341_init[] = {
-  2324,                   					        // 24 commands in list
+  24,                   					        // 24 commands in list
   TFT_CMD_SWRESET, TFT_CMD_DELAY,					//  1: Software reset, no args, w/delay
   250,	
   TFT_CMD_POWERA, 5, 0x39, 0x2C, 0x00, 0x34, 0x02,
@@ -101,32 +108,49 @@ void LcdDma_Data(uint8_t *data, uint16_t len) {
     }
 }
 
+spi_transaction_t LcdDma_Flush_Txs[6];
 static void LcdDma_Lvgl_Flush(int32_t x1, int32_t y1, int32_t x2, int32_t y2, const lv_color_t * color_p) {
-    ESP_LOGD(TAG, "send pos %d,%d %d,%d", x1, y1, x2, y2);
-    uint32_t pixels = ((x2-x1)+1)*((y2-y1)+1);
-    uint8_t set[4];
-    set[0] = (x1>>8)&0xff;
-    set[1] = x1&0xff;
-    set[2] = (x2>>8)&0xff;
-    set[3] = x2&0xff;
-    LcdDma_Cmd(0x2a);
-    LcdDma_Data(&set,4);
-    set[0] = (y1>>8)&0xff;
-    set[1] = y1&0xff;
-    set[2] = (y2>>8)&0xff;
-    set[3] = y2&0xff;
-    LcdDma_Cmd(0x2b);
-    LcdDma_Data(&set,4);
-
-    LcdDma_Cmd(0x2c);
-    while (pixels > 240*8) { //max we can fit in a dma transfer
-        LcdDma_Data((uint8_t*)color_p, 240*8*2);
-        pixels -= 240*8;
-        color_p += 240*8;
+    //don't bother checking the size of the data given to this, we should never receive more than the maximum dma transfer size, as ensured by the size of LV_VDB_SIZE.
+    for (uint8_t i=0;i<6;i++) {
+        memset(&LcdDma_Flush_Txs[i], 0, sizeof(spi_transaction_t));
+        if (i & 1) {
+            LcdDma_Flush_Txs[i].length = 32;
+            LcdDma_Flush_Txs[i].user = (void*)1;
+        } else {
+            LcdDma_Flush_Txs[i].length = 8;
+            LcdDma_Flush_Txs[i].user = (void*)0;
+        }
+        if (i < 5) LcdDma_Flush_Txs[i].flags = SPI_TRANS_USE_TXDATA;
     }
-    LcdDma_Data((uint8_t*)color_p, pixels*2);
 
-    lv_flush_ready();
+    //X
+    LcdDma_Flush_Txs[0].tx_data[0] = 0x2a;
+    spi_device_queue_trans(LcdDma_SpiDevice, &LcdDma_Flush_Txs[0], portMAX_DELAY);
+    LcdDma_Flush_Txs[1].tx_data[0] = (x1>>8)&0xff;
+    LcdDma_Flush_Txs[1].tx_data[1] = x1&0xff;
+    LcdDma_Flush_Txs[1].tx_data[2] = (x2>>8)&0xff;
+    LcdDma_Flush_Txs[1].tx_data[3] = x2&0xff;
+    spi_device_queue_trans(LcdDma_SpiDevice, &LcdDma_Flush_Txs[1], portMAX_DELAY);
+
+    //Y
+    LcdDma_Flush_Txs[2].tx_data[0] = 0x2b;
+    spi_device_queue_trans(LcdDma_SpiDevice, &LcdDma_Flush_Txs[2], portMAX_DELAY);
+    LcdDma_Flush_Txs[3].tx_data[0] = (y1>>8)&0xff;
+    LcdDma_Flush_Txs[3].tx_data[1] = y1&0xff;
+    LcdDma_Flush_Txs[3].tx_data[2] = (y2>>8)&0xff;
+    LcdDma_Flush_Txs[3].tx_data[3] = y2&0xff;
+    spi_device_queue_trans(LcdDma_SpiDevice, &LcdDma_Flush_Txs[3], portMAX_DELAY);
+
+    //data
+    LcdDma_Flush_Txs[4].tx_data[0] = 0x2c;
+    spi_device_queue_trans(LcdDma_SpiDevice, &LcdDma_Flush_Txs[4], portMAX_DELAY);
+    LcdDma_Flush_Txs[5].tx_buffer = (uint8_t *)color_p;
+    uint32_t pix = ((x2-x1)+1)*((y2-y1)+1);
+    LcdDma_Flush_Txs[5].length = pix<<4;
+    LcdDma_Flush_Txs[5].user = 0b11; //bit 1 used as end of sequence flag, checked in post-transfer callback
+    spi_device_queue_trans(LcdDma_SpiDevice, &LcdDma_Flush_Txs[5], portMAX_DELAY);
+
+    ESP_LOGD(TAG, "Tx buf%d %d bytes", ((void *)color_p >= (void *)&LcdDma_Lvgl_Buf[0] && (void *)color_p < (void *)&LcdDma_Lvgl_Buf[LV_VDB_SIZE_IN_BYTES])?1:2, pix<<1);
 }
 
 bool LcdDma_Setup() {
@@ -174,6 +198,7 @@ bool LcdDma_Setup() {
     ESP_LOGI(TAG, "Init lvgl...");
     lv_init();
     lv_tick_inc(20);
+    lv_vdb_set_adr(&LcdDma_Lvgl_Buf[0], &LcdDma_Lvgl_Buf2[0]);
     ESP_LOGI(TAG, "Lvgl display driver init...");
     lv_disp_drv_t disp;
 	lv_disp_drv_init(&disp);
@@ -182,7 +207,7 @@ bool LcdDma_Setup() {
 	lv_disp_drv_register(&disp);
     
     ESP_LOGI(TAG, "Start lvgl tick task");
-    xTaskCreatePinnedToCore(LcdDma_Main, "LCD DMA", 8192, NULL, 3, &Taskmgr_Handles[TASK_LCDDMA], 0);
+    xTaskCreatePinnedToCore(LcdDma_Main, "LCD DMA", 4096, NULL, 3, &Taskmgr_Handles[TASK_LCDDMA], 0);
 
     ESP_LOGI(TAG, "Done");
     return true;
