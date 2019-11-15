@@ -87,7 +87,7 @@ void Ui_MainMenu_Setup(lv_obj_t *uiscreen) {
 
     mm_logo = lv_img_create(container, NULL);
     lv_img_set_src(mm_logo, &img_megagrrlhdr);
-    lv_obj_set_pos(mm_logo, 0, (50/2)-(24/2));//-6);
+    lv_obj_set_pos(mm_logo, 0, (50/2)-(24/2)+1);//-6);
 
     /*mm_logo_kl = lv_img_create(container, NULL);
     lv_img_set_src(mm_logo_kl, &img_kunoichilabs_smol);
@@ -135,14 +135,14 @@ void Ui_MainMenu_Setup(lv_obj_t *uiscreen) {
 
     mm_icon = lv_img_create(container, NULL);
     lv_img_set_src(mm_icon, &img_library);
-    lv_obj_set_pos(mm_icon, (240/2)-(100/2), (250/2)-(100/2)-15);
+    lv_obj_set_pos(mm_icon, (240/2)-(100/2)+1, (250/2)-(100/2)-15);
 
     mm_iconL = lv_img_create(container, NULL);
     lv_img_set_src(mm_iconL, &img_library);
-    lv_obj_set_pos(mm_iconL, -(50/2), (250/2)-(50/2)-15);
+    lv_obj_set_pos(mm_iconL, -(50/2)+10, (250/2)-(50/2)-15);
     mm_iconR = lv_img_create(container, NULL);
     lv_img_set_src(mm_iconR, &img_library);
-    lv_obj_set_pos(mm_iconR, 240-(50/2), (250/2)-(50/2)-15);
+    lv_obj_set_pos(mm_iconR, 240-(50/2)-10, (250/2)-(50/2)-15);
 
     lv_style_copy(&mm_icontext_style, &lv_style_plain);
     mm_icontext_style.text.color = LV_COLOR_MAKE(255,255,255);
@@ -150,8 +150,8 @@ void Ui_MainMenu_Setup(lv_obj_t *uiscreen) {
 
     mm_icontext = lv_label_create(container, NULL);
     lv_label_set_long_mode(mm_icontext, LV_LABEL_LONG_CROP);
-    lv_obj_set_pos(mm_icontext, 0, (250/2)+(100/2)-3-15);
-    lv_obj_set_size(mm_icontext, 240, 50);
+    lv_obj_set_pos(mm_icontext, 1, (250/2)+(100/2)-3-15);
+    lv_obj_set_size(mm_icontext, 239, 50);
     lv_label_set_style(mm_icontext, &mm_icontext_style);
     lv_label_set_align(mm_icontext, LV_LABEL_ALIGN_CENTER);
     lv_label_set_text(mm_icontext, "");
