@@ -53,7 +53,7 @@ spi_device_handle_t LcdDma_SpiDevice;
 static DRAM_ATTR uint8_t ILI9341_init[] = {
   24,                   					        // 24 commands in list
   TFT_CMD_SWRESET, TFT_CMD_DELAY,					//  1: Software reset, no args, w/delay
-  250,	
+  120,	                                            //5ms until next command, 120 required until sleep out. the overhead of sending all the other params probably accounts for a good chunk of the 120...
   TFT_CMD_POWERA, 5, 0x39, 0x2C, 0x00, 0x34, 0x02,
   TFT_CMD_POWERB, 3, 0x00, 0XC1, 0X30,
   0xEF, 3, 0x03, 0x80, 0x02,
@@ -67,23 +67,21 @@ static DRAM_ATTR uint8_t ILI9341_init[] = {
   TFT_CMD_VMCTR2, 1, 0x86,							//VCM control2
   TFT_MADCTL, 1,									// Memory Access Control (orientation)
   (0b1011100),
-  // *** INTERFACE PIXEL FORMAT: 0x66 -> 18 bit; 0x55 -> 16 bit
   TFT_CMD_PIXFMT, 1, 0x55,
   TFT_INVOFF, 0,
   TFT_CMD_FRMCTR1, 2, 0x00, 0x18,
   TFT_CMD_DFUNCTR, 4, 0x08, 0x82, 0x27, 0x00,		// Display Function Control
   TFT_PTLAR, 4, 0x00, 0x00, 0x01, 0x3F,
+  TFT_CMD_SLPOUT, TFT_CMD_DELAY,					//  Sleep out
+  15,			 									//datasheet specifies only 5ms required, but this is long enough to hide the initial draw
   TFT_CMD_3GAMMA_EN, 1, 0x00,						// 3Gamma Function: Disable (0x02), Enable (0x03)
   TFT_CMD_GAMMASET, 1, 0x01,						//Gamma curve selected (0x01, 0x02, 0x04, 0x08)
   TFT_CMD_GMCTRP1, 15,   							//Positive Gamma Correction
   0x0F, 0x31, 0x2B, 0x0C, 0x0E, 0x08, 0x4E, 0xF1, 0x37, 0x07, 0x10, 0x03, 0x0E, 0x09, 0x00,
   TFT_CMD_GMCTRN1, 15,   							//Negative Gamma Correction
   0x00, 0x0E, 0x14, 0x03, 0x11, 0x07, 0x31, 0xC1, 0x48, 0x08, 0x0F, 0x0C, 0x31, 0x36, 0x0F,
-  TFT_CMD_SLPOUT, TFT_CMD_DELAY,					//  Sleep out
-  200,			 									//  120 ms delay
-  TFT_DISPON, 0/*TFT_CMD_DELAY, 200,*/
+  TFT_DISPON, 0
 };
-
 
 void LcdDma_Cmd(uint8_t cmd) {
     esp_err_t ret;
