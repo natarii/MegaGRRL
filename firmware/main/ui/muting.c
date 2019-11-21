@@ -128,9 +128,11 @@ void Ui_Muting_Key(KeyEvent_t event) {
     if (event.State & KEY_EVENT_PRESS) {
         switch (event.Key) {
             case KEY_A:
+                KeyMgr_Consume(KEY_A);
                 Ui_Screen = UISCREEN_MAINMENU;
                 break;
             case KEY_B:
+                KeyMgr_Consume(KEY_B);
                 Ui_Screen = UISCREEN_NOWPLAYING;
                 break;
             case KEY_UP:
