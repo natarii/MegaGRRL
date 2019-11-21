@@ -81,6 +81,8 @@
 #define TFT_CMD_PIXFMT	0x3A
 #define TFT_CMD_DELAY	0x80
 
+extern volatile bool LcdDma_AltMode;
+
 bool LcdDma_Setup();
 void LcdDma_Main();
 bool LcdDma_Mutex_Take(TickType_t Ticks);

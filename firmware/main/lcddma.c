@@ -14,6 +14,8 @@
 
 static const char* TAG = "LcdDma";
 
+volatile bool LcdDma_AltMode = true;
+
 StaticSemaphore_t LcdDma_MutexBuffer;
 SemaphoreHandle_t LcdDma_Mutex = NULL;
 
@@ -21,7 +23,7 @@ DRAM_ATTR static uint8_t LcdDma_Lvgl_Buf[LV_VDB_SIZE_IN_BYTES];
 DRAM_ATTR static uint8_t LcdDma_Lvgl_Buf2[LV_VDB_SIZE_IN_BYTES];
 
 void IRAM_ATTR LcdDma_PostTransferCallback(spi_transaction_t *t) {
-    if ((uint8_t)t->user & 1<<1) lv_flush_ready();
+    if (!LcdDma_AltMode && (uint8_t)t->user & 1<<1) lv_flush_ready();
 }
 
 void IRAM_ATTR LcdDma_PreTransferCallback(spi_transaction_t *t) {
@@ -81,6 +83,7 @@ static DRAM_ATTR uint8_t ILI9341_init[] = {
   200,			 									//  120 ms delay
   TFT_DISPON, 0/*TFT_CMD_DELAY, 200,*/
 };
+
 
 void LcdDma_Cmd(uint8_t cmd) {
     esp_err_t ret;
@@ -151,6 +154,17 @@ static void LcdDma_Lvgl_Flush(int32_t x1, int32_t y1, int32_t x2, int32_t y2, co
     spi_device_queue_trans(LcdDma_SpiDevice, &LcdDma_Flush_Txs[5], portMAX_DELAY);
 
     ESP_LOGD(TAG, "Tx buf%d %d bytes", ((void *)color_p >= (void *)&LcdDma_Lvgl_Buf[0] && (void *)color_p < (void *)&LcdDma_Lvgl_Buf[LV_VDB_SIZE_IN_BYTES])?1:2, pix<<1);
+
+    //alt mode. i guess another way to do this would be set a flag in the interrupt and check it here...
+    if (LcdDma_AltMode) {
+        spi_transaction_t *check;
+        esp_err_t err;
+        do {
+            err = spi_device_get_trans_result(LcdDma_SpiDevice, &check, pdMS_TO_TICKS(1000));
+        } while (err != ESP_OK || ((uint8_t)check->user & 1<<1) == 0);
+        lv_flush_ready();
+        ESP_LOGD(TAG, "Alt mode flush successful");
+    }
 }
 
 bool LcdDma_Setup() {
