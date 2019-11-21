@@ -149,6 +149,9 @@ void crash_sd() {
 }
 
 void checkcore() {
+    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    LcdDma_AltMode = true;
+    LcdDma_Mutex_Give();
     ESP_LOGI(TAG, "looking for core...");
     esp_partition_t *corepart;
     corepart = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_COREDUMP, NULL);
@@ -187,6 +190,7 @@ void checkcore() {
                     }
                     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
                     lv_obj_set_hidden(textarea, true);
+                    LcdDma_AltMode = false;
                     LcdDma_Mutex_Give();
                     return;
                 }
@@ -198,6 +202,9 @@ void checkcore() {
     } else {
         ESP_LOGI(TAG, "no core partition found");
     }
+    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    LcdDma_AltMode = false;
+    LcdDma_Mutex_Give();
 }
 
 void app_main(void)
@@ -345,6 +352,7 @@ void app_main(void)
 
     #ifdef FWUPDATE
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    LcdDma_AltMode = true;
     lv_obj_set_hidden(textarea, false);
     lv_obj_set_hidden(frame, true);
     lv_obj_set_hidden(lcd, true);
