@@ -116,7 +116,7 @@ void Ui_Muting_Setup(lv_obj_t *uiscreen) {
     lv_label_set_static_text(title, titletext);
     lv_obj_set_pos(title, 10, 5);
 
-    Ui_SoftBar_Update(0, true, SYMBOL_HOME"Home", false);
+    Ui_SoftBar_Update(0, true, "Togg.All", false);
     Ui_SoftBar_Update(1, true, SYMBOL_AUDIO"Player", false);
 
     LcdDma_Mutex_Give();
@@ -124,34 +124,58 @@ void Ui_Muting_Setup(lv_obj_t *uiscreen) {
     drawlist();
 }
 
+void Ui_Muting_ToggleAll() {
+    bool anyon = false;
+    for (uint8_t i=0;i<11;i++) {
+        if (ch_en(i)) {
+            anyon = true;
+            break;
+        }
+    }
+    for (uint8_t i=0;i<11;i++) {
+        ch_set(i, !anyon);
+    }
+    if (xEventGroupGetBits(Driver_CommandEvents) & DRIVER_EVENT_RUNNING) xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_UPDATE_MUTING);
+    drawlist();
+}
+
 void Ui_Muting_Key(KeyEvent_t event) {
-    if (event.State & KEY_EVENT_PRESS) {
-        switch (event.Key) {
-            case KEY_A:
-                KeyMgr_Consume(KEY_A);
-                Ui_Screen = UISCREEN_MAINMENU;
-                break;
-            case KEY_B:
+    switch (event.Key) {
+        case KEY_A:
+            if (event.State == KEY_EVENT_PRESS) Ui_Muting_ToggleAll();
+            break;
+        case KEY_LEFT:
+        case KEY_RIGHT:
+        case KEY_C:
+            if (event.State == KEY_EVENT_PRESS) {
+                ch_set(ch_sel, !ch_en(ch_sel));
+                if (xEventGroupGetBits(Driver_CommandEvents) & DRIVER_EVENT_RUNNING) xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_UPDATE_MUTING);
+                drawlist();
+            }
+            break;
+        case KEY_B:
+            if (event.State == KEY_EVENT_PRESS) {
                 KeyMgr_Consume(KEY_B);
                 Ui_Screen = UISCREEN_NOWPLAYING;
-                break;
-            case KEY_UP:
+            }
+            break;
+        case KEY_UP:
+            if (event.State & KEY_EVENT_PRESS) {
                 if (ch_sel) {
                     ch_sel--;
                     drawlist();
                 }
-                break;
-            case KEY_DOWN:
+            }
+            break;
+        case KEY_DOWN:
+            if (event.State & KEY_EVENT_PRESS) {
                 if (ch_sel < 10) {
                     ch_sel++;
                     drawlist();
                 }
-                break;
-            case KEY_C:
-                ch_set(ch_sel, !ch_en(ch_sel));
-                if (xEventGroupGetBits(Driver_CommandEvents) & DRIVER_EVENT_RUNNING) xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_UPDATE_MUTING);
-                drawlist();
-                break;
-        };
-    }
+            }
+            break;
+        default:
+            break;
+    };
 }
