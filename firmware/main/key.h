@@ -6,6 +6,7 @@
 #include "mallocs.h"
 #include "esp_system.h"
 #include "hal.h"
+#include "freertos/task.h"
 
 typedef struct KeyState {
     uint8_t RawState;
@@ -57,7 +58,8 @@ typedef struct KeyEvent {
 bool KeyMgr_Setup();
 void KeyMgr_Main();
 
-volatile QueueHandle_t KeyMgr_TargetQueue;
+extern volatile QueueHandle_t KeyMgr_TargetQueue;
+extern volatile TaskHandle_t KeyMgr_TargetTask;
 void KeyMgr_Consume(uint8_t key);
 
 #endif
