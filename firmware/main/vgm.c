@@ -124,12 +124,41 @@ bool VgmParseDataBlock(FILE *f, VgmDataBlockStruct_t *block) {
   fseek(f,1,SEEK_CUR); //skip 0x66
   fread(&block->Type,1,1,f);
   fread(&block->Size,4,1,f);
+  uint8_t seekoff = 0;
+  if (block->Type <= 0x3f) { //uncompressed data
+    //nothing fancy to do here...
+    seekoff = 0;
+    ESP_LOGI(TAG, "Parsed uncompressed datablock: type %02x, size %d", block->Type, block->Size);
+  } else if (block->Type <= 0x7e) { //compressed data
+    fread(&block->CompressionType,1,1,f);
+    fread(&block->UncompressedSize,4,1,f);
+    fread(&block->BitsDecompressed,1,1,f);
+    fread(&block->BitsCompressed,1,1,f);
+    fread(&block->Subtype,1,1,f);
+    fread(&block->CompValue,2,1,f);
+    if (block->CompressionType == 0x01 && block->Subtype != 0) {
+      ESP_LOGE(TAG, "Error parsing datablock: DPCM subtype != 0");
+      return false;
+    }
+    seekoff = 10;
+    ESP_LOGI(TAG, "Parsed compressed datablock: type %02x, size %d, compression type %02x, uncompressed size %d, bitsD %d, bitsC %d, subtype %02x, CompValue %d", block->Type, block->Size, block->CompressionType, block->UncompressedSize, block->BitsDecompressed, block->BitsCompressed, block->Subtype, block->CompValue);
+  } else if (block->Type == 0x7f) {
+    fread(&block->CompressionType,1,1,f);
+    fread(&block->Subtype,1,1,f);
+    fread(&block->BitsDecompressed,1,1,f);
+    fread(&block->BitsCompressed,1,1,f);
+    fread(&block->CompValue,2,1,f);
+    seekoff = 6;
+    ESP_LOGI(TAG, "Parsed datablock decompression table: size %d, comp type %02x, subtype %02x, bitsD %d, bitsC %d, CompValue %d", block->Size, block->CompressionType, block->Subtype, block->BitsDecompressed, block->BitsCompressed, block->CompValue);
+  } else {
+    seekoff = 0;
+    ESP_LOGW(TAG, "Found unsupported datablock");
+  }
   block->Offset = ftell(f);
   if (feof(f)) {
     ESP_LOGE(TAG, "Eof parsing datablock !!");
     return false;
   }
-  fseek(f,block->Size,SEEK_CUR); //skip to end of block
-  ESP_LOGI(TAG, "Parsed datablock: type %02x size %d", block->Type, block->Size);
+  fseek(f,block->Size - seekoff,SEEK_CUR); //skip to end of block
   return true;
 }

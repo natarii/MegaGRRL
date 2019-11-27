@@ -91,6 +91,12 @@ typedef struct {
     uint32_t Offset; //in vgm file
     uint32_t StartAddress; //for partial rom dumps
     uint32_t RomSize;
+    uint8_t CompressionType; //decomp table, nbit, dpcm
+    uint32_t UncompressedSize; //nbit, dpcm
+    uint8_t BitsDecompressed; //nbit, dpcm
+    uint8_t BitsCompressed; //nbit, dpcm
+    uint8_t Subtype; //decomp table, nbit, dpcm
+    uint16_t CompValue; //decomp table = num values, nbit = added value, dpcm = start value
 } VgmDataBlockStruct_t;
 
 uint8_t VgmCommandLength(uint8_t Command);
