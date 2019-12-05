@@ -138,11 +138,6 @@ bool LedDrv_Setup() {
     }
 
     ESP_LOGI(TAG, "Send initial config...");
-    if (!LedDrv_Update()) {
-        ESP_LOGE(TAG, "Update fail !!");
-        I2cMgr_Release(false);
-        return false;
-    }
     for (uint8_t i=0;i<2;i++) {
         if (!LedDrv_WriteRegister(i, 0x00, 0b00000000)) {   //MODE1
             I2cMgr_Release(false);
@@ -152,7 +147,7 @@ bool LedDrv_Setup() {
             I2cMgr_Release(false);
             return false;
         }
-        if (!LedDrv_WriteRegister(i, 0x0a, 0x80)) {         //GRPPWM //x040
+        if (!LedDrv_WriteRegister(i, 0x0a, 0x40)) {         //GRPPWM
             I2cMgr_Release(false);
             return false;
         }
