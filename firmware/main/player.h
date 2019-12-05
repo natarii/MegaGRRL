@@ -28,7 +28,6 @@ enum {
 
 #define PLAYER_STATUS_NOT_RUNNING   0x01
 #define PLAYER_STATUS_RUNNING       0x02
-#define PLAYER_STATUS_PLAYING       0x04
 #define PLAYER_STATUS_PAUSED        0x08
 
 extern EventGroupHandle_t Player_Status;
