@@ -252,7 +252,8 @@ bool Loader_Stop() {
     if (bits & LOADER_STOPPED) {
         //cleanup stuff
         Loader_VgmDataBlockIndex = 0;
-        xEventGroupClearBits(Loader_BufStatus, 0xff);
+        xEventGroupSetBits(Loader_BufStatus, LOADER_BUF_EMPTY);
+        xEventGroupClearBits(Loader_BufStatus, 0xff & ~LOADER_BUF_EMPTY);
         xQueueReset(Driver_CommandQueue);
         xQueueReset(Driver_PcmQueue);
         return true;
