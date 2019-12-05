@@ -7,7 +7,6 @@
 #include "esp_system.h"
 
 enum Tasks {
-    TASK_SELF,
     TASK_DRIVER,
     TASK_LOADER,
     TASK_IOEXP,

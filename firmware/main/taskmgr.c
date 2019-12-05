@@ -4,7 +4,6 @@
 #include "ioexp.h"
 #include "battery.h"
 #include "key.h"
-#include "graphics.h"
 #include "dacstream.h"
 #include "lcddma.h"
 #include "loader.h"
@@ -41,11 +40,13 @@ void Taskmgr_CreateTasks() {
     xTaskCreatePinnedToCore(Ui_Main, "Ui", 3000, NULL, 12, &Taskmgr_Handles[TASK_UI], 0);
     xTaskCreatePinnedToCore(UserLedMgr_Main, "UserLed", 1024, NULL, 17, &Taskmgr_Handles[TASK_USERLED], 0);
     xTaskCreatePinnedToCore(OptionsMgr_Main, "OptionsMgr", 2048, NULL, 8, &Taskmgr_Handles[TASK_OPTIONS], 0);
+    //xTaskCreatePinnedToCore(Taskmgr_Monitor, "Task Monitor", 2048, NULL, 8, &Taskmgr_Handles[TASK_MONITOR], 0);
+    
 
     xTaskCreatePinnedToCore(Driver_Main, "Driver", 4096, NULL, configMAX_PRIORITIES-2, &Taskmgr_Handles[TASK_DRIVER], 1);
 }
 
-char buf[50*TASK_COUNT];
+char taskstatbuf[50*TASK_COUNT];
 void Taskmgr_Monitor() {
     ESP_LOGI(TAG, "Task start");
     while (1) {
@@ -58,8 +59,8 @@ void Taskmgr_Monitor() {
             }
         }
         ESP_LOGI(TAG, "Task runtime stats follow");
-        vTaskGetRunTimeStats((char*)buf);
-        printf(buf);
+        vTaskGetRunTimeStats((char*)taskstatbuf);
+        printf(taskstatbuf);
         vTaskDelay(pdMS_TO_TICKS(3000));
     }
 }
