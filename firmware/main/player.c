@@ -107,7 +107,8 @@ void Player_Main() {
             } else if (notif == PLAYER_NOTIFY_NEXT) {
                 xEventGroupClearBits(Player_Status, PLAYER_STATUS_PAUSED);
                 if (Player_NextTrk(true)) {
-                    //nothing to do, i don't think...
+                    xEventGroupSetBits(Player_Status, PLAYER_STATUS_RUNNING);
+                    xEventGroupClearBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
                 } else {
                     xEventGroupClearBits(Player_Status, PLAYER_STATUS_RUNNING);
                     xEventGroupSetBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
@@ -116,7 +117,8 @@ void Player_Main() {
                 xEventGroupClearBits(Player_Status, PLAYER_STATUS_PAUSED);
                 if (Driver_Sample < 3*44100) { //actually change track
                     if (Player_PrevTrk(true)) {
-                        //nothing to do, i don't think...
+                        xEventGroupSetBits(Player_Status, PLAYER_STATUS_RUNNING);
+                        xEventGroupClearBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
                     } else {
                         xEventGroupClearBits(Player_Status, PLAYER_STATUS_RUNNING);
                         xEventGroupSetBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
@@ -124,6 +126,8 @@ void Player_Main() {
                 } else { //just restart
                     Player_StopTrack();
                     Player_StartTrack(&QueuePlayingFilename[0]);
+                    xEventGroupSetBits(Player_Status, PLAYER_STATUS_RUNNING);
+                    xEventGroupClearBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
                 }
             } else if (notif == PLAYER_NOTIFY_PAUSE) {
                 if (xEventGroupGetBits(Driver_CommandEvents) & DRIVER_EVENT_RUNNING) {
