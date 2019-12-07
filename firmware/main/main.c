@@ -82,7 +82,7 @@ lv_obj_t *frame;
 lv_obj_t *progress;
 lv_style_t progressstyle;
 lv_obj_t *lcd;
-#define MAIN_PROGRESS_MAX 13
+#define MAIN_PROGRESS_MAX 14
 uint8_t progressval = 0;
 #define MAIN_PROGRESS_UPDATE LcdDma_Mutex_Take(pdMS_TO_TICKS(1000)); lv_obj_set_width(progress, main_map(++progressval,0,MAIN_PROGRESS_MAX,0,50)); LcdDma_Mutex_Give(); vTaskDelay(2);
 lv_obj_t * textarea;
@@ -563,33 +563,35 @@ void app_main(void)
         crash();
     }
 
-
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_obj_set_hidden(progress, true);
     lv_img_set_src(lcd, &img_lcdhappy);
     LcdDma_Mutex_Give();
     vTaskDelay(pdMS_TO_TICKS(500));
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
-    lv_obj_del(textarea);
-    lv_obj_del(progress);
-
-    for (uint8_t i=0;i<250;i+=4) {
-        LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
-        lv_obj_set_opa_scale(frame, 255-i);
-        lv_obj_set_opa_scale(lcd, 255-i);
-        LcdDma_Mutex_Give();
-        vTaskDelay(pdMS_TO_TICKS(5));
-    }
-    setup_ret = Ui_Setup();
-    //just ass-u-me setup never fails
-    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
-    lv_obj_del(lcd);
-    lv_obj_del(frame);
+    lv_ta_add_text(textarea, "Setting up UI... ");
     LcdDma_Mutex_Give();
-
+    setup_ret = Ui_Setup();
+    if (setup_ret) {
+        LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+        lv_ta_add_text(textarea, "ok\n");
+        LcdDma_Mutex_Give();
+        MAIN_PROGRESS_UPDATE;
+    } else {
+        LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+        lv_ta_add_text(textarea, "failed !!\n");
+        LcdDma_Mutex_Give();
+        crash();
+    }
     ESP_LOGI(TAG, "Starting tasks !!");
+    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    lv_ta_add_text(textarea, "Starting tasks!");
+    lv_obj_del(textarea);
+    lv_obj_del(frame);
+    lv_obj_del(lcd);
+    lv_obj_del(progress);
+    LcdDma_Mutex_Give();
     Taskmgr_CreateTasks();
-
 
     #endif
 }
