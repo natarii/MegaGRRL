@@ -352,6 +352,7 @@ void app_main(void)
 
     #ifdef FWUPDATE
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    vTaskDelay(pdMS_TO_TICKS(500));
     LcdDma_AltMode = true;
     lv_obj_set_hidden(textarea, false);
     lv_obj_set_hidden(frame, true);
@@ -374,7 +375,7 @@ void app_main(void)
     lv_ta_set_text(textarea, "Locating boot partition\n");
     LcdDma_Mutex_Give();
     esp_partition_t *partition;
-    partition = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_0, NULL);
+    partition = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_1, NULL);
     esp_ota_handle_t update = 0;
     vTaskDelay(pdMS_TO_TICKS(500)); //if we go right into esp_ota_begin, lcddma has a hard time running, so give it some time to draw
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));

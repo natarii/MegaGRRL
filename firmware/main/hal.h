@@ -3,7 +3,7 @@
 
 //firmware update app
 //this needs to be uncommented to build the firmware update app.
-//fwupdate should be flashed only to the factory partition, never to ota_0!
+//fwupdate should be flashed only to the ota_0 partition, never to ota_1!
 //fwupdate looks for new firmware in /.mega/firmware.mgf (for updates selected from filebrowser) or /factory.mgf (for initial flashes)
 //#define FWUPDATE
 
