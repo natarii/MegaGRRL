@@ -1,0 +1,96 @@
+--- esp-idf-3.3-stock/components/driver/spi_master.c	2019-12-14 04:25:14.700672049 -0500
++++ esp-idf-3.3/components/driver/spi_master.c	2019-12-14 00:57:50.868379435 -0500
+@@ -1387,4 +1387,93 @@
+     return ESP_OK;
+ }
+ 
++static void IRAM_ATTR spi_transfer_start(spi_host_t *host, int bits) {
++   // Load send buffer
++   host->hw->user.usr_mosi_highpart=0;
++   host->hw->mosi_dlen.usr_mosi_dbitlen=bits-1;
++   host->hw->miso_dlen.usr_miso_dbitlen=0;
++   host->hw->user.usr_mosi=1;
++   host->hw->user.usr_miso=0;
++   // Start transfer
++   host->hw->cmd.usr=1;
++}
++
++void IRAM_ATTR disp_spi_transfer_data(spi_device_handle_t handle, uint8_t *data, uint8_t *indata, uint32_t wrlen, uint32_t rdlen) {
++   spi_host_t *host=(spi_host_t*)handle->host;
++   uint32_t bits;
++   uint32_t wd;
++   uint8_t bc;
++
++   if ((data) && (wrlen > 0)) {
++      uint8_t idx;
++      uint32_t count;
++
++      bits = 0;
++      idx = 0;
++      count = 0;
++      // Wait for SPI bus ready
++      while (host->hw->cmd.usr);
++
++      while (count < wrlen) {
++         wd = 0;
++         for (bc=0;bc<32;bc+=8) {
++            wd |= (uint32_t)data[count] << bc;
++            count++;
++            bits += 8;
++            if (count == wrlen) break;
++         }
++         host->hw->data_buf[idx] = wd;
++         idx++;
++         if (idx == 16) {
++            spi_transfer_start(host, bits);
++            bits = 0;
++            idx = 0;
++            if (count < wrlen) {
++               // Wait for SPI bus ready
++               while (host->hw->cmd.usr);
++            }
++         }
++      }
++      if (bits > 0) {
++         spi_transfer_start(host, bits);
++      }
++   }
++
++   if (!indata) return;
+ 
++   uint8_t rdidx;
++   uint32_t rdcount = rdlen;
++   uint32_t rd_read = 0;
++    while (rdcount > 0) {
++       //read data
++       if (rdcount <= 64) bits = rdcount * 8;
++       else bits = 64 * 8;
++
++       // Wait for SPI bus ready
++   while (host->hw->cmd.usr);
++
++   // Load send buffer
++   host->hw->user.usr_mosi_highpart=0;
++
++   host->hw->mosi_dlen.usr_mosi_dbitlen=0;
++   host->hw->miso_dlen.usr_miso_dbitlen=bits-1;
++   host->hw->user.usr_mosi=0;
++   host->hw->user.usr_miso=1;
++   // Start transfer
++   host->hw->cmd.usr=1;
++   // Wait for SPI bus ready
++   while (host->hw->cmd.usr);
++
++   rdidx = 0;
++       while (bits > 0) {
++         wd = host->hw->data_buf[rdidx];
++         rdidx++;
++         for (bc=0;bc<32;bc+=8) {
++            indata[rd_read++] = (uint8_t)((wd >> bc) & 0xFF);
++            rdcount--;
++            bits -= 8;
++            if (rdcount == 0) break;
++         }
++       }
++    }
++}

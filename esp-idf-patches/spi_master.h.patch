@@ -1,0 +1,11 @@
+--- esp-idf-3.3-stock/components/driver/include/driver/spi_master.h	2019-12-14 04:25:14.696672070 -0500
++++ esp-idf-3.3/components/driver/include/driver/spi_master.h	2019-12-14 00:58:14.604296964 -0500
+@@ -409,6 +409,8 @@
+   */
+ int spi_get_freq_limit(bool gpio_is_used, int input_delay_ns);
+ 
++void IRAM_ATTR disp_spi_transfer_data(spi_device_handle_t handle, uint8_t *data, uint8_t *indata, uint32_t wrlen, uint32_t rdlen);
++
+ #ifdef __cplusplus
+ }
+ #endif
