@@ -263,12 +263,14 @@ void app_main(void)
     bool IoUp = IoExp_Setup();
 
     #ifndef FWUPDATE
+    #ifdef HWVER_PORTABLE
     //turn off our own power. if we crashed previously, let's not just auto-reboot...
     ESP_LOGI(TAG, "Try poweroff...");
     IoExp_PowerControl(false);
     vTaskDelay(pdMS_TO_TICKS(250));
     //if we're still running at this point, either the user is holding the power button, or usb power is connected, so continue with booting...
     //it's also possible the ioexpander is very borked
+    #endif
     #endif
 
     ESP_LOGI(TAG, "Early LcdDma setup... let's hope this doesn't fail !!");
@@ -277,8 +279,10 @@ void app_main(void)
     ESP_LOGI(TAG, "Early UI setup... let's hope this doesn't fail !!");
     Ui_EarlySetup();
 
+    #ifdef HWVER_PORTABLE
     IoExp_PowerControl(true);
     IoExp_BacklightControl(true);
+    #endif
 
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
 
