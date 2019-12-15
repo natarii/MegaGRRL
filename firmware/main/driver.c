@@ -11,6 +11,7 @@
 #include "dacstream.h"
 #include "channels.h"
 #include "hal.h"
+#include "driver/gpio.h"
 
 static const char* TAG = "Driver";
 
@@ -55,6 +56,8 @@ volatile uint32_t Driver_CpuUsageDs = 0;
 
 volatile bool Driver_FixPsgFrequency = true;
 volatile bool Driver_MitigateVgmTrim = true;
+
+volatile MegaMod_t Driver_DetectedMod = MEGAMOD_NONE;
 
 //we abuse the esp32's spi hardware to drive the shift registers
 spi_bus_config_t Driver_SpiBusConfig = {
@@ -109,6 +112,7 @@ volatile bool Driver_ForceMono = false;
 #define min(a,b) ((a) < (b) ? (a) : (b)) //sigh.
 
 void Driver_ResetChips();
+void Driver_Sleep(uint32_t us);
 
 void Driver_Output() { //output data to shift registers
     disp_spi_transfer_data(Driver_SpiDevice, (uint8_t*)&Driver_SrBuf, NULL, 2, 0);
@@ -179,6 +183,41 @@ bool Driver_Setup() {
     return true;
 }
 
+void Driver_ModDetect() {
+    gpio_config_t det;
+    det.intr_type = GPIO_PIN_INTR_DISABLE;
+    det.mode = GPIO_MODE_INPUT;
+    det.pull_down_en = 0;
+    det.pull_up_en = 1;
+    det.pin_bit_mask = 1ULL<<PIN_CLK_PSG;
+    gpio_config(&det);
+    uint8_t foundbit = 0xff;
+    uint8_t lastbit = 0xff;
+    for (uint8_t attempts=0;attempts<8;attempts++) {
+        for (uint8_t bit=0;bit<=7;bit++) {
+            Driver_SrBuf[SR_DATABUS] = ~(1<<bit);
+            Driver_Output();
+            Driver_Sleep(1000);
+            ESP_LOGD(TAG, "mod detect bit %d", bit);
+            if (gpio_get_level(PIN_CLK_PSG) == 0) {
+                ESP_LOGD(TAG, "low");
+                if (lastbit != 0xff && lastbit != bit) {
+                    ESP_LOGE(TAG, "Driver_ModDetect() noisy detect pin !!");
+                    Driver_DetectedMod = MEGAMOD_FAULT;
+                    return;
+                }
+                foundbit = bit;
+            }
+        }
+    }
+    if (foundbit == 0xff) { //nothing detected, it's probably PSG
+        ESP_LOGI(TAG, "Driver_ModDetect() nothing found");
+        Driver_DetectedMod = MEGAMOD_NONE;
+        return;
+    }
+    Driver_DetectedMod = foundbit;
+}
+
 void Driver_Sleep(uint32_t us) { //quick and dirty spin sleep
     uint32_t s = xthal_get_ccount();
     uint32_t c = us*(DRIVER_CLOCK_RATE/1000000);
@@ -239,6 +278,36 @@ void Driver_ResetChips() {
         Driver_SrBuf[SR_CONTROL] |= SR_BIT_IC;
         Driver_Output();
         Driver_Sleep(1000);
+}
+
+void Driver_FmOutopl3(uint8_t Port, uint8_t Register, uint8_t Value) {
+    if (Port == 0) {
+        Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_A1; //clear A1
+    } else if (Port == 1) {
+        Driver_SrBuf[SR_CONTROL] |= SR_BIT_A1; //set A1
+    }
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_A0; //clear A0
+    Driver_Output();
+    Driver_Sleep(20);
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_FM_CS; // /cs low
+    Driver_SrBuf[SR_DATABUS] = Register;
+    Driver_Output();
+    Driver_Sleep(20);
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR; // /wr low
+    Driver_Output();
+    Driver_Sleep(20);
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; // /wr high
+    Driver_Output();
+    Driver_Sleep(20);
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_A0; //set A0
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR; // /wr low
+    Driver_SrBuf[SR_DATABUS] = Value;
+    Driver_Output();
+    Driver_Sleep(20);
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; // /wr high
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_FM_CS; // /cs high
+    Driver_Output();
+    Driver_Sleep(20);
 }
 
 void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
@@ -440,6 +509,10 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
         } else { //not fixing psg frequency
             Driver_PsgOut(cmd[1]); //just write it normally
         }
+    } else if (cmd[0] == 0x5e || cmd[0] == 0x5b || cmd[0] == 0x5a) {
+        Driver_FmOutopl3(0, cmd[1], cmd[2]);
+    } else if (cmd[0] == 0x5f) {
+        Driver_FmOutopl3(1, cmd[1], cmd[2]);
     } else if (cmd[0] == 0x52) { //YM2612 port 0
         if (cmd[1] >= 0xb4 && cmd[1] <= 0xb6) { //pan, FMS, AMS
             Driver_FmPans[cmd[1]-0xb4] = cmd[2];

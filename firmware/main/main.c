@@ -228,12 +228,30 @@ void app_main(void)
     bool setup_ret = false;
 
     //this is only in here because the chips use more power when not being clocked
-    ESP_LOGI(TAG, "Bring up clocks...");
+    ESP_LOGI(TAG, "Bring up FM clock...");
     Clk_Set(CLK_FM, 7670453);
-    Clk_Set(CLK_PSG, 3579545);
 
-    ESP_LOGI(TAG, "Setting up driver. If this fails, something is really wrong!!");
+    ESP_LOGI(TAG, "Setting up driver...");
     Driver_Setup();
+
+    ESP_LOGI(TAG, "Detecting mods...");
+    Driver_ModDetect();
+    switch (Driver_DetectedMod) {
+        case MEGAMOD_NONE:
+            ESP_LOGI(TAG, "No mod detected, assuming PSG");
+            Clk_Set(CLK_PSG, 3579545);
+            break;
+        case MEGAMOD_OPL3:
+            ESP_LOGI(TAG, "OPL3 detected, switching FM clock to OPL3");
+            Clk_Set(CLK_FM, 14318180);
+            break;
+        default:
+            ESP_LOGE(TAG, "Unsupported mod (ID %d)", Driver_DetectedMod);
+            break;
+    }
+
+    ESP_LOGI(TAG, "Driver reset no.2");
+    Driver_ResetChips();
 
     ESP_LOGI(TAG, "Clear I2C...");
     I2cMgr_Clear();

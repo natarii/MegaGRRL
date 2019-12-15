@@ -9,6 +9,12 @@
 #include "freertos/event_groups.h"
 #include "mallocs.h"
 
+typedef enum {
+    MEGAMOD_NONE = 0xff,
+    MEGAMOD_FAULT = 0xfe,
+    MEGAMOD_OPL3 = 3,
+} MegaMod_t;
+
 //PlayEvents
 #define DRIVER_EVENT_START_REQUEST  0x01 //incoming request to begin playback
 #define DRIVER_EVENT_STOP_REQUEST   0x02 //incoming request to stop playback
@@ -26,6 +32,8 @@
 
 extern uint8_t Driver_CommandQueueBuf[DRIVER_QUEUE_SIZE];
 extern uint8_t Driver_PcmBuf[DACSTREAM_BUF_SIZE*DACSTREAM_PRE_COUNT];
+
+extern volatile MegaMod_t Driver_DetectedMod;
 
 extern QueueHandle_t Driver_CommandQueue;
 extern QueueHandle_t Driver_PcmQueue;
@@ -49,5 +57,7 @@ extern uint32_t Driver_NextSample;
 
 bool Driver_Setup();
 void Driver_Main();
+void Driver_ModDetect();
+void Driver_ResetChips();
 
 #endif
