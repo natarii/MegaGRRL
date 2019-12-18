@@ -72,6 +72,7 @@ LV_IMG_DECLARE(img_lcdsd);
 LV_IMG_DECLARE(img_lcdsdq);
 LV_IMG_DECLARE(img_lcdhappy);
 LV_IMG_DECLARE(img_lcdsad);
+LV_IMG_DECLARE(img_kunoichilabs_smol);
 
 #include <stdio.h>
 #include <dirent.h>
@@ -302,6 +303,11 @@ void app_main(void)
     #elif defined HWVER_DESKTOP
     lv_obj_set_pos(lcd, 86+22, 126+5);
     #endif
+
+    static lv_obj_t *kl;
+    kl = lv_img_create(lv_layer_top(), NULL);
+    lv_img_set_src(kl, &img_kunoichilabs_smol);
+    lv_obj_set_pos(kl, 120 - (157/2), 250);
 
     lv_obj_set_opa_scale_enable(frame, true);
     lv_obj_set_opa_scale_enable(lcd, true);
@@ -613,6 +619,7 @@ void app_main(void)
     lv_obj_del(frame);
     lv_obj_del(lcd);
     lv_obj_del(progress);
+    lv_obj_del(kl);
     LcdDma_Mutex_Give();
     Taskmgr_CreateTasks();
 
