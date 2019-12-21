@@ -8,7 +8,13 @@ static const char* TAG = "OptionsMgr";
 volatile bool OptionsMgr_Unsaved = false;
 volatile uint8_t OptionsMgr_ShittyTimer = 0;
 
-static const option_t Options[] = {
+const char *OptionCatNames[] = {
+    "Playback",
+    "Screen",
+    "LEDs",
+};
+
+const option_t Options[OPTION_COUNT] = {
     {
         "Loop count",
         "Number of times the looping section of the track should be played.",

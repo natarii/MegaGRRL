@@ -17,6 +17,7 @@ typedef enum {
     OPTION_CATEGORY_PLAYBACK,
     OPTION_CATEGORY_SCREEN,
     OPTION_CATEGORY_LEDS,
+    OPTION_CATEGORY_COUNT
 } optioncategory_t;
 
 typedef struct {
@@ -29,6 +30,8 @@ typedef struct {
     uint8_t defaultval;
 } option_t;
 
+#define OPTION_COUNT 8
+
 #define OPTIONS_ACTUAL_VER 0x01
 
 #if defined HWVER_PORTABLE
@@ -39,7 +42,8 @@ typedef struct {
 #define OPTIONS_VER OPTIONS_ACTUAL_VER
 #endif
 
-static const option_t Options[];
+extern const option_t Options[];
+extern const char *OptionCatNames[];
 
 extern volatile bool OptionsMgr_Unsaved;
 
