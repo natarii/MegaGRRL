@@ -11,13 +11,17 @@ typedef enum {
     UISCREEN_FILEBROWSER,
     UISCREEN_NOWPLAYING,
     UISCREEN_OPTIONS_CATS,
+    UISCREEN_OPTIONS_OPTS,
+    UISCREEN_OPTIONS_OPT,
     UISCREEN_MUTING,
     UISCREEN_ABOUT,
+    UISCREEN_FWUPDATE,
 
     UISCREEN_COUNT
 } UiScreen_t;
 
 extern volatile UiScreen_t Ui_Screen;
+extern UiScreen_t Ui_Screen_Last;
 
 bool Ui_EarlySetup();
 bool Ui_Setup();

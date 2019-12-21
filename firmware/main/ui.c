@@ -16,7 +16,9 @@
 #include "ui/mainmenu.h"
 #include "ui/muting.h"
 #include "ui/about.h"
-#include "ui/options.h"
+#include "ui/options_cats.h"
+#include "ui/options_opts.h"
+#include "ui/fwupdate.h"
 
 static const char* TAG = "Ui";
 
@@ -116,6 +118,12 @@ void Ui_Main() {
                 case UISCREEN_OPTIONS_CATS:
                     Ui_Options_Cats_Key(event);
                     break;
+                case UISCREEN_OPTIONS_OPTS:
+                    Ui_Options_Opts_Key(event);
+                    break;
+                case UISCREEN_FWUPDATE:
+                    Ui_Fwupdate_Key(event);
+                    break;
                 default:
                     break;
             }
@@ -143,6 +151,12 @@ void Ui_Main() {
                 case UISCREEN_OPTIONS_CATS:
                     Ui_Options_Cats_Destroy();
                     break;
+                case UISCREEN_OPTIONS_OPTS:
+                    Ui_Options_Opts_Destroy();
+                    break;
+                case UISCREEN_FWUPDATE:
+                    Ui_Fwupdate_Destroy();
+                    break;
                 default:
                     break;
             }
@@ -164,6 +178,12 @@ void Ui_Main() {
                     break;
                 case UISCREEN_OPTIONS_CATS:
                     Ui_Options_Cats_Setup(uiscreen);
+                    break;
+                case UISCREEN_OPTIONS_OPTS:
+                    Ui_Options_Opts_Setup(uiscreen);
+                    break;
+                case UISCREEN_FWUPDATE:
+                    Ui_Fwupdate_Setup(uiscreen);
                     break;
                 default:
                     break;
