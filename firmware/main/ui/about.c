@@ -1,10 +1,12 @@
 #include "../hal.h"
+#include "../ver.h"
 const char *about_text = 
 #ifdef HWVER_PORTABLE
 "#ffafff MegaGRRL#"
 #elif defined HWVER_DESKTOP
 "#ffafff MegaGRRL Desktop#"
 #endif
+"\nFirmware ver: "FWVER_D
 "\n#462dff by# #ffffff kunoichi labs#\n"
 "#462dff //# #ffafff natalie null#\n"
 "#00ff00 Copyright 2018-2019#\n"
@@ -12,7 +14,6 @@ const char *about_text =
 "Some icons by Icons8 - #ffff00 http://icons8.com#\n"
 "MegaGRRL uses ESP-IDF and LittlevGL\n\n\n"
 "#462dff Special Thanks#\n"
-"#a0a0a0 (in no particular order)#\n\n"
 "Aidan\n\n"
 "Anna\n\n"
 "nia\n\n"
@@ -29,6 +30,7 @@ const char *about_text =
 "ash\n\n"
 "Maliki\n\n"
 "Lindsay\n\n"
+"Pure\n\n"
 "The writers at Hackaday and Hackster\n\n"
 "Plutiedev\n\n"
 "McQueen8601\n\n"
