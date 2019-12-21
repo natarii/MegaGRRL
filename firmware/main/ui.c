@@ -7,7 +7,7 @@
 #include "key.h"
 #include "lcddma.h"
 #include "mallocs.h"
-#include "../taskmgr.h"
+#include "taskmgr.h"
 
 #include "ui/statusbar.h"
 #include "ui/softbar.h"
