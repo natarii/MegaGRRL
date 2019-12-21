@@ -22,11 +22,11 @@ SemaphoreHandle_t LcdDma_Mutex = NULL;
 DRAM_ATTR static uint8_t LcdDma_Lvgl_Buf[LV_VDB_SIZE_IN_BYTES];
 DRAM_ATTR static uint8_t LcdDma_Lvgl_Buf2[LV_VDB_SIZE_IN_BYTES];
 
-void IRAM_ATTR LcdDma_PostTransferCallback(spi_transaction_t *t) {
-    if (!LcdDma_AltMode && (uint8_t)t->user & 1<<1) lv_flush_ready();
+void LcdDma_PostTransferCallback(spi_transaction_t *t) {
+    if (/*!LcdDma_AltMode && */(uint8_t)t->user & 1<<1) lv_flush_ready();
 }
 
-void IRAM_ATTR LcdDma_PreTransferCallback(spi_transaction_t *t) {
+void LcdDma_PreTransferCallback(spi_transaction_t *t) {
     gpio_set_level(PIN_DISP_DC, (uint8_t)t->user); //no need to mask off the end of sequence bit - gpio driver just does "if (level)"
 }
 
@@ -154,6 +154,7 @@ static void LcdDma_Lvgl_Flush(int32_t x1, int32_t y1, int32_t x2, int32_t y2, co
     ESP_LOGD(TAG, "Tx buf%d %d bytes", ((void *)color_p >= (void *)&LcdDma_Lvgl_Buf[0] && (void *)color_p < (void *)&LcdDma_Lvgl_Buf[LV_VDB_SIZE_IN_BYTES])?1:2, pix<<1);
 
     //alt mode. i guess another way to do this would be set a flag in the interrupt and check it here...
+    return;
     if (LcdDma_AltMode) {
         spi_transaction_t *check;
         esp_err_t err;
