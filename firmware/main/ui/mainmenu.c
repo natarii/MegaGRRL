@@ -73,8 +73,8 @@ const mm_icon_t mm_icontable[] = {
 void mm_updateicons();
 
 void Ui_MainMenu_Setup(lv_obj_t *uiscreen) {
+//ESP_LOGE(TAG, "main setup start");
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
-
     container = lv_cont_create(uiscreen, NULL);
     lv_style_copy(&containerstyle, &lv_style_plain);
     containerstyle.body.main_color = LV_COLOR_MAKE(0,0,0);
@@ -94,7 +94,7 @@ void Ui_MainMenu_Setup(lv_obj_t *uiscreen) {
     lv_obj_set_pos(mm_logo_kl, 77, 31);*/
 
     lv_style_copy(&linestyle, &lv_style_plain);
-    linestyle.line.color = LV_COLOR_MAKE(0x7f,0,0xbf);
+    linestyle.line.color = LV_COLOR_MAKE(0x7f,0,0xa0);
     linestyle.line.width = 2;
     linestyle.line.rounded = 0;
 
@@ -126,9 +126,9 @@ void Ui_MainMenu_Setup(lv_obj_t *uiscreen) {
     for (uint8_t i=0;i<14;i++) {
         linesX[i] = lv_line_create(container, NULL);
         pointsX[(i*2)+0].x = 0;
-        pointsX[(i*2)+0].y = 53 + /*7 +*/ (i*14) + pow((double)1.5F, (double)i);
+        pointsX[(i*2)+0].y = 53 + (i*14) + pow((double)1.5F, (double)i);
         pointsX[(i*2)+1].x = 240;
-        pointsX[(i*2)+1].y = 53 + /*7 +*/ (i*14) + pow((double)1.5F, (double)i);
+        pointsX[(i*2)+1].y = 53 + (i*14) + pow((double)1.5F, (double)i);
         lv_line_set_points(linesX[i], &pointsX[i*2], 2);
         lv_line_set_style(linesX[i], &linestyle);
     }
@@ -174,6 +174,7 @@ void Ui_MainMenu_Setup(lv_obj_t *uiscreen) {
     Ui_SoftBar_Update(2, true, "Select", false);
     LcdDma_Mutex_Give();
 
+//ESP_LOGE(TAG, "main setup end");
     mm_updateicons();
 }
 
@@ -184,6 +185,7 @@ void Ui_MainMenu_Destroy() {
 }
 
 void mm_updateicons() {
+//ESP_LOGE(TAG, "main update start");
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     if (mm_curicon == 0) {
         lv_img_set_src(mm_iconL, &img_blank);
@@ -199,6 +201,7 @@ void mm_updateicons() {
         lv_img_set_src(mm_iconR, mm_icontable[mm_curicon+1].img_half);
     }
     LcdDma_Mutex_Give();
+//ESP_LOGE(TAG, "main update end");
 }
 
 void Ui_MainMenu_Key(KeyEvent_t event) {
@@ -215,6 +218,15 @@ void Ui_MainMenu_Key(KeyEvent_t event) {
                     mm_curicon++;
                     mm_updateicons();
                 }
+                break;
+            case KEY_B:
+            
+                LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+                vTaskDelay(333);
+                LcdDma_AltMode = true;
+                LcdDma_Mutex_Give();
+                //ESP_LOGE(TAG, "heap %d", xPortGetFreeHeapSize());
+                heap_caps_print_heap_info(MALLOC_CAP_8BIT | MALLOC_CAP_32BIT);
                 break;
             case KEY_C:
                 KeyMgr_Consume(KEY_C);
