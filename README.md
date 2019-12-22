@@ -15,6 +15,9 @@ This project is divided into several subdirectories:
 ## Compiling and initial flash
 1. Set up ESP-IDF v3.3 following the [Espressif documentation](https://docs.espressif.com/projects/esp-idf/en/v3.3/get-started/index.html).
 2. Apply the patches contained in `esp-idf-patches/`.
+   - `patch $IDF_PATH/components/driver/spi_master.c spi_master.c.patch`
+   - `patch $IDF_PATH/components/driver/include/driver/spi_master.h spi_master.h.patch`
+   - If you are on Windows and using Espressif's MSYS2 setup, you will need to install patch using `pacman -S patch`
 3. Uncomment `#define FWUPDATE` in `firmware/main/hal.h`, and ensure the correct hardware version is uncommented.
 4. Connect the MegaGRRL's UART to your computer. Ensure the SD card D2 pullup resistor is not populated (R999 on portable, RN2 on desktop), and no SD card is inserted.
 5. Burn the 3.3 volt flash efuse using `$IDF_PATH/components/esptool_py/esptool/espefuse.py set_flash_voltage 3.3V`.
