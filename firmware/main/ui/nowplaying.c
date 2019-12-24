@@ -57,11 +57,13 @@ lv_obj_t *label_opt_playmode;
 lv_obj_t *text_opt_playmode;
 lv_obj_t *text_opt_more;
 lv_obj_t *text_opt_muting;
+lv_obj_t *broken_vgm_time_warning;
 uint8_t selectedopt = 0;
 bool optionsopen = false;
 lv_style_t textstyle_sm_sel;
 char loopcountbuf[3] = {0,0,0};
 const char *loading = "Nothing playing...";
+const char *broken_vgm_time_warning_text = " Playback time unavailable  due to broken VGM file";
 
 uint32_t map(uint32_t x, uint32_t in_min, uint32_t in_max, uint32_t out_min, uint32_t out_max) {
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
@@ -189,6 +191,17 @@ bool Ui_NowPlaying_Setup(lv_obj_t *uiscreen) {
     lv_obj_set_style(bar_scrub, &style_bar_scrub);
     lv_obj_set_pos(bar_scrub, 10, 128);
     lv_obj_set_size(bar_scrub, 2, 10);
+
+    static lv_style_t style_time_warning;
+    lv_style_copy(&style_time_warning, &lv_style_plain);
+    style_time_warning.text.font = &lv_font_monospace_8;
+    style_time_warning.text.color = LV_COLOR_MAKE(255,255,255);
+    broken_vgm_time_warning = lv_label_create(container, NULL);
+    lv_label_set_style(broken_vgm_time_warning, &style_time_warning);
+    lv_obj_set_pos(broken_vgm_time_warning, 13, 129);
+    lv_label_set_long_mode(broken_vgm_time_warning, LV_LABEL_LONG_ROLL);
+    lv_obj_set_width(broken_vgm_time_warning, 217);
+    lv_obj_set_hidden(broken_vgm_time_warning, true);
 
 
 
@@ -508,12 +521,16 @@ void Ui_NowPlaying_Tick() {
         sprintf(plsbuf, "%d / %d", QueuePosition+1, QueueLength);
         lv_label_set_static_text(text_playlist, plsbuf);
 
-
-        uint32_t tracklength = map(looppoint, 0, total, 0, 220);
-        uint32_t looplength = map(loopsamples, 0, total, 0, 220);
-        lv_obj_set_size(bar_track, tracklength, 10);
-        lv_obj_set_size(bar_trackloop, looplength, 10);
-        lv_obj_set_pos(bar_trackloop, 10+tracklength, 128);
+        if (total) {
+            uint32_t tracklength = map(looppoint, 0, total, 0, 220);
+            uint32_t looplength = map(loopsamples, 0, total, 0, 220);
+            lv_obj_set_size(bar_track, tracklength, 10);
+            lv_obj_set_size(bar_trackloop, looplength, 10);
+            lv_obj_set_pos(bar_trackloop, 10+tracklength, 128);
+        } else {
+            lv_label_set_static_text(broken_vgm_time_warning, broken_vgm_time_warning_text); //do this now, rather than once at init, to reset scroll
+        }
+        lv_obj_set_hidden(broken_vgm_time_warning, total>0);
 
         lv_label_set_text(dpadtext[0], SYMBOL_PAUSE);
         lv_obj_set_pos(dpadtext[0], 7, 5);
