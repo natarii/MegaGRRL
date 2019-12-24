@@ -484,6 +484,7 @@ void Ui_NowPlaying_Tick() {
         ESP_LOGD(TAG, "total %d pos %d loopS %d loopP %d", total, pos, loopsamples, looppoint);
         
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+        lv_obj_set_pos(bar_scrub, 10, 128);
         if (strlen(Player_Gd3_Title) == 0) {
             uint16_t nameoff = 0;
             for (uint16_t i=0;i<strlen(QueuePlayingFilename);i++) {
@@ -528,6 +529,8 @@ void Ui_NowPlaying_Tick() {
             lv_obj_set_size(bar_trackloop, looplength, 10);
             lv_obj_set_pos(bar_trackloop, 10+tracklength, 128);
         } else {
+            lv_obj_set_size(bar_track, 220, 10);
+            lv_obj_set_size(bar_trackloop, 0, 10);
             lv_label_set_static_text(broken_vgm_time_warning, broken_vgm_time_warning_text); //do this now, rather than once at init, to reset scroll
         }
         lv_obj_set_hidden(broken_vgm_time_warning, total>0);
