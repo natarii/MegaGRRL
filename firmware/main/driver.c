@@ -87,7 +87,7 @@ uint8_t Driver_PsgLastChannel = 0;
 volatile bool Driver_FirstWait = true;
 uint8_t Driver_FmPans[6] = {0b11000000,0b11000000,0b11000000,0b11000000,0b11000000,0b11000000};
 uint32_t Driver_PauseSample = 0; //sample no before stop
-uint8_t Driver_PsgAttenuation[4] = {0x10, 0x10, 0x10, 0x10}; //garbage values, initial ones are set properly in start
+uint8_t Driver_PsgAttenuation[4] = {0b10011111, 0b10111111, 0b11011111, 0b11111111};
 bool Driver_NoLeds = false;
 
 //dacstream specific
