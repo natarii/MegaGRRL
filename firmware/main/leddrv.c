@@ -15,6 +15,7 @@ static const char* TAG = "LedDrv";
 
 volatile uint8_t led_pwm[16];
 volatile uint8_t LedDrv_States[16];
+volatile uint8_t LedDrv_Brightness = 0x40;
 
 const uint8_t led_curve_lut[256] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
@@ -147,7 +148,7 @@ bool LedDrv_Setup() {
             I2cMgr_Release(false);
             return false;
         }
-        if (!LedDrv_WriteRegister(i, 0x0a, 0x40)) {         //GRPPWM
+        if (!LedDrv_WriteRegister(i, 0x0a, LedDrv_Brightness)) {         //GRPPWM
             I2cMgr_Release(false);
             return false;
         }
@@ -170,4 +171,16 @@ bool LedDrv_Setup() {
 
     ESP_LOGI(TAG, "OK !!");
     return true;
+}
+
+void LedDrv_UpdateBrightness() {
+    if (!I2cMgr_Seize(false, pdMS_TO_TICKS(1000))) {
+        ESP_LOGE(TAG, "Couldn't seize bus !!");
+        return false;
+    }
+
+    LedDrv_WriteRegister(0, 0x0a, LedDrv_Brightness);
+    LedDrv_WriteRegister(1, 0x0a, LedDrv_Brightness);
+
+    I2cMgr_Release(false);
 }
