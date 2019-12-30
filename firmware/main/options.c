@@ -19,6 +19,10 @@ static void opts_mutingupdate() {
     xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_UPDATE_MUTING);
 }
 
+static void opts_fixloopcount() {
+    Player_LoopCount = Player_SetLoopCount;
+}
+
 const option_t Options[OPTION_COUNT] = {
     {
         "Loop count",
@@ -27,7 +31,7 @@ const option_t Options[OPTION_COUNT] = {
         OPTION_TYPE_LOOPS,
         &Player_SetLoopCount,
         2,
-        NULL
+        opts_fixloopcount
     },
     {
         "Play mode",
