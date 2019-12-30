@@ -7,6 +7,7 @@
 #include "../ui.h"
 #include "../options.h"
 #include "softbar.h"
+#include "../player.h" //for repeat mode defs
 
 lv_obj_t *container;
 lv_style_t containerstyle;
@@ -24,8 +25,107 @@ lv_style_t optiondescstyle;
 //lv_obj_t *optiontitle;
 lv_obj_t *optiondesc;
 lv_obj_t *optionvalue;
+lv_obj_t *optiondefault;
+
+static bool editing = false;
+static uint8_t oldval = 0;
+
+static char *currentvalue = "Current: ";
+static char *defaultvalue = "Default: ";
+static char currentvalue_buf[32] = "";
+static char defaultvalue_buf[32] = "";
 
 void redrawopts();
+void redrawopt();
+char *fuck = "test";
+static void displayvalue(char *buf, bool def) {
+    if (!def && Options[Options_OptId].var == NULL) return;
+    uint8_t val = def?Options[Options_OptId].defaultval:*(uint8_t*)Options[Options_OptId].var;
+    char lbuf[16];
+    switch (Options[Options_OptId].type) {
+        case OPTION_TYPE_NUMERIC:
+            sprintf(&lbuf, "%d", val);
+            strcat(buf, &lbuf);
+            break;
+        case OPTION_TYPE_LOOPS:
+            if (val == 255) {
+                strcat(buf, "Infinite");
+            } else {
+                sprintf(&lbuf, "%d", val);
+                strcat(buf, &lbuf);
+            }
+            break;
+        case OPTION_TYPE_BOOL:
+            if (val) {
+                strcat(buf, "True");
+            } else {
+                strcat(buf, "False");
+            }
+            break;
+        case OPTION_TYPE_STEREOMONO:
+            if (val) {
+                strcat(buf, "Force Mono");
+            } else {
+                strcat(buf, "Stereo");
+            }
+            break;
+        case OPTION_TYPE_PLAYMODE:
+            switch ((RepeatMode_t)val) {
+                case REPEAT_NONE:
+                    strcat(buf, "Repeat None");
+                    break;
+                case REPEAT_ONE:
+                    strcat(buf, "Repeat One");
+                    break;
+                case REPEAT_ALL:
+                    strcat(buf, "Repeat All");
+                    break;
+                default:
+                    break;
+            }
+            break;
+        default:
+            break;
+    }
+}
+
+static void changevalue(bool inc) {
+    uint8_t *var = (uint8_t*)Options[Options_OptId].var;
+    switch (Options[Options_OptId].type) {
+        case OPTION_TYPE_NUMERIC:
+            if (inc) {
+                if (*var < 255) {
+                    *var += 1;
+                }
+            } else {
+                if (*var > 0) {
+                    *var -= 1;
+                }
+            }
+            break;
+        case OPTION_TYPE_LOOPS:
+            if (inc) {
+                if (*var < 10) {
+                    *var += 1;
+                } else {
+                    *var = 255;
+                }
+            } else {
+                if (*var == 255) {
+                    *var = 10;
+                } else if (*var > 1) {
+                    *var -= 1;
+                }
+            }
+            break;
+        case OPTION_TYPE_BOOL:
+        case OPTION_TYPE_STEREOMONO:
+            *var = (uint8_t)inc;
+            break;
+        default:
+            break;
+    }
+}
 
 void Ui_Options_Opts_Setup(lv_obj_t *uiscreen) {
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
@@ -76,13 +176,27 @@ void Ui_Options_Opts_Setup(lv_obj_t *uiscreen) {
     lv_obj_set_width(optiondesc, 220);
     lv_label_set_anim_speed(optiondesc, 75);
 
+    optionvalue = lv_label_create(container, NULL);
+    lv_obj_set_style(optionvalue, &optionoptstyle_normal);
+    lv_obj_set_pos(optionvalue, 10, 175);
+
+    optiondefault = lv_label_create(container, NULL);
+    lv_obj_set_style(optiondefault, &optiondescstyle);
+    lv_obj_set_pos(optiondefault, 10, 155);
+
     Ui_SoftBar_Update(0, true, SYMBOL_HOME"Home", false);
     Ui_SoftBar_Update(1, true, "Back", false);
     Ui_SoftBar_Update(2, true, SYMBOL_EDIT"Edit", false);
 
     LcdDma_Mutex_Give();
 
+    Options_OptId = 0;
+    Options_Sel = 0;
+    Options_Off = 0;
+    editing = false;
+
     redrawopts();
+    redrawopt();
 }
 
 void Ui_Options_Opts_Destroy() {
@@ -103,6 +217,7 @@ void redrawopts() {
             lv_obj_set_style(optionoptlabels[idx], &optionoptstyle_normal);
             lv_label_set_long_mode(optionoptlabels[idx], LV_LABEL_LONG_DOT);
         } else {
+            Options_OptId = opt;
             lv_obj_set_style(optionoptlines[idx], &optionoptstyle_sel);
             lv_obj_set_style(optionoptlabels[idx], &optionoptstyle_sel);
             lv_label_set_long_mode(optionoptlabels[idx], LV_LABEL_LONG_ROLL);
@@ -118,11 +233,20 @@ void redrawopts() {
         lv_obj_set_style(optionoptlabels[idx], &optionoptstyle_normal);
         lv_label_set_static_text(optionoptlabels[idx], "");
     }
+
+    strcpy(&defaultvalue_buf, defaultvalue);
+    displayvalue(&defaultvalue_buf, true);
+    lv_label_set_static_text(optiondefault, &defaultvalue_buf);
+
     LcdDma_Mutex_Give();
 }
 
 void redrawopt() {
-    
+    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    strcpy(&currentvalue_buf, currentvalue);
+    displayvalue(&currentvalue_buf, false);
+    lv_label_set_static_text(optionvalue, &currentvalue_buf);
+    LcdDma_Mutex_Give();
 }
 
 void Ui_Options_Opts_Key(KeyEvent_t event) {
@@ -131,6 +255,7 @@ void Ui_Options_Opts_Key(KeyEvent_t event) {
             if (Options_Sel) {
                 Options_Sel--;
                 redrawopts();
+                redrawopt();
             }
         } else if (event.Key == KEY_DOWN) {
             uint8_t max = 0;
@@ -140,12 +265,45 @@ void Ui_Options_Opts_Key(KeyEvent_t event) {
             if (Options_Sel < max-1) { //need to actually see how many things are in the category to know where to clamp this
                 Options_Sel++;
                 redrawopts();
+                redrawopt();
             }
         } else if (event.Key == KEY_A) {
             Ui_Screen = UISCREEN_MAINMENU;
+            if (editing) {
+                *(uint8_t*)Options[Options_OptId].var = oldval;
+                if (Options[Options_OptId].cb != NULL) Options[Options_OptId].cb();
+            }
         } else if (event.Key == KEY_B) {
-            //todo stuff if editing
-            Ui_Screen = UISCREEN_OPTIONS_CATS;
+            if (editing) {
+                *(uint8_t*)Options[Options_OptId].var = oldval;
+                if (Options[Options_OptId].cb != NULL) Options[Options_OptId].cb();
+                editing = false;
+                redrawopt();
+                Ui_SoftBar_Update(2, true, SYMBOL_EDIT" Edit", true);
+                Ui_SoftBar_Update(1, true, "Back", true);
+            } else {
+                Ui_Screen = UISCREEN_OPTIONS_CATS;
+            }
+        } else if (event.Key == KEY_C) {
+            if (!editing) {
+                Ui_SoftBar_Update(2, true, SYMBOL_SAVE" Save", true);
+                Ui_SoftBar_Update(1, true, "Cancel", true);
+                oldval = *(uint8_t*)Options[Options_OptId].var;
+            } else {
+                Ui_SoftBar_Update(2, true, SYMBOL_EDIT" Edit", true);
+                Ui_SoftBar_Update(1, true, "Back", true);
+                OptionsMgr_Touch();
+            }
+            editing = !editing;
+        } else if (editing && event.Key == KEY_LEFT) {
+            changevalue(false);
+            redrawopt();
+            if (Options[Options_OptId].cb != NULL) Options[Options_OptId].cb();
+            
+        } else if (editing && event.Key == KEY_RIGHT) {
+            changevalue(true);
+            redrawopt();
+            if (Options[Options_OptId].cb != NULL) Options[Options_OptId].cb();
         }
     }
 }

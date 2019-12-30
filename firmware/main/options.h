@@ -15,7 +15,7 @@ typedef enum {
 
 typedef enum {
     OPTION_CATEGORY_PLAYBACK,
-    OPTION_CATEGORY_SCREEN,
+    //OPTION_CATEGORY_SCREEN, //disabling for now, portable only
     OPTION_CATEGORY_LEDS,
     OPTION_CATEGORY_COUNT
 } optioncategory_t;
@@ -28,11 +28,12 @@ typedef struct {
     //uint8_t width; //make them all 8bit lmaooooo
     volatile void *var;
     uint8_t defaultval;
+    void (*cb)();
 } option_t;
 
 #define OPTION_COUNT 8
 
-#define OPTIONS_ACTUAL_VER 0x01
+#define OPTIONS_ACTUAL_VER 0x02
 
 #if defined HWVER_PORTABLE
 #define OPTIONS_VER OPTIONS_ACTUAL_VER

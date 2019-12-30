@@ -2,17 +2,22 @@
 #include "player.h"
 #include "esp_log.h"
 #include "driver.h"
+#include "leddrv.h"
 
 static const char* TAG = "OptionsMgr";
 
 volatile bool OptionsMgr_Unsaved = false;
 volatile uint8_t OptionsMgr_ShittyTimer = 0;
 
-const char *OptionCatNames[] = {
+const char *OptionCatNames[OPTION_CATEGORY_COUNT] = {
     "Playback",
-    "Screen",
+    //"Screen", portable only, so getting rid of it for now
     "LEDs",
 };
+
+static void opts_mutingupdate() {
+    xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_UPDATE_MUTING);
+}
 
 const option_t Options[OPTION_COUNT] = {
     {
@@ -21,7 +26,8 @@ const option_t Options[OPTION_COUNT] = {
         OPTION_CATEGORY_PLAYBACK,
         OPTION_TYPE_LOOPS,
         &Player_SetLoopCount,
-        2
+        2,
+        NULL
     },
     {
         "Play mode",
@@ -29,7 +35,8 @@ const option_t Options[OPTION_COUNT] = {
         OPTION_CATEGORY_PLAYBACK,
         OPTION_TYPE_PLAYMODE,
         &Player_RepeatMode,
-        REPEAT_ALL
+        REPEAT_ALL,
+        NULL
     },
     {
         "vgm_trim mitigation",
@@ -37,7 +44,8 @@ const option_t Options[OPTION_COUNT] = {
         OPTION_CATEGORY_PLAYBACK,
         OPTION_TYPE_BOOL,
         &Driver_MitigateVgmTrim,
-        true
+        true,
+        NULL
     },
     {
         "Ignore zero-sample loops",
@@ -45,7 +53,8 @@ const option_t Options[OPTION_COUNT] = {
         OPTION_CATEGORY_PLAYBACK,
         OPTION_TYPE_BOOL,
         NULL, //
-        true
+        true,
+        NULL
     },
     {
         "Allow PCM across block boundaries",
@@ -53,7 +62,8 @@ const option_t Options[OPTION_COUNT] = {
         OPTION_CATEGORY_PLAYBACK,
         OPTION_TYPE_BOOL,
         NULL, //
-        false
+        false,
+        NULL
     },
     {
         "Correct PSG frequency",
@@ -61,7 +71,8 @@ const option_t Options[OPTION_COUNT] = {
         OPTION_CATEGORY_PLAYBACK,
         OPTION_TYPE_BOOL,
         &Driver_FixPsgFrequency,
-        true
+        true,
+        NULL
     },
     {
         "Stereo/Mono toggle",
@@ -69,9 +80,19 @@ const option_t Options[OPTION_COUNT] = {
         OPTION_CATEGORY_PLAYBACK,
         OPTION_TYPE_STEREOMONO,
         &Driver_ForceMono,
-        false
+        false,
+        opts_mutingupdate
     },
-
+    {
+        "Channel LED brightness",
+        "Sets the overall brightness of the channel status LEDs",
+        OPTION_CATEGORY_LEDS,
+        OPTION_TYPE_NUMERIC,
+        &LedDrv_Brightness, //
+        0x40,
+        LedDrv_UpdateBrightness
+    },
+/* just getting rid of this for now. portable only
     {
         "Backlight timer",
         "Length of time after the last keypress that the backlight will remain on.",
@@ -80,11 +101,12 @@ const option_t Options[OPTION_COUNT] = {
         NULL, //
         10
     },
+*/
 };
 
 void OptionsMgr_Save() {
-    ESP_LOGE(TAG, "saving disabled during testing");
-    return;
+    /*ESP_LOGE(TAG, "saving disabled during testing");
+    return;*/
     FILE *f = fopen("/sd/.mega/options.mgo", "w");
     uint8_t tmp = OPTIONS_VER;
     fwrite(&tmp, 1, 1, f);
@@ -112,6 +134,7 @@ void OptionsMgr_Setup() {
                 fread(&v, 1, 1, f);
                 if (Options[i].var == NULL) continue;
                 *(volatile uint8_t*)Options[i].var = v;
+                if (Options[i].cb != NULL) Options[i].cb();
             }
             fclose(f);
             ESP_LOGI(TAG, "loaded options");
@@ -127,10 +150,11 @@ void OptionsMgr_Setup() {
     for (uint8_t i=0;i<(sizeof(Options)/sizeof(option_t));i++) {
         if (Options[i].var == NULL) continue;
         *(volatile uint8_t*)Options[i].var = (uint8_t)Options[i].defaultval;
+        if (Options[i].cb != NULL) Options[i].cb();
     }
 
-    //write out new options file
-    OptionsMgr_Save();
+    /*//write out new options file
+    OptionsMgr_Save();*/
 }
 
 void OptionsMgr_Touch() {
