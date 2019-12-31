@@ -63,7 +63,7 @@ void startdir();
 
 char thumbsdb[] = "Thumbs.db";
 char sysvolinfo[] = "System Volume Information";
-#define BROWSER_IGNORE if (ent->d_name[0] == '.' || strcmp(ent->d_name, thumbsdb) == 0 || strcmp(ent->d_name, sysvolinfo) == 0) continue;
+#define BROWSER_IGNORE if (ent->d_name[0] == '.' || strcasecmp(ent->d_name, thumbsdb) == 0 || strcmp(ent->d_name, sysvolinfo) == 0) continue;
 #define BROWSER_LAST_VER 0x06
 uint32_t lastselectedfiletell = 0;
 
@@ -332,23 +332,23 @@ void redrawlistsel(bool list, bool sel) {
             } else if (ent->d_type == DT_REG) {
                 uint8_t namelen = strlen(ent->d_name);
                 if (namelen > 4) {
-                    if (strcmp(&ent->d_name[namelen-4], ".vgm") == 0) {
+                    if (strcasecmp(&ent->d_name[namelen-4], ".vgm") == 0) {
                         lv_label_set_text(icons[u], SYMBOL_AUDIO);
                         //lv_label_set_style(labels[u], &filelabelstyle_aud);
                         lv_label_set_style(icons[u], &filelabelstyle_aud);
-                    } else if (strcmp(&ent->d_name[namelen-4], ".jpg") == 0 || strcmp(&ent->d_name[namelen-4], ".png") == 0) {
+                    } else if (strcasecmp(&ent->d_name[namelen-4], ".jpg") == 0 || strcasecmp(&ent->d_name[namelen-4], ".png") == 0) {
                         lv_label_set_text(icons[u], SYMBOL_IMAGE);
                         //lv_label_set_style(labels[u], &filelabelstyle_other);
                         lv_label_set_style(icons[u], &filelabelstyle_other);
-                    } else if (strcmp(&ent->d_name[namelen-4], ".txt") == 0) {
+                    } else if (strcasecmp(&ent->d_name[namelen-4], ".txt") == 0) {
                         lv_label_set_text(icons[u], SYMBOL_EDIT);
                         //lv_label_set_style(labels[u], &filelabelstyle_other);
                         lv_label_set_style(icons[u], &filelabelstyle_other);
-                    } else if (strcmp(&ent->d_name[namelen-4], ".m3u") == 0) {
+                    } else if (strcasecmp(&ent->d_name[namelen-4], ".m3u") == 0) {
                         lv_label_set_text(icons[u], SYMBOL_LIST);
                         //lv_label_set_style(labels[u], &filelabelstyle_aud);
                         lv_label_set_style(icons[u], &filelabelstyle_aud);
-                    } else if (strcmp(&ent->d_name[namelen-4], ".mgu") == 0) {
+                    } else if (strcasecmp(&ent->d_name[namelen-4], ".mgu") == 0) {
                         lv_label_set_text(icons[u], SYMBOL_DOWNLOAD);
                         //lv_label_set_style(labels[u], &filelabelstyle_fw);
                         lv_label_set_style(icons[u], &filelabelstyle_fw);
@@ -378,11 +378,11 @@ void redrawlistsel(bool list, bool sel) {
                 } else if (ent->d_type == DT_REG) {
                     uint8_t namelen = strlen(ent->d_name);
                     if (namelen > 4) {
-                        if (strcmp(&ent->d_name[namelen-4], ".vgm") == 0) {
+                        if (strcasecmp(&ent->d_name[namelen-4], ".vgm") == 0) {
                             Ui_SoftBar_Update(2, true, SYMBOL_PLAY" Play", false);
-                        } else if (strcmp(&ent->d_name[namelen-4], ".m3u") == 0) {
+                        } else if (strcasecmp(&ent->d_name[namelen-4], ".m3u") == 0) {
                             Ui_SoftBar_Update(2, true, SYMBOL_PLAY" Play", false);
-                        } else if (strcmp(&ent->d_name[namelen-4], ".mgu") == 0) {
+                        } else if (strcasecmp(&ent->d_name[namelen-4], ".mgu") == 0) {
                             Ui_SoftBar_Update(2, true, SYMBOL_CHARGE" Flash", false);
                         } else {
                             Ui_SoftBar_Update(2, false, SYMBOL_CLOSE" N/A", false);
@@ -453,7 +453,7 @@ uint8_t dumpm3u() {
     p = fopen("/sd/.mega/temp.m3u", "w");
     while ((ent=readdir(m3udir))!=NULL) {
         BROWSER_IGNORE;
-        if (strcmp(&ent->d_name[strlen(ent->d_name)-4], ".vgm") == 0) {
+        if (strcasecmp(&ent->d_name[strlen(ent->d_name)-4], ".vgm") == 0) {
             strcpy(temppath, path);
             strcat(temppath, "/");
             strcat(temppath, ent->d_name);
@@ -476,8 +476,11 @@ void m3u2m3u() {
     QueueLoadM3u(path, temppath, 0, true);
     for (uint32_t i=0;i<QueueLength;i++) {
         QueueSetupEntry(true);
+        //todo: make this logic less awful, probably when i get around to extracting vgzs...
         if (QueuePlayingFilename[strlen(QueuePlayingFilename)-1] == 'z') {
-            QueuePlayingFilename[strlen(QueuePlayingFilename)-1] = 'm'; //caela says i need to leave a comment why im doing this
+            QueuePlayingFilename[strlen(QueuePlayingFilename)-1] = 'm';
+        } else if (QueuePlayingFilename[strlen(QueuePlayingFilename)-1] == 'Z') {
+            QueuePlayingFilename[strlen(QueuePlayingFilename)-1] = 'M';
         }
         strcat(QueuePlayingFilename, "\n"); //VILE
         fwrite(QueuePlayingFilename, strlen(QueuePlayingFilename), 1, p);
@@ -508,7 +511,7 @@ void openselection() {
                 strcat(temppath, "/");
                 strcat(temppath, ent->d_name);
                 op*enfile();*/
-                if (strcmp(&ent->d_name[strlen(ent->d_name)-4], ".vgm") == 0) {
+                if (strcasecmp(&ent->d_name[strlen(ent->d_name)-4], ".vgm") == 0) {
                     ESP_LOGI(TAG, "playing vgm");
                     ESP_LOGI(TAG, "request stop");
                     xTaskNotify(Taskmgr_Handles[TASK_PLAYER], PLAYER_NOTIFY_STOP_RUNNING, eSetValueWithoutOverwrite);
@@ -523,7 +526,7 @@ void openselection() {
                     xEventGroupWaitBits(Player_Status, PLAYER_STATUS_RUNNING, false, true, pdMS_TO_TICKS(3000));*/
                     ESP_LOGI(TAG, "ok");
                     savelast();
-                } else if (strcmp(&ent->d_name[strlen(ent->d_name)-4], ".m3u") == 0) {
+                } else if (strcasecmp(&ent->d_name[strlen(ent->d_name)-4], ".m3u") == 0) {
                     ESP_LOGI(TAG, "playing m3u");
                     ESP_LOGI(TAG, "request stop");
                     xTaskNotify(Taskmgr_Handles[TASK_PLAYER], PLAYER_NOTIFY_STOP_RUNNING, eSetValueWithoutOverwrite);
@@ -543,7 +546,7 @@ void openselection() {
                     xEventGroupWaitBits(Player_Status, PLAYER_STATUS_RUNNING, false, true, pdMS_TO_TICKS(3000));*/
                     ESP_LOGI(TAG, "ok");
                     savelast();
-                } else if (strcmp(&ent->d_name[strlen(ent->d_name)-4], ".mgu") == 0) {
+                } else if (strcasecmp(&ent->d_name[strlen(ent->d_name)-4], ".mgu") == 0) {
                     strcpy(temppath, path);
                     strcat(temppath, "/");
                     strcat(temppath, ent->d_name);
