@@ -169,7 +169,11 @@ void Ui_MainMenu_Setup(lv_obj_t *uiscreen) {
     lv_label_set_text(mm_icondesc, "");
     lv_label_set_anim_speed(mm_icondesc, 50);
 
+    #ifdef HWVER_PORTABLE
     Ui_SoftBar_Update(0, true, "PwrOff", false);
+    #elif defined HWVER_DESKTOP
+    Ui_SoftBar_Update(0, false, "", false);
+    #endif
     Ui_SoftBar_Update(1, false, "", false);
     Ui_SoftBar_Update(2, true, "Select", false);
     LcdDma_Mutex_Give();
