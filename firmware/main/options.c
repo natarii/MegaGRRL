@@ -168,7 +168,7 @@ void OptionsMgr_Touch() {
 
 void OptionsMgr_Main() {
     while (1) {
-        if (OptionsMgr_Unsaved && OptionsMgr_ShittyTimer++ == 3) {
+        if (OptionsMgr_Unsaved && OptionsMgr_ShittyTimer++ == 2) {
             OptionsMgr_Unsaved = false;
             OptionsMgr_ShittyTimer = 0;
             OptionsMgr_Save();
