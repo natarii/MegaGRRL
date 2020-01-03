@@ -41,7 +41,7 @@ const option_t Options[OPTION_COUNT] = {
         &Player_RepeatMode,
         REPEAT_ALL,
         NULL
-    },
+    },/*
     {
         "vgm_trim mitigation",
         "Silence erroneous notes at start of track caused by vgm_trim.",
@@ -50,7 +50,7 @@ const option_t Options[OPTION_COUNT] = {
         &Driver_MitigateVgmTrim,
         true,
         NULL
-    },
+    },*/
     {
         "Ignore zero-sample loops",
         "Some badly made VGMs specify a loop offset without a loop length. Deflemask is known to do this. Turning this option off will fix looping in some broken VGMs, but will cause unwanted looping in other broken VGMs.",
@@ -59,7 +59,7 @@ const option_t Options[OPTION_COUNT] = {
         NULL, //
         true,
         NULL
-    },
+    },/*
     {
         "Allow PCM across block boundaries",
         "Allow PCM to be played across data block boundaries. No VGMs are known to require this, so it is recommended to leave this off. Enabling this may cause significant slowdown.",
@@ -77,7 +77,7 @@ const option_t Options[OPTION_COUNT] = {
         &Driver_FixPsgFrequency,
         true,
         NULL
-    },
+    },*/
     {
         "Stereo/Mono toggle",
         "Setting this to mono will force mono sound in all VGMs.",

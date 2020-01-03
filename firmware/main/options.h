@@ -33,7 +33,7 @@ typedef struct {
 
 #define OPTION_COUNT 8
 
-#define OPTIONS_ACTUAL_VER 0x02
+#define OPTIONS_ACTUAL_VER 0x03
 
 #if defined HWVER_PORTABLE
 #define OPTIONS_VER OPTIONS_ACTUAL_VER
