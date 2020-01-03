@@ -393,7 +393,7 @@ void Ui_NowPlaying_Key(KeyEvent_t event) {
                     } else if (selectedopt == 2) {
                         Ui_Screen = UISCREEN_MUTING;
                     } else if (selectedopt == 3) {
-
+                        Ui_Screen = UISCREEN_OPTIONS_CATS;
                     }
                 }
                 break;
