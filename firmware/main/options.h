@@ -31,7 +31,7 @@ typedef struct {
     void (*cb)();
 } option_t;
 
-#define OPTION_COUNT 8
+#define OPTION_COUNT 5
 
 #define OPTIONS_ACTUAL_VER 0x03
 
