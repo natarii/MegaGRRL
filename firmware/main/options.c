@@ -3,6 +3,7 @@
 #include "esp_log.h"
 #include "driver.h"
 #include "leddrv.h"
+#include "loader.h"
 
 static const char* TAG = "OptionsMgr";
 
@@ -56,7 +57,7 @@ const option_t Options[OPTION_COUNT] = {
         "Some badly made VGMs specify a loop offset without a loop length. Deflemask is known to do this. Turning this option off will fix looping in some broken VGMs, but will cause unwanted looping in other broken VGMs.",
         OPTION_CATEGORY_PLAYBACK,
         OPTION_TYPE_BOOL,
-        NULL, //
+        &Loader_IgnoreZeroSampleLoops,
         true,
         NULL
     },/*
