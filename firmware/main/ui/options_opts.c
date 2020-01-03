@@ -118,6 +118,13 @@ static void changevalue(bool inc) {
                 }
             }
             break;
+        case OPTION_TYPE_PLAYMODE:
+            if (inc) {
+                if (*var < REPEAT_COUNT-1) *var += 1;
+            } else {
+                if (*var > 0) *var -= 1;
+            }
+            break;
         case OPTION_TYPE_BOOL:
         case OPTION_TYPE_STEREOMONO:
             *var = (uint8_t)inc;
@@ -251,13 +258,13 @@ void redrawopt() {
 
 void Ui_Options_Opts_Key(KeyEvent_t event) {
     if (event.State & KEY_EVENT_PRESS) {
-        if (event.Key == KEY_UP) {
+        if (event.Key == KEY_UP && !editing) {
             if (Options_Sel) {
                 Options_Sel--;
                 redrawopts();
                 redrawopt();
             }
-        } else if (event.Key == KEY_DOWN) {
+        } else if (event.Key == KEY_DOWN && !editing) {
             uint8_t max = 0;
             for (uint8_t opt=0;opt<OPTION_COUNT;opt++) {
                 if (Options[opt].category == Options_Cat) max++;
