@@ -360,6 +360,22 @@ void app_main(void)
     MAIN_PROGRESS_UPDATE;
 
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    lv_ta_add_text(textarea, "Setting up LedDrv... ");
+    LcdDma_Mutex_Give();
+    setup_ret = LedDrv_Setup();
+    if (setup_ret) {
+        LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+        lv_ta_add_text(textarea, "ok\n");
+        LcdDma_Mutex_Give();
+        MAIN_PROGRESS_UPDATE;
+    } else {
+        LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+        lv_ta_add_text(textarea, "failed !!\n");
+        LcdDma_Mutex_Give();
+        //crash();
+    }
+
+    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_ta_add_text(textarea, "Setting up Sdcard... ");
     LcdDma_Mutex_Give();
     setup_ret = Sdcard_Setup();
@@ -472,22 +488,6 @@ void app_main(void)
         lv_ta_add_text(textarea, "failed !!\n");
         LcdDma_Mutex_Give();
         crash();
-    }
-
-    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
-    lv_ta_add_text(textarea, "Setting up LedDrv... ");
-    LcdDma_Mutex_Give();
-    setup_ret = LedDrv_Setup();
-    if (setup_ret) {
-        LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
-        lv_ta_add_text(textarea, "ok\n");
-        LcdDma_Mutex_Give();
-        MAIN_PROGRESS_UPDATE;
-    } else {
-        LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
-        lv_ta_add_text(textarea, "failed !!\n");
-        LcdDma_Mutex_Give();
-        //crash();
     }
 
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
