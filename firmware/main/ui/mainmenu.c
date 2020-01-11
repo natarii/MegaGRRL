@@ -8,7 +8,7 @@
 #include "../key.h"
 #include "../lcddma.h"
 #include "freertos/task.h"
-
+#include "../driver.h"
 #include <stdio.h>
 #include <dirent.h>
 #include <math.h>
@@ -224,13 +224,6 @@ void Ui_MainMenu_Key(KeyEvent_t event) {
                 }
                 break;
             case KEY_B:
-            
-                LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
-                vTaskDelay(333);
-                LcdDma_AltMode = true;
-                LcdDma_Mutex_Give();
-                //ESP_LOGE(TAG, "heap %d", xPortGetFreeHeapSize());
-                heap_caps_print_heap_info(MALLOC_CAP_8BIT | MALLOC_CAP_32BIT);
                 break;
             case KEY_C:
                 KeyMgr_Consume(KEY_C);
