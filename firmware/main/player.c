@@ -160,10 +160,10 @@ void Player_Main() {
             xEventGroupClearBits(Player_Status, PLAYER_STATUS_PAUSED);
             if (Player_NextTrk(false)) {
                     //nothing to do, i don't think...
-                } else {
-                    xEventGroupClearBits(Player_Status, PLAYER_STATUS_RUNNING);
-                    xEventGroupSetBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
-                }
+            } else {
+                xEventGroupClearBits(Player_Status, PLAYER_STATUS_RUNNING);
+                xEventGroupSetBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
+            }
         }
     }
 }
