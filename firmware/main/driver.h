@@ -46,6 +46,7 @@ extern volatile uint32_t Driver_CpuPeriod;
 extern volatile uint32_t Driver_CpuUsageVgm;
 extern volatile uint32_t Driver_CpuUsageDs;
 extern volatile bool Driver_FixPsgFrequency;
+extern volatile bool Driver_FixPsgPeriodic;
 extern volatile bool Driver_MitigateVgmTrim;
 extern volatile bool Driver_FirstWait;
 extern volatile uint8_t Driver_FmMask;

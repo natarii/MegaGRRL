@@ -55,6 +55,7 @@ volatile uint32_t Driver_CpuUsageVgm = 0;
 volatile uint32_t Driver_CpuUsageDs = 0;
 
 volatile bool Driver_FixPsgFrequency = true;
+volatile bool Driver_FixPsgPeriodic = true;
 volatile bool Driver_MitigateVgmTrim = true;
 
 volatile MegaMod_t Driver_DetectedMod = MEGAMOD_NONE;
@@ -108,6 +109,10 @@ volatile uint8_t Driver_FmMask = 0b01111111;
 volatile uint8_t Driver_PsgMask = 0b00001111;
 uint8_t Driver_DacEn = 0;
 volatile bool Driver_ForceMono = false;
+
+uint32_t Driver_PsgCh3Freq = 0;
+bool Driver_PsgNoisePeriodic = false;
+bool Driver_PsgNoiseSourceCh3 = false;
 
 #define min(a,b) ((a) < (b) ? (a) : (b)) //sigh.
 
@@ -265,6 +270,26 @@ void Driver_PsgOut(uint8_t Data) {
     if ((Data & 0b11110000) == 0b11100000) { //noise params
         ChannelMgr_States[ch] |= CHSTATE_PARAM;
     }
+}
+
+void Driver_WritePsgCh3Freq() {
+    //get the current frequency value. this comes from catching register writes
+    uint32_t freq = Driver_PsgCh3Freq;
+
+    //if the fix is enabled, and psg noise is set to "periodic" mode, and it gets its freq from ch3, and ch3 is muted, then adjust ch3 freq
+    if (Driver_FixPsgPeriodic && Driver_PsgNoisePeriodic && Driver_PsgNoiseSourceCh3 && Driver_PsgAttenuation[2] == 0b11011111) {
+        //increase the value by 6.25%, which actually decreases output freq, because psg freq regs are "upside down"
+        freq *= 10625;
+        freq /= 10000;
+    }
+
+    //first byte
+    uint8_t out = 0b11000000 | (freq & 0b00001111);
+    Driver_PsgOut(out);
+
+    //second byte
+    out = (freq >> 4) & 0b00111111; //mask is needed to make sure overflows don't end up in psg bit 7
+    Driver_PsgOut(out);
 }
 
 void Driver_ResetChips() {
@@ -491,8 +516,13 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
                     }
                 }
                 //write both registers now
-                Driver_PsgOut(Driver_PsgFreqLow);
-                Driver_PsgOut(cmd[1]);
+                if ((Driver_PsgFreqLow & 0b01100000) == 0b01000000) { //ch3
+                    Driver_PsgCh3Freq = (Driver_PsgFreqLow & 0b00001111) | ((cmd[1] & 0b00111111) << 4);
+                    Driver_WritePsgCh3Freq();
+                } else {
+                    Driver_PsgOut(Driver_PsgFreqLow);
+                    Driver_PsgOut(cmd[1]);
+                }
             } else if ((cmd[1] & 0b10010000) == 0b10000000 && (cmd[1]&0b01100000)>>5 != 3) { //ch 1~3 frequency low byte write
                 Driver_PsgFreqLow = cmd[1]; //just store the value for now, don't write anything until we get the high byte
             } else { //attenuation or noise ch control write
@@ -503,6 +533,17 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
                     if ((Driver_PsgMask & (1<<ch)) == 0) {
                         cmd[1] |= 0b00001111;
                     }
+                    if (ch == 2) {
+                        //when ch 3 atten is updated, we also need to write frequency again. this is due to the periodic noise fix.
+                        //TODO: this would be better if it only does it if actually transitioning in or out of mute, rather than on every atten update
+                        Driver_WritePsgCh3Freq();
+                    }
+                } else if ((cmd[1] & 0b11110000) == 0b11100000) { //noise control
+                    Driver_PsgNoisePeriodic = (cmd[1] & 0b00000100) == 0; //FB
+                    Driver_PsgNoiseSourceCh3 = (cmd[1] & 0b00000011) == 0b00000011; //NF0, NF1
+                    //periodic noise fix: update ch3 frequency when noise control settings change
+                    //TODO: only update it when it matters :P
+                    Driver_WritePsgCh3Freq();
                 }
                 Driver_PsgOut(cmd[1]);
             }
