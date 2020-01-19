@@ -597,6 +597,37 @@ void app_main(void)
     lv_img_set_src(lcd, &img_lcdhappy);
     LcdDma_Mutex_Give();
     vTaskDelay(pdMS_TO_TICKS(500));
+    lv_obj_t *mmlabel = NULL;
+    if (Driver_DetectedMod != MEGAMOD_NONE) {
+        LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+        lv_style_t mmlabel_style;
+        lv_style_copy(&mmlabel_style, &lv_style_plain);
+        mmlabel_style.text.color = LV_COLOR_MAKE(255,255,255);
+        mmlabel_style.text.font = &lv_font_dejavu_20;
+        mmlabel = lv_label_create(lv_layer_top(), NULL);
+        lv_label_set_long_mode(mmlabel, LV_LABEL_LONG_ROLL);
+        lv_obj_set_width(mmlabel, 240);
+        lv_obj_set_height(mmlabel, 30);
+        lv_label_set_align(mmlabel, LV_LABEL_ALIGN_CENTER);
+        lv_label_set_style(mmlabel, &mmlabel_style);
+        switch (Driver_DetectedMod) {
+            case MEGAMOD_OPL3:
+                lv_label_set_static_text(mmlabel, "OPL3 MegaMod");
+                break;
+            case MEGAMOD_OPNA:
+                lv_label_set_static_text(mmlabel, "OPNA MegaMod");
+                break;
+            case MEGAMOD_OPLLPSG:
+                lv_label_set_static_text(mmlabel, "OPLL+PSG MegaMod");
+                break;
+            default:
+                lv_label_set_static_text(mmlabel, "ERROR: Unknown MegaMod");
+                break;
+        }
+        lv_obj_set_pos(mmlabel, 0, 126+67+10);
+        LcdDma_Mutex_Give();
+        vTaskDelay(pdMS_TO_TICKS(3000));
+    }
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_ta_add_text(textarea, "Setting up UI... ");
     LcdDma_Mutex_Give();
@@ -620,6 +651,7 @@ void app_main(void)
     lv_obj_del(lcd);
     lv_obj_del(progress);
     lv_obj_del(kl);
+    if (Driver_DetectedMod != MEGAMOD_NONE) lv_obj_del(mmlabel);
     LcdDma_Mutex_Give();
     Taskmgr_CreateTasks();
 
