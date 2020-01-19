@@ -12,7 +12,9 @@
 typedef enum {
     MEGAMOD_NONE = 0xff,
     MEGAMOD_FAULT = 0xfe,
+    MEGAMOD_OPNA = 2,
     MEGAMOD_OPL3 = 3,
+    MEGAMOD_OPLLPSG = 4,
 } MegaMod_t;
 
 //PlayEvents
