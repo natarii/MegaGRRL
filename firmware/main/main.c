@@ -49,6 +49,7 @@
 #include "lcddma.h"
 #include "ui.h"
 #include "hal.h"
+#include "leddrv.h"
 #ifndef FWUPDATE
 #include "battery.h"
 #include "key.h"
@@ -56,7 +57,6 @@
 #include "loader.h"
 #include "queue.h"
 #include "player.h"
-#include "leddrv.h"
 #include "channels.h"
 #include "userled.h"
 #include "options.h"
