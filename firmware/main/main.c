@@ -130,9 +130,29 @@ void crash() {
     esp_restart();
 }
 
-void crash_sd() {
+void crash_sd(uint8_t reason) {
+    lv_obj_t *rlabel;
+    lv_style_t rlabel_style;
+    lv_style_copy(&rlabel_style, &lv_style_plain);
+    rlabel_style.text.color = LV_COLOR_MAKE(255,255,255);
+    rlabel_style.text.font = &lv_font_monospace_8;
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_obj_set_hidden(progress, true);
+    rlabel = lv_label_create(lv_layer_top(), NULL);
+    lv_label_set_long_mode(rlabel, LV_LABEL_LONG_ROLL);
+    lv_obj_set_width(rlabel, 240);
+    lv_label_set_align(rlabel, LV_LABEL_ALIGN_CENTER);
+    lv_label_set_style(rlabel, &rlabel_style);
+    if (reason == 1) {
+        lv_label_set_static_text(rlabel, "No card inserted");
+    } else if (reason == 2) {
+        lv_label_set_static_text(rlabel, "No FAT32 filesystem found");
+    } else if (reason == 3) {
+        lv_label_set_static_text(rlabel, "Card is write-protected");
+    } else {
+        lv_label_set_static_text(rlabel, "Unknown card error");
+    }
+    lv_obj_set_pos(rlabel, 0, 126+67+10);
     LcdDma_Mutex_Give();
     for (uint8_t i=0;i<10;i++) {
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
@@ -378,8 +398,8 @@ void app_main(void)
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_ta_add_text(textarea, "Setting up Sdcard... ");
     LcdDma_Mutex_Give();
-    setup_ret = Sdcard_Setup();
-    if (setup_ret) {
+    uint8_t card_setup_ret = Sdcard_Setup();
+    if (card_setup_ret == 0) {
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         lv_ta_add_text(textarea, "ok\n");
         LcdDma_Mutex_Give();
@@ -388,7 +408,7 @@ void app_main(void)
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         lv_ta_add_text(textarea, "failed !!\n");
         LcdDma_Mutex_Give();
-        crash_sd();
+        crash_sd(card_setup_ret);
     }
 
     checkcore();
