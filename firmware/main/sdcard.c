@@ -16,7 +16,7 @@ sdmmc_card_t* Sdcard_Card;
 const char Sdcard_BasePath[] = "/sd";
 FATFS* Sdcard_Fs = NULL;
 
-bool Sdcard_Setup() {
+uint8_t Sdcard_Setup() {
     ESP_LOGI(TAG, "Setting up");
 
     Sdcard_Host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
@@ -24,32 +24,33 @@ bool Sdcard_Setup() {
     uint8_t pdrv = 0xff;
     if (ff_diskio_get_drive(&pdrv) != ESP_OK || pdrv == 0xff) {
         ESP_LOGE(TAG, "Can't mount any more volumes !!");
-        return false;
+        return 0xff;
     }
 
     Sdcard_Card = malloc(sizeof(sdmmc_card_t));
     if (Sdcard_Card == NULL) {
         ESP_LOGE(TAG, "Couldn't malloc card object !!");
-        return false;
+        return 0xff;
     }
 
     esp_err_t err;
     err = Sdcard_Host.init();
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Host init fail !! 0x%x", err);
-        return false;
+        return 0xff;
     }
 
     err = sdmmc_host_init_slot(Sdcard_Host.slot, &Sdcard_Slot);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Slot init fail !! 0x%x", err);
-        return false;
+        return 0xff;
     }
 
     err = sdmmc_card_init(&Sdcard_Host, Sdcard_Card);
+    //probably no card - 0x107 seen
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Card init fail !! 0x%x", err);
-        return false;
+        return 1;
     }
 
     ff_diskio_register_sdmmc(pdrv, Sdcard_Card);
@@ -58,13 +59,14 @@ bool Sdcard_Setup() {
     err = esp_vfs_fat_register(Sdcard_BasePath, drv, Sdcard_Mount.max_files, &Sdcard_Fs);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Fail to register with vfs !! 0x%x", err);
-        return false;
+        return 0xff;
     }
 
     FRESULT res = f_mount(Sdcard_Fs, drv, 1);
+    //0xd = FR_NO_FILESYSTEM - GPT, msdos with no partition, msdos with wrong partition...
     if (res != FR_OK) {
         ESP_LOGE(TAG, "Failed to mount !! 0x%x", res);
-        return false;
+        return 2;
     }
 
     ESP_LOGI(TAG, "Card online !!");
@@ -72,13 +74,16 @@ bool Sdcard_Setup() {
     DIR *test = opendir("/sd/.mega");
     if (!test) {
         ESP_LOGW(TAG, ".mega doesn't exist, creating !!");
-        mkdir("/sd/.mega", S_IRWXU);
+        if (mkdir("/sd/.mega", S_IRWXU) != 0) {
+            ESP_LOGE(TAG, ".mega mkdir error !!");
+            return 3;
+        }
     } else {
         closedir(test);
     }
 
 
-    return true;
+    return 0;
 }
 
 void Sdcard_Destroy() {

@@ -9,7 +9,7 @@
 #include "sdmmc_cmd.h"
 #include "diskio.h"
 
-bool Sdcard_Setup();
+uint8_t Sdcard_Setup();
 void Sdcard_Destroy();
 
 #endif
