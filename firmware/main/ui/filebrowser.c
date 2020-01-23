@@ -192,11 +192,11 @@ void Ui_FileBrowser_Setup() {
                 fclose(last);
                 memset(&pageloc[0], 0xff, 4*127);
                 //let startdir upon activate handle the rest
+                closedir(test);
                 return;
             } else {
                 ESP_LOGI(TAG, "path doesn't exist anymore !!");
             }
-            closedir(test);
         } else {
             ESP_LOGI(TAG, "version 0x%02x doesn't match 0x%02x", ver, BROWSER_LAST_VER);
         }
