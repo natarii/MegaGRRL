@@ -332,7 +332,7 @@ void redrawlistsel(bool list, bool sel) {
             } else if (ent->d_type == DT_REG) {
                 uint8_t namelen = strlen(ent->d_name);
                 if (namelen > 4) {
-                    if (strcasecmp(&ent->d_name[namelen-4], ".vgm") == 0) {
+                    if ((strcasecmp(&ent->d_name[namelen-4], ".vgm") == 0) || (strcasecmp(&ent->d_name[namelen-4], ".vgz") == 0)) {
                         lv_label_set_text(icons[u], SYMBOL_AUDIO);
                         //lv_label_set_style(labels[u], &filelabelstyle_aud);
                         lv_label_set_style(icons[u], &filelabelstyle_aud);
@@ -378,7 +378,7 @@ void redrawlistsel(bool list, bool sel) {
                 } else if (ent->d_type == DT_REG) {
                     uint8_t namelen = strlen(ent->d_name);
                     if (namelen > 4) {
-                        if (strcasecmp(&ent->d_name[namelen-4], ".vgm") == 0) {
+                        if ((strcasecmp(&ent->d_name[namelen-4], ".vgm") == 0) || (strcasecmp(&ent->d_name[namelen-4], ".vgz") == 0)) {
                             Ui_SoftBar_Update(2, true, SYMBOL_PLAY" Play", false);
                         } else if (strcasecmp(&ent->d_name[namelen-4], ".m3u") == 0) {
                             Ui_SoftBar_Update(2, true, SYMBOL_PLAY" Play", false);
@@ -453,7 +453,7 @@ uint8_t dumpm3u() {
     p = fopen("/sd/.mega/temp.m3u", "w");
     while ((ent=readdir(m3udir))!=NULL) {
         BROWSER_IGNORE;
-        if (strcasecmp(&ent->d_name[strlen(ent->d_name)-4], ".vgm") == 0) {
+        if ((strcasecmp(&ent->d_name[strlen(ent->d_name)-4], ".vgm") == 0) || (strcasecmp(&ent->d_name[strlen(ent->d_name)-4], ".vgz") == 0)) {
             strcpy(temppath, path);
             strcat(temppath, "/");
             strcat(temppath, ent->d_name);
@@ -476,12 +476,6 @@ void m3u2m3u() {
     QueueLoadM3u(path, temppath, 0, true);
     for (uint32_t i=0;i<QueueLength;i++) {
         QueueSetupEntry(true);
-        //todo: make this logic less awful, probably when i get around to extracting vgzs...
-        if (QueuePlayingFilename[strlen(QueuePlayingFilename)-1] == 'z') {
-            QueuePlayingFilename[strlen(QueuePlayingFilename)-1] = 'm';
-        } else if (QueuePlayingFilename[strlen(QueuePlayingFilename)-1] == 'Z') {
-            QueuePlayingFilename[strlen(QueuePlayingFilename)-1] = 'M';
-        }
         strcat(QueuePlayingFilename, "\n"); //VILE
         fwrite(QueuePlayingFilename, strlen(QueuePlayingFilename), 1, p);
         QueueNext();
@@ -511,7 +505,7 @@ void openselection() {
                 strcat(temppath, "/");
                 strcat(temppath, ent->d_name);
                 op*enfile();*/
-                if (strcasecmp(&ent->d_name[strlen(ent->d_name)-4], ".vgm") == 0) {
+                if ((strcasecmp(&ent->d_name[strlen(ent->d_name)-4], ".vgm") == 0) || (strcasecmp(&ent->d_name[strlen(ent->d_name)-4], ".vgz") == 0)) {
                     ESP_LOGI(TAG, "playing vgm");
                     ESP_LOGI(TAG, "request stop");
                     xTaskNotify(Taskmgr_Handles[TASK_PLAYER], PLAYER_NOTIFY_STOP_RUNNING, eSetValueWithoutOverwrite);

@@ -12,6 +12,8 @@
 #include "gd3.h"
 #include "mallocs.h"
 #include "ui/nowplaying.h"
+#include "rom/miniz.h"
+#include "ui/statusbar.h"
 
 static const char* TAG = "Player";
 
@@ -185,7 +187,121 @@ bool Player_Setup() {
     return true;
 }
 
+static tinfl_decompressor decomp;
+void Player_Unvgz(char *FilePath, bool ReplaceOriginalFile) {
+    FILE *reader;
+    FILE *writer;
+
+    if (ReplaceOriginalFile) {
+        char vgmfn[513];
+        strcpy(vgmfn, FilePath);
+        vgmfn[strlen(vgmfn)-1] = 'm';
+        
+        ESP_LOGW(TAG, "Unvgz: Decompressing %s to %s", FilePath, vgmfn);
+
+        //copy vgz to temp
+        uint32_t copysize;
+        reader = fopen(FilePath, "r");
+        writer = fopen("/sd/.mega/unvgz.tmp", "w");
+        do {
+            copysize = fread(Driver_PcmBuf, 1, DACSTREAM_BUF_SIZE*DACSTREAM_PRE_COUNT, reader);
+            fwrite(Driver_PcmBuf, 1, copysize, writer);
+        } while (copysize == DACSTREAM_BUF_SIZE*DACSTREAM_PRE_COUNT);
+        fclose(reader);
+        fclose(writer);
+
+        //rename existing vgz to the new vgm
+        rename(FilePath, vgmfn);
+
+        //open new files
+        reader = fopen("/sd/.mega/unvgz.tmp", "r");
+        writer = fopen(vgmfn, "r+");
+    } else {
+        ESP_LOGW(TAG, "Unvgz: Decompressing %s to temp file", FilePath);
+        reader = fopen(FilePath, "r");
+        writer = fopen("/sd/.mega/unvgz.tmp", "w");
+    }
+    fseek(writer, 0, SEEK_SET);
+
+    //get compressed size
+    fseek(reader, 0, SEEK_END);
+    size_t in_remaining = ftell(reader) - 18; //18 = gzip header size. TODO check gzip header for sanity
+    fseek(reader, 10, SEEK_SET);
+
+    tinfl_init(&decomp);
+    const void *next_in = Driver_CommandQueueBuf;
+    void *next_out = Driver_PcmBuf;
+    size_t avail_in = 0;
+    size_t avail_out = 65536; // >= LZ dict size*2 && <= DACSTREAM_BUF_SIZE*DACSTREAM_PRE_COUNT}
+    size_t total_in = 0;
+    size_t total_out = 0;
+    size_t in_bytes, out_bytes;
+    tinfl_status status;
+    for (;;) {
+        if (!avail_in) {
+            size_t rd = (in_remaining<16384)?in_remaining:16384; //power of 2 <= DRIVER_QUEUE_SIZE
+            if (fread(Driver_CommandQueueBuf, 1, rd, reader) != rd) {
+                ESP_LOGE(TAG, "read fail");
+            }
+            ESP_LOGI(TAG, "read chunk %d", rd);
+            next_in = Driver_CommandQueueBuf;
+            avail_in = rd;
+            in_remaining -= rd;
+        }
+        in_bytes = avail_in;
+        out_bytes = avail_out;
+        ESP_LOGI(TAG, "inb %d outb %d", in_bytes, out_bytes);
+        status = tinfl_decompress(&decomp, (const mz_uint8 *)next_in, &in_bytes, Driver_PcmBuf, (mz_uint8 *)next_out, &out_bytes, (in_remaining?TINFL_FLAG_HAS_MORE_INPUT:0)/*|TINFL_FLAG_PARSE_ZLIB_HEADER*/);
+
+        avail_in -= in_bytes;
+        next_in = (const mz_uint8 *)next_in + in_bytes;
+        total_in += in_bytes;
+        
+        avail_out -= out_bytes;
+        next_out = (mz_uint8 *)next_out + out_bytes;
+        total_out += out_bytes;
+
+        if ((status <= TINFL_STATUS_DONE) || (!avail_out)) {
+            size_t wr = 65536 - avail_out;
+            fwrite(Driver_PcmBuf, 1, wr, writer);
+            ESP_LOGI(TAG, "wrote chunk %d", wr);
+            next_out = Driver_PcmBuf;
+            avail_out = 65536;
+        }
+
+        if (status <= TINFL_STATUS_DONE) {
+            if (status == TINFL_STATUS_DONE) {
+                ESP_LOGI(TAG, "decomp ok !!");
+                break;
+            } else {
+                ESP_LOGE(TAG, "decomp fail %d", status);
+            }
+        }
+    }
+    fclose(reader);
+    fclose(writer);
+}
+
 bool Player_StartTrack(char *FilePath) {
+    if (strcasecmp(FilePath+(strlen(FilePath)-4), ".vgz") == 0) {
+        FILE *test = fopen(FilePath, "r");
+        bool KeepOriginalFile = false; ///file replacement sorting bug :(
+        if (test) {
+            //only unvgz if the vgz actually exists.
+            //if a playlist contains .vgzs, they get played through, extracted, and then played again, theyll be vgz in the playlist but vgm on disk
+            fclose(test);
+            Ui_StatusBar_SetExtract(true);
+            Player_Unvgz(FilePath, KeepOriginalFile);
+            Ui_StatusBar_SetExtract(false);
+            if (KeepOriginalFile) {
+                *(FilePath+(strlen(FilePath)-1)) = 'm';
+            } else {
+                strcpy(FilePath, "/sd/.mega/unvgz.tmp");
+            }
+        } else {
+            *(FilePath+(strlen(FilePath)-1)) = 'm';
+        }
+    }
     Player_VgmFile = fopen(FilePath, "r");
     Player_PcmFile = fopen(FilePath, "r");
     Player_DsFindFile = fopen(FilePath, "r");

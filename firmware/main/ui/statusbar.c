@@ -26,6 +26,7 @@ typedef enum {
     ICON_MONO,
     ICON_STEREO,
     ICON_SOUND,
+    ICON_EXTRACT,
     ICON_COUNT
 } StatusbarIcon_t;
 
@@ -43,9 +44,10 @@ const StatusbarIconDef_t icondefs[] = {
     {"MO", 0, 0},
     {"ST", 0, 0},
     {SYMBOL_VOLUME_MAX, 5, 0},
+    {SYMBOL_UPLOAD, 0, 0},
 };
 
-static lv_obj_t *iconlabels[3];
+static lv_obj_t *iconlabels[4];
 
 void Ui_StatusBar_DrawIcon(StatusbarIcon_t icon, lv_obj_t *label, int16_t x, int16_t y) {
     lv_label_set_static_text(label, icondefs[icon].c);
@@ -69,7 +71,7 @@ bool Ui_StatusBar_Setup(lv_obj_t *uiscreen) {
     lv_obj_set_width(container, 240);
     lv_cont_set_fit(container, false, false);
 
-    for (uint8_t i=0;i<3;i++) {
+    for (uint8_t i=0;i<4;i++) {
         iconlabels[i] = lv_label_create(container, NULL);
         lv_label_set_text(iconlabels[i], "");
     }
@@ -109,6 +111,16 @@ void Ui_StatusBar_RedrawIcons() {
     } else {
         Ui_StatusBar_DrawIcon(ICON_CHANNELMUTED, iconlabels[2], 60, 7);
     }
+}
+
+void Ui_StatusBar_SetExtract(bool extracting) {
+    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    if (extracting) {
+        Ui_StatusBar_DrawIcon(ICON_EXTRACT, iconlabels[3], 83, 7);
+    } else {
+        lv_label_set_static_text(iconlabels[3], "");
+    }
+    LcdDma_Mutex_Give();
 }
 
 uint32_t last = 0;

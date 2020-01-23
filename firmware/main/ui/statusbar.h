@@ -6,5 +6,6 @@
 
 bool Ui_StatusBar_Setup(lv_obj_t *uiscreen);
 void Ui_StatusBar_Tick();
+void Ui_StatusBar_SetExtract(bool extracting);
 
 #endif
