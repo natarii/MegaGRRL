@@ -243,14 +243,14 @@ void Player_Unvgz(char *FilePath, bool ReplaceOriginalFile) {
             if (fread(Driver_CommandQueueBuf, 1, rd, reader) != rd) {
                 ESP_LOGE(TAG, "read fail");
             }
-            ESP_LOGI(TAG, "read chunk %d", rd);
+            ESP_LOGD(TAG, "read chunk %d", rd);
             next_in = Driver_CommandQueueBuf;
             avail_in = rd;
             in_remaining -= rd;
         }
         in_bytes = avail_in;
         out_bytes = avail_out;
-        ESP_LOGI(TAG, "inb %d outb %d", in_bytes, out_bytes);
+        ESP_LOGD(TAG, "inb %d outb %d", in_bytes, out_bytes);
         status = tinfl_decompress(&decomp, (const mz_uint8 *)next_in, &in_bytes, Driver_PcmBuf, (mz_uint8 *)next_out, &out_bytes, (in_remaining?TINFL_FLAG_HAS_MORE_INPUT:0)/*|TINFL_FLAG_PARSE_ZLIB_HEADER*/);
 
         avail_in -= in_bytes;
@@ -264,7 +264,7 @@ void Player_Unvgz(char *FilePath, bool ReplaceOriginalFile) {
         if ((status <= TINFL_STATUS_DONE) || (!avail_out)) {
             size_t wr = 65536 - avail_out;
             fwrite(Driver_PcmBuf, 1, wr, writer);
-            ESP_LOGI(TAG, "wrote chunk %d", wr);
+            ESP_LOGD(TAG, "wrote chunk %d", wr);
             next_out = Driver_PcmBuf;
             avail_out = 65536;
         }
