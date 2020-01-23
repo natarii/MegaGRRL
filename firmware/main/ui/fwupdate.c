@@ -111,6 +111,22 @@ void Ui_Fwupdate_Setup(lv_obj_t *uiscreen) {
         fclose(f);
         return;
     }
+    #ifdef HWVER_DESKTOP
+    if (newfirmware.hardware_version != 'd') {
+    #elif defined HWVER_PORTABLE
+    if (newfirmware.hardware_version != 'p') {
+    #endif
+        LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+        lv_ta_add_text(fwupdate_ta, "Wrong hardware version\n\nCannot flash.\nPress Back to return");
+        LcdDma_Mutex_Give();
+        fwupdate_valid = false;
+        fclose(f);
+        return;
+    } else {
+        LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+        lv_ta_add_text(fwupdate_ta, "Hardware version ok\n");
+        LcdDma_Mutex_Give();
+    }
     char *nv = calloc(newfirmware.ver_length+1, 1);
     fread(nv, 1, newfirmware.ver_length, f);
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
@@ -121,7 +137,6 @@ void Ui_Fwupdate_Setup(lv_obj_t *uiscreen) {
     lv_ta_add_text(fwupdate_ta, "\n");
     free(nv);
     LcdDma_Mutex_Give();
-    //todo: check if desktop or portable
     uint32_t remaining = newfirmware.app_size;
     uint32_t crc = 0;
     if (remaining) {
