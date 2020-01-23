@@ -32,6 +32,9 @@ This project is divided into several subdirectories:
 11. Populate the SD card D2 pullup resistor.
 12. Insert the card into the MegaGRRL and power it on. The firmware will now self-flash, and reboot into the OS.
 
+## Obtaining VGM files
+The defacto standard Genesis/Mega Drive VGM repository is [Project 2612](https://project2612.org/). Both .vgm and .vgz files are supported, but load times are shorter if using vgm.
+
 ## More information
 
 Additional info and project logs are available on the [Hackaday.io project page](https://hackaday.io/project/161741-megagrrl-portable-ym2612-vgm-player)
