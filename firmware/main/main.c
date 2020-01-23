@@ -266,6 +266,10 @@ void app_main(void)
             ESP_LOGI(TAG, "OPL3 detected, switching FM clock to OPL3");
             Clk_Set(CLK_FM, 14318180);
             break;
+        case MEGAMOD_OPNA:
+            ESP_LOGI(TAG, "OPNA detected, switching FM clock to OPNA");
+            Clk_Set(CLK_FM, 8000000);
+            break;
         default:
             ESP_LOGE(TAG, "Unsupported mod (ID %d)", Driver_DetectedMod);
             break;
