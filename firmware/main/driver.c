@@ -512,36 +512,38 @@ void Driver_UpdateCh6Muting() {
 }
 
 void Driver_UpdateMuting() {
-    if (Driver_MitigateVgmTrim) {
-        if (Driver_FirstWait) {
-            //force everything off no matter what
-            Driver_FmOut(0, 0xb4, Driver_FmPans[0] & 0b00111111);
-            Driver_FmOut(0, 0xb5, Driver_FmPans[1] & 0b00111111);
-            Driver_FmOut(0, 0xb6, Driver_FmPans[2] & 0b00111111);
-            Driver_FmOut(1, 0xb4, Driver_FmPans[3] & 0b00111111);
-            Driver_FmOut(1, 0xb5, Driver_FmPans[4] & 0b00111111);
-            Driver_FmOut(1, 0xb6, Driver_FmPans[5] & 0b00111111);
-            for (uint8_t i=0;i<4;i++) {
-                Driver_PsgOut(0b10011111 | (i<<5));
+    if (Driver_DetectedMod == MEGAMOD_NONE) {
+        if (Driver_MitigateVgmTrim) {
+            if (Driver_FirstWait) {
+                //force everything off no matter what
+                Driver_FmOut(0, 0xb4, Driver_FmPans[0] & 0b00111111);
+                Driver_FmOut(0, 0xb5, Driver_FmPans[1] & 0b00111111);
+                Driver_FmOut(0, 0xb6, Driver_FmPans[2] & 0b00111111);
+                Driver_FmOut(1, 0xb4, Driver_FmPans[3] & 0b00111111);
+                Driver_FmOut(1, 0xb5, Driver_FmPans[4] & 0b00111111);
+                Driver_FmOut(1, 0xb6, Driver_FmPans[5] & 0b00111111);
+                for (uint8_t i=0;i<4;i++) {
+                    Driver_PsgOut(0b10011111 | (i<<5));
+                }
+                return;
             }
-            return;
         }
-    }
-    for (uint8_t i=0;i<5;i++) {
-        uint8_t mask = (Driver_FmMask & (1<<i))?0b11111111:0b00111111;
-        uint8_t reg = Driver_FmPans[i] & mask;
-        if (Driver_ForceMono && (reg & 0b11000000)) reg |= 0b11000000;
-        Driver_FmOut((i<3)?0:1, 0xb4 + ((i<3)?i:(i-3)), reg);
-    }
-    Driver_UpdateCh6Muting();
-    for (uint8_t i=0;i<4;i++) {
-        uint8_t atten = 0;
-        if (Driver_PsgMask & (1<<i)) {
-            atten = Driver_PsgAttenuation[i];
-        } else {
-            atten = 0b10011111 | (i<<5);
+        for (uint8_t i=0;i<5;i++) {
+            uint8_t mask = (Driver_FmMask & (1<<i))?0b11111111:0b00111111;
+            uint8_t reg = Driver_FmPans[i] & mask;
+            if (Driver_ForceMono && (reg & 0b11000000)) reg |= 0b11000000;
+            Driver_FmOut((i<3)?0:1, 0xb4 + ((i<3)?i:(i-3)), reg);
         }
-        Driver_PsgOut(atten);
+        Driver_UpdateCh6Muting();
+        for (uint8_t i=0;i<4;i++) {
+            uint8_t atten = 0;
+            if (Driver_PsgMask & (1<<i)) {
+                atten = Driver_PsgAttenuation[i];
+            } else {
+                atten = 0b10011111 | (i<<5);
+            }
+            Driver_PsgOut(atten);
+        }
     }
 }
 
