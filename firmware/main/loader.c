@@ -24,7 +24,7 @@ FILE *Loader_File;
 FILE *Loader_PcmFile;
 VgmInfoStruct_t *Loader_VgmInfo;
 uint8_t Loader_VgmDataBlockIndex = 0;
-VgmDataBlockStruct_t Loader_VgmDataBlocks[MAX_REALTIME_DATABLOCKS];
+volatile VgmDataBlockStruct_t Loader_VgmDataBlocks[MAX_REALTIME_DATABLOCKS];
 bool Loader_RequestedDacStreamFindStart = false;
 uint8_t Loader_VgmBuf[FREAD_LOCAL_BUF];
 uint16_t Loader_VgmBufPos = FREAD_LOCAL_BUF;
@@ -139,9 +139,21 @@ void Loader_Main() {
                                 return;
                             } else {
                                 //here are some hacks to wrap around VgmParseDataBlock not using our local buffer thing
-                                fseek(Loader_File, Loader_VgmFilePos, SEEK_SET);
+                                fseek(Loader_File, Loader_VgmFilePos, SEEK_SET); //destroys buf
                                 VgmParseDataBlock(Loader_File, &Loader_VgmDataBlocks[Loader_VgmDataBlockIndex++]);
-                                LOADER_BUF_SEEK_SET(ftell(Loader_File));
+                                LOADER_BUF_SEEK_SET(ftell(Loader_File)); //fix buf
+
+                                //handle opna pcm datablocks, since they need to be uploaded
+                                if (Loader_VgmDataBlocks[Loader_VgmDataBlockIndex-1].Type == 0x81) {
+                                    ESP_LOGI(TAG, "Requesting OPNA PCM upload");
+                                    Driver_Opna_PcmUploadId = Loader_VgmDataBlockIndex-1;
+                                    Driver_Opna_PcmUpload = true;
+                                    while (Driver_Opna_PcmUpload) {
+                                        vTaskDelay(pdMS_TO_TICKS(10));
+                                        //todo: timeout?
+                                    }
+                                    ESP_LOGI(TAG, "Done");
+                                }
                             }
                             continue;
                         } else if ((d&0xf0) == 0x80) { //pcm and wait

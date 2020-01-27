@@ -306,6 +306,7 @@ bool Player_StartTrack(char *FilePath) {
     Player_PcmFile = fopen(FilePath, "r");
     Player_DsFindFile = fopen(FilePath, "r");
     Player_DsFillFile = fopen(FilePath, "r");
+    Driver_Opna_PcmUploadFile = fopen(FilePath, "r");
     fseek(Player_VgmFile, 0, SEEK_SET);
     fseek(Player_DsFindFile, 0, SEEK_SET);
     VgmParseHeader(Player_VgmFile, &Player_Info);
@@ -499,6 +500,7 @@ bool Player_StopTrack() {
         fclose(Player_PcmFile);
         fclose(Player_DsFindFile);
         fclose(Player_DsFillFile);
+        fclose(Driver_Opna_PcmUploadFile);
         return false;
     }
 
@@ -510,6 +512,7 @@ bool Player_StopTrack() {
         fclose(Player_PcmFile);
         fclose(Player_DsFindFile);
         fclose(Player_DsFillFile);
+        fclose(Driver_Opna_PcmUploadFile);
         return false;
     }
 
@@ -525,6 +528,7 @@ bool Player_StopTrack() {
     fclose(Player_PcmFile);
     fclose(Player_DsFindFile);
     fclose(Player_DsFillFile);
+    fclose(Driver_Opna_PcmUploadFile);
 
     return true;
 }

@@ -10,6 +10,7 @@
 #include "freertos/queue.h"
 #include "freertos/event_groups.h"
 #include "vgm.h"
+#include "mallocs.h"
 
 enum {
     LOADER_RUNNING = 0x01,
@@ -29,6 +30,7 @@ extern EventGroupHandle_t Loader_Status;
 extern EventGroupHandle_t Loader_BufStatus;
 
 extern volatile bool Loader_IgnoreZeroSampleLoops;
+volatile VgmDataBlockStruct_t Loader_VgmDataBlocks[MAX_REALTIME_DATABLOCKS];
 
 bool Loader_Setup();
 void Loader_Main();

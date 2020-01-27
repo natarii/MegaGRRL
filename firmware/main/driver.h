@@ -54,6 +54,9 @@ extern volatile bool Driver_FirstWait;
 extern volatile uint8_t Driver_FmMask;
 extern volatile uint8_t Driver_PsgMask;
 extern volatile bool Driver_ForceMono;
+extern volatile uint32_t Driver_Opna_PcmUploadId;
+extern volatile bool Driver_Opna_PcmUpload;
+extern FILE *Driver_Opna_PcmUploadFile;
 
 extern uint32_t Driver_Sample;
 extern uint32_t Driver_NextSample;

@@ -12,6 +12,7 @@
 #include "channels.h"
 #include "hal.h"
 #include "driver/gpio.h"
+#include "loader.h"
 
 static const char* TAG = "Driver";
 
@@ -114,6 +115,10 @@ uint32_t Driver_PsgCh3Freq = 0;
 bool Driver_PsgNoisePeriodic = false;
 bool Driver_PsgNoiseSourceCh3 = false;
 
+volatile uint32_t Driver_Opna_PcmUploadId = 0;
+volatile bool Driver_Opna_PcmUpload = false;
+FILE *Driver_Opna_PcmUploadFile = NULL;
+
 #define min(a,b) ((a) < (b) ? (a) : (b)) //sigh.
 
 void Driver_ResetChips();
@@ -121,6 +126,10 @@ void Driver_Sleep(uint32_t us);
 
 void Driver_Output() { //output data to shift registers
     disp_spi_transfer_data(Driver_SpiDevice, (uint8_t*)&Driver_SrBuf, NULL, 2, 0);
+}
+
+static uint32_t map(uint32_t x, uint32_t in_min, uint32_t in_max, uint32_t out_min, uint32_t out_max) {
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
 bool Driver_Setup() {
@@ -335,6 +344,64 @@ void Driver_FmOutopl3(uint8_t Port, uint8_t Register, uint8_t Value) {
     Driver_Sleep(20);
 }
 
+void Driver_FmOutopna(uint8_t Port, uint8_t Register, uint8_t Value) {
+    if (Port == 0) {
+        Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_A1; //clear A1
+    } else if (Port == 1) {
+        Driver_SrBuf[SR_CONTROL] |= SR_BIT_A1; //set A1
+    }
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_A0; //clear A0
+    Driver_Output();
+    //Driver_Sleep(20);
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_FM_CS; // /cs low
+    Driver_SrBuf[SR_DATABUS] = Register;
+    Driver_Output();
+    //Driver_Sleep(20);
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR; // /wr low
+    Driver_Output();
+    //Driver_Sleep(20);
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; // /wr high
+    Driver_Output();
+    //Driver_Sleep(20);
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_A0; //set A0
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR; // /wr low
+    Driver_SrBuf[SR_DATABUS] = Value;
+    Driver_Output();
+    //Driver_Sleep(20);
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; // /wr high
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_FM_CS; // /cs high
+    Driver_Output();
+    Driver_Sleep(15);
+}
+
+void Driver_Opna_PrepareUpload() {
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_A1; //set A1
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_A0; //clear A0
+    Driver_Output();
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_FM_CS; // /cs low
+    Driver_SrBuf[SR_DATABUS] = 0x08;
+    Driver_Output();
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR; // /wr low
+    Driver_Output();
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; // /wr high
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_FM_CS; // /cs high
+    Driver_Output();
+    Driver_Sleep(5);
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_A0; //set A0
+}
+
+void Driver_Opna_UploadByte(uint8_t pair) {
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_FM_CS; // /cs low
+    Driver_SrBuf[SR_DATABUS] = pair;
+    //Driver_Output();
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR; // /wr low
+    Driver_Output();
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; // /wr high
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_FM_CS; // /cs high
+    Driver_Output();
+    Driver_Sleep(15);
+}
+
 void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
     if (Port == 0) {
         Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_A1; //clear A1
@@ -496,8 +563,14 @@ uint8_t Driver_SeqToSlot(uint32_t seq) {
 }
 
 uint8_t Driver_PsgFreqLow = 0; //used for sega psg fix
+uint16_t opnastart = 0;
+uint16_t opnastart_hacked = 0;
+uint16_t opnastop = 0;
+uint16_t opnastop_hacked = 0;
+uint8_t opna_adpcm_reg1 = 0;
 bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the queue. command length as a parameter just to avoid looking it up a second time
     uint8_t cmd[CommandLength]; //buffer for command + attached data
+    bool nw = false; //skip write
     
     //read command + data from the queue
     for (uint8_t i=0;i<CommandLength;i++) {
@@ -550,10 +623,56 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
         } else { //not fixing psg frequency
             Driver_PsgOut(cmd[1]); //just write it normally
         }
-    } else if (cmd[0] == 0x5e || cmd[0] == 0x5b || cmd[0] == 0x5a) {
+    } else if (cmd[0] == 0x5e || cmd[0] == 0x5b || cmd[0] == 0x5a) { //ymf262 port 0, ym3812, ym3526
         Driver_FmOutopl3(0, cmd[1], cmd[2]);
-    } else if (cmd[0] == 0x5f) {
+    } else if (cmd[0] == 0x5f) { //ymf262 port 1
         Driver_FmOutopl3(1, cmd[1], cmd[2]);
+    } else if (cmd[0] == 0x56 || cmd[0] == 0x57) { //opna
+        //using longer delays here because writes are missing (?)
+        //todo look into this further
+        if (cmd[0] == 0x57) {
+            if (cmd[1] == 0x01) { //control
+                opna_adpcm_reg1 = cmd[2];
+                cmd[2] &= 0b11111100;
+            } else if (cmd[1] == 0x02) { //start L
+                ESP_LOGD(TAG, "start    %02x", cmd[2]);
+                opnastart = (opnastart & 0xff00) | cmd[2];
+                nw = true;
+            } else if (cmd[1] == 0x03) { //start H
+                ESP_LOGD(TAG, "start  %02x", cmd[2]);
+                opnastart = (((uint16_t)cmd[2])<<8) | (opnastart & 0xff);
+                nw = true;
+            } else if (cmd[1] == 0x04) { //stop L
+                ESP_LOGD(TAG, "stop     %02x", cmd[2]);
+                opnastop = (opnastop & 0xff00) | cmd[2];
+                nw = true;
+            } else if (cmd[1] == 0x05) { //stop H
+                ESP_LOGD(TAG, "stop   %02x", cmd[2]);
+                opnastop = (((uint16_t)cmd[2])<<8) | (opnastop & 0xff);
+                nw = true;
+            } else if (cmd[1] == 0x00 && cmd[2] & 0x80) { //pcm start
+                if (opna_adpcm_reg1 & 0b00000011) { //if in rom or 8bit dram mode, convert addresses
+                    ESP_LOGD(TAG, "converting opna pcm addresses");
+                    opnastart_hacked = opnastart * 8;
+                    Driver_FmOutopna(1,0x02,opnastart_hacked&0xff);
+                    Driver_FmOutopna(1,0x03,opnastart_hacked>>8);
+                    opnastop_hacked = opnastop * 8;
+                    opnastop_hacked |= 0b00000111;
+                    Driver_FmOutopna(1,0x04,opnastop_hacked&0xff);
+                    Driver_FmOutopna(1,0x05,opnastop_hacked>>8);
+                } else { //write as-is
+                    Driver_FmOutopna(1,0x02,opnastart&0xff);
+                    Driver_FmOutopna(1,0x03,opnastart>>8);
+                    Driver_FmOutopna(1,0x04,opnastop&0xff);
+                    Driver_FmOutopna(1,0x05,opnastop>>8);
+                }
+            } else if (cmd[1] == 0x0c || cmd[1] == 0x0d) { //limit
+                nw = true;
+            }
+        }
+        if (!nw) Driver_FmOutopl3(cmd[0]&1, cmd[1], cmd[2]);
+    } else if (cmd[0] == 0x55) { //ym2203
+        Driver_FmOutopl3(0, cmd[1], cmd[2]);
     } else if (cmd[0] == 0x52) { //YM2612 port 0
         if (cmd[1] >= 0xb4 && cmd[1] <= 0xb6) { //pan, FMS, AMS
             Driver_FmPans[cmd[1]-0xb4] = cmd[2];
@@ -662,7 +781,6 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
 
 uint32_t Driver_BusyStart = 0;
 //uint32_t Driver_BusyEnd = 0;
-
 void Driver_Main() {
     //driver task. never pet watchdog or come up for air at all - nothing else is running on CPU1.
     ESP_LOGI(TAG, "Task start");
@@ -710,14 +828,16 @@ void Driver_Main() {
         } else if (commandeventbits & DRIVER_EVENT_STOP_REQUEST) {
             Driver_PauseSample = Driver_Sample;
             Driver_NoLeds = true;
-            Driver_FmOut(0, 0xb4, Driver_FmPans[0] & 0b00111111);
-            Driver_FmOut(0, 0xb5, Driver_FmPans[1] & 0b00111111);
-            Driver_FmOut(0, 0xb6, Driver_FmPans[2] & 0b00111111);
-            Driver_FmOut(1, 0xb4, Driver_FmPans[3] & 0b00111111);
-            Driver_FmOut(1, 0xb5, Driver_FmPans[4] & 0b00111111);
-            Driver_FmOut(1, 0xb6, Driver_FmPans[5] & 0b00111111);
-            for (uint8_t i=0;i<4;i++) {
-                Driver_PsgOut(0b10011111 | (i<<5));
+            if (Driver_DetectedMod == MEGAMOD_NONE) {
+                Driver_FmOut(0, 0xb4, Driver_FmPans[0] & 0b00111111);
+                Driver_FmOut(0, 0xb5, Driver_FmPans[1] & 0b00111111);
+                Driver_FmOut(0, 0xb6, Driver_FmPans[2] & 0b00111111);
+                Driver_FmOut(1, 0xb4, Driver_FmPans[3] & 0b00111111);
+                Driver_FmOut(1, 0xb5, Driver_FmPans[4] & 0b00111111);
+                Driver_FmOut(1, 0xb6, Driver_FmPans[5] & 0b00111111);
+                for (uint8_t i=0;i<4;i++) {
+                    Driver_PsgOut(0b10011111 | (i<<5));
+                }
             }
             Driver_NoLeds = false;
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_FINISHED);
@@ -810,8 +930,44 @@ void Driver_Main() {
                 }
                 Driver_CpuUsageDs += (xthal_get_ccount() - Driver_BusyStart);
             }
-        } else {
-            //not running
+        } else { //not running
+            if (Driver_Opna_PcmUpload) { //loader trying to upload a pcm datablock
+                if (Driver_Opna_PcmUploadFile) {
+                    fseek(Driver_Opna_PcmUploadFile,Loader_VgmDataBlocks[Driver_Opna_PcmUploadId].Offset,SEEK_SET);
+                    uint32_t pcmoff = Loader_VgmDataBlocks[Driver_Opna_PcmUploadId].StartAddress;
+                    uint32_t pcmsize = Loader_VgmDataBlocks[Driver_Opna_PcmUploadId].Size-8;
+
+                    //TODO ALLOW FOR CHUNKS BIGGER THAN 64KBYTE
+                    pcmoff /= 4;
+                    Driver_FmOutopl3(1,0x02,pcmoff&0xff);   //start L
+                    Driver_FmOutopl3(1,0x03,pcmoff>>8);     //start H
+                    Driver_FmOutopl3(1,0x04,0xff);          //stop L
+                    Driver_FmOutopl3(1,0x05,0xff);          //stop H
+                    Driver_FmOutopl3(1,0x0c,0xff);          //limit L
+                    Driver_FmOutopl3(1,0x0d,0xff);          //limit H
+                    Driver_FmOutopl3(1,0x00,0x01);          //ADPCM reg0 reset
+                    Driver_FmOutopl3(1,0x00,0x60);          //ADPCM reg0 REC | MEMDATA
+                    //no need to set adpcm reg1 at this point, it should be zeroed from the reset
+                    Driver_Opna_PrepareUpload();
+                    for (uint32_t i=0;i<pcmsize;i++) {
+                        uint8_t b;
+                        fread(&b, 1, 1, Driver_Opna_PcmUploadFile);
+                        Driver_Opna_UploadByte(b);
+                        for (uint8_t j=0;j<=map(i,0,pcmsize,0,6);j++) {
+                            ChannelMgr_States[j] |= CHSTATE_PARAM | CHSTATE_KON;
+                        }
+                    }
+                    for (uint8_t j=0;j<6;j++) {
+                        ChannelMgr_States[j] = 0;
+                    }
+                    Driver_FmOutopl3(1,0x00,0x01);          //ADPCM reg0 reset
+
+                    Driver_Opna_PcmUpload = false;
+                } else {
+                    ESP_LOGE(TAG, "OPNA PCM upload: No file specified!!");
+                }
+            }
+
             vTaskDelay(2);
         }
     }

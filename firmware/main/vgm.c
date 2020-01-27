@@ -150,6 +150,11 @@ bool VgmParseDataBlock(FILE *f, VgmDataBlockStruct_t *block) {
     fread(&block->CompValue,2,1,f);
     seekoff = 6;
     ESP_LOGI(TAG, "Parsed datablock decompression table: size %d, comp type %02x, subtype %02x, bitsD %d, bitsC %d, CompValue %d", block->Size, block->CompressionType, block->Subtype, block->BitsDecompressed, block->BitsCompressed, block->CompValue);
+  } else if (block->Type == 0x81) {
+    fread(&block->RomSize,4,1,f);
+    fread(&block->StartAddress,4,1,f);
+    seekoff = 8;
+    ESP_LOGI(TAG, "Parsed OPNA ADPCM datablock: rom size %d, offset %d, adpcm data size %d", block->RomSize, block->StartAddress, block->Size-8);
   } else {
     seekoff = 0;
     ESP_LOGW(TAG, "Found unsupported datablock");
