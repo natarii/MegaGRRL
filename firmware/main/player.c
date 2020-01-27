@@ -331,24 +331,90 @@ bool Player_StartTrack(char *FilePath) {
 
     ESP_LOGI(TAG, "vgm rate: %d", Player_Info.Rate);
 
-    uint32_t PsgClock = 0;
-    uint32_t FmClock = 0;
-    fseek(Player_VgmFile, 0x0c, SEEK_SET);
-    fread(&PsgClock, 4, 1, Player_VgmFile);
-    fseek(Player_VgmFile, 0x2c, SEEK_SET);
-    fread(&FmClock, 4, 1, Player_VgmFile);
-    ESP_LOGI(TAG, "Clocks from vgm: psg %d, fm %d", PsgClock, FmClock);
+    //todo: improve this, check that the vgm is for the chips we have
+    if (Driver_DetectedMod == MEGAMOD_NONE) {
+        ESP_LOGI(TAG, "MegaMod: none");
+        uint32_t PsgClock = 0;
+        uint32_t FmClock = 0;
+        fseek(Player_VgmFile, 0x0c, SEEK_SET);
+        fread(&PsgClock, 4, 1, Player_VgmFile);
+        fseek(Player_VgmFile, 0x2c, SEEK_SET);
+        fread(&FmClock, 4, 1, Player_VgmFile);
+        ESP_LOGI(TAG, "Clocks from vgm: psg %d, fm %d", PsgClock, FmClock);
 
-    if (PsgClock == 0) PsgClock = 3579545;
-    else if (PsgClock < 3000000) PsgClock = 3000000;
-    else if (PsgClock > 4100000) PsgClock = 4100000;
-    if (FmClock == 0) FmClock = 7670453;
-    else if (FmClock < 7000000) FmClock = 7000000;
-    else if (FmClock > 8300000) FmClock = 8300000;
-    ESP_LOGI(TAG, "Clocks clamped: psg %d, fm %d", PsgClock, FmClock);
-    ESP_LOGI(TAG, "Enabling clocks");
-    Clk_Set(CLK_FM, FmClock);
-    Clk_Set(CLK_PSG, PsgClock);
+        if (PsgClock == 0) PsgClock = 3579545;
+        else if (PsgClock < 3000000) PsgClock = 3000000;
+        else if (PsgClock > 4100000) PsgClock = 4100000;
+        if (FmClock == 0) FmClock = 7670453;
+        else if (FmClock < 7000000) FmClock = 7000000;
+        else if (FmClock > 8300000) FmClock = 8300000;
+        ESP_LOGI(TAG, "Clocks clamped: psg %d, fm %d", PsgClock, FmClock);
+        Clk_Set(CLK_FM, FmClock);
+        Clk_Set(CLK_PSG, PsgClock);
+    } else if (Driver_DetectedMod == MEGAMOD_OPLLPSG) {
+        ESP_LOGI(TAG, "MegaMod: OPLL+PSG");
+        Clk_Set(CLK_PSG, 0);
+        uint32_t opll = 0;
+        uint32_t psg = 0;
+        fseek(Player_VgmFile, 0x0c, SEEK_SET);
+        fread(&psg,4,1,Player_VgmFile);
+        fread(&opll,4,1,Player_VgmFile);
+        if ((psg & 0x80000000) || (opll & 0x80000000)) {
+            ESP_LOGW(TAG, "Only one of each chip supported !!");
+        } else if (psg != opll) {
+            ESP_LOGW(TAG, "Different clocks not supported !!");
+        }
+        ESP_LOGI(TAG, "Clock from vgm: %d", psg);
+        if (psg < 3000000) psg = 3000000;
+        else if (psg > 4100000) psg = 4100000;
+        ESP_LOGI(TAG, "Clock clamped: %d", psg);
+        Clk_Set(CLK_FM, psg);
+    } else if (Driver_DetectedMod == MEGAMOD_OPNA) {
+        ESP_LOGI(TAG, "MegaMod: OPNA");
+        Clk_Set(CLK_PSG, 0);
+        uint32_t opna = 0;
+        uint32_t opn = 0;
+        fseek(Player_VgmFile, 0x44, SEEK_SET);
+        fread(&opn,4,1,Player_VgmFile);
+        fread(&opna,4,1,Player_VgmFile);
+        if (opna & 0x80000000) {
+            ESP_LOGW(TAG, "Only one opna supported !!");
+        }
+        if (opna) {
+            ESP_LOGI(TAG, "Clock from vgm: %d", opna);
+            if (opna < 6000000) opna = 6000000;
+            else if (opna > 10000000) opna = 10000000;
+            ESP_LOGI(TAG, "Clock clamped: %d", opna);
+            Clk_Set(CLK_FM, opna);
+        } else if (opn) {
+            Clk_Set(CLK_FM, opn<<1);
+        }
+    } else if (Driver_DetectedMod == MEGAMOD_OPL3) {
+        uint32_t opl = 0;
+        uint32_t opl2 = 0;
+        uint32_t opl3 = 0;
+        fseek(Player_VgmFile, 0x50, SEEK_SET);
+        fread(&opl2,4,1,Player_VgmFile);
+        fread(&opl,4,1,Player_VgmFile);
+        fseek(Player_VgmFile, 0x5c, SEEK_SET);
+        fread(&opl3,4,1,Player_VgmFile);
+        if ((opl & 0x80000000) || (opl2 & 0x80000000) || (opl3 & 0x80000000)) {
+            ESP_LOGW(TAG, "Only one of each chip supported FOR NOW !!");
+        }
+        //todo make this shit work like the above with clamping etc
+        if (opl3) {
+            ESP_LOGI(TAG, "set %d", opl3);
+            Clk_Set(CLK_FM, opl3);
+        } else if (opl2) {
+            opl2 *= 4;
+            ESP_LOGI(TAG, "set %d", opl2);
+            Clk_Set(CLK_FM, opl2);
+        } else if (opl) {
+            opl *= 4;
+            ESP_LOGI(TAG, "set %d", opl);
+            Clk_Set(CLK_FM, opl);
+        }
+    }
 
     ESP_LOGI(TAG, "Signalling driver reset");
     xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_RESET_REQUEST);
