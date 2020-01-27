@@ -18,6 +18,8 @@ This project is divided into several subdirectories:
    - `cd ~`
    - `git clone https://git.agiri.ninja/natalie/megagrrl`
    - `cd megagrrl`
+   - `git tag` <- find the latest version
+   - `git checkout v0.00` <- use the latest version number here
 3. Apply the patches contained in `esp-idf-patches/`.
    - `patch $IDF_PATH/components/driver/spi_master.c spi_master.c.patch`
    - `patch $IDF_PATH/components/driver/include/driver/spi_master.h spi_master.h.patch`
