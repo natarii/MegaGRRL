@@ -891,6 +891,9 @@ void Driver_Main() {
             commandeventbits &= ~DRIVER_EVENT_UPDATE_MUTING;
         } else if (commandeventbits & DRIVER_EVENT_RESET_REQUEST) {
             Driver_ResetChips();
+            for (uint8_t i=0;i<6+4;i++) {
+                ChannelMgr_States[i] = 0;
+            }
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_FINISHED);
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_RESET_REQUEST);
             xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_RESET_ACK);
