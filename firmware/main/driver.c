@@ -352,26 +352,95 @@ void Driver_FmOutopna(uint8_t Port, uint8_t Register, uint8_t Value) {
     }
     Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_A0; //clear A0
     Driver_Output();
-    //Driver_Sleep(20);
     Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_FM_CS; // /cs low
     Driver_SrBuf[SR_DATABUS] = Register;
     Driver_Output();
-    //Driver_Sleep(20);
     Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR; // /wr low
     Driver_Output();
-    //Driver_Sleep(20);
     Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; // /wr high
     Driver_Output();
-    //Driver_Sleep(20);
+    Driver_Sleep(5);
     Driver_SrBuf[SR_CONTROL] |= SR_BIT_A0; //set A0
     Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR; // /wr low
     Driver_SrBuf[SR_DATABUS] = Value;
     Driver_Output();
-    //Driver_Sleep(20);
     Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; // /wr high
     Driver_SrBuf[SR_CONTROL] |= SR_BIT_FM_CS; // /cs high
     Driver_Output();
-    Driver_Sleep(15);
+
+    if (!Driver_NoLeds) {
+        uint8_t ch = 0;
+        if (Port == 0 && Register == 0x28) { //kon
+            ch = Value & 0b111;
+            if (ch >= 0b100) ch = 0b11 + (ch - 0b100);
+            uint8_t st = 0;
+            switch (Driver_FmAlgo[ch]) {
+                case 0:
+                case 1:
+                case 2:
+                case 3:
+                    st = Value & 0b10000000;
+                    break;
+                case 4:
+                    st = Value & 0b10100000;
+                    break;
+                case 5:
+                case 6:
+                    st = Value & 0b11100000;
+                    break;
+                case 7:
+                    st = Value & 0b11110000;
+                    break;
+                default: /*not possible*/
+                    break;
+            }
+            if (st) {
+                ChannelMgr_States[ch] |= CHSTATE_KON;
+            } else {
+                ChannelMgr_States[ch] &= ~CHSTATE_KON;
+            }
+        } else if (Register >= 0xb0 && Register <= 0xb2) { //algo
+            Driver_FmAlgo[(Port?3:0) + Register - 0xb0] = Value >> 4;
+        } else if (Register >= 0xa0 && Register <= 0xa2) { //fnum1
+            ChannelMgr_States[(Port?3:0) + Register - 0xa0] |= CHSTATE_PARAM;
+        } else if (Register >= 0xa4 && Register <= 0xa6) { //fnum2 + block
+            ChannelMgr_States[(Port?3:0) + Register - 0xa4] |= CHSTATE_PARAM;
+        } else if (Register >= 0xb0 && Register <= 0xb2) { //fb/conn
+            ChannelMgr_States[(Port?3:0) + Register - 0xb0] |= CHSTATE_PARAM;
+        } else if (Register >= 0xb4 && Register <= 0xb6) { //pms/ams/lr
+            ChannelMgr_States[(Port?3:0) + Register - 0xb4] |= CHSTATE_PARAM;
+        } else if (Register >= 0x30 && Register <= 0x9e) { //detune/mul, tl, keyscale/attack, decay/am, sustain, sustain level/release, ssg-eg
+            ChannelMgr_States[(Port?3:0)+(Register%3)] |= CHSTATE_PARAM;
+        } else if (Port == 0 && Register == 0x07) { //ssg tone enable
+            for (uint8_t i=0;i<3;i++) { //tones
+                if ((Value & (1<<i))) {
+                    ChannelMgr_States[6+i] &= ~CHSTATE_KON;
+                } else {
+                    ChannelMgr_States[6+i] |= CHSTATE_KON;
+                }
+            }
+            if ((Value & 0b00111000) != 0b00111000) { //glom all the noise together
+                ChannelMgr_States[6+3] |= CHSTATE_KON;
+            } else {
+                ChannelMgr_States[6+3] &= ~CHSTATE_KON;
+            }
+        } else if (Port == 0 && Register >= 0x08 && Register <= 0x0a) { //level
+            ch = Register - 0x08;
+            ChannelMgr_States[6+ch] |= CHSTATE_PARAM;
+            ChannelMgr_States[6+3] |= CHSTATE_PARAM; //implicit noise update too, todo only do this if noise is enabled on that ch
+        } else if (Port == 0 && Register == 0x06) { //noise period
+            ChannelMgr_States[6+3] |= CHSTATE_PARAM;
+        } else if (Port == 0 && Register >= 0x00 && Register <= 0x05) { //coarse/fine tune
+            ch = Register/2;
+            ChannelMgr_States[6+ch] |= CHSTATE_PARAM;
+        } //todo 0x08/0x0c env freq, 0x0d env wave. will need tracking of if channels have envgen enabled
+    }
+
+    if (Port == 0 && Register == 0x10) {
+        Driver_Sleep(100);
+    } else {
+        Driver_Sleep(15);
+    }
 }
 
 void Driver_Opna_PrepareUpload() {
@@ -672,9 +741,9 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
                 nw = true;
             }
         }
-        if (!nw) Driver_FmOutopl3(cmd[0]&1, cmd[1], cmd[2]);
+        if (!nw) Driver_FmOutopna(cmd[0]&1, cmd[1], cmd[2]);
     } else if (cmd[0] == 0x55) { //ym2203
-        Driver_FmOutopl3(0, cmd[1], cmd[2]);
+        Driver_FmOutopna(0, cmd[1], cmd[2]);
     } else if (cmd[0] == 0x52) { //YM2612 port 0
         if (cmd[1] >= 0xb4 && cmd[1] <= 0xb6) { //pan, FMS, AMS
             Driver_FmPans[cmd[1]-0xb4] = cmd[2];
