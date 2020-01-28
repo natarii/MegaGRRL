@@ -514,7 +514,7 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
                 st = Value & 0b10000000;
                 break;
             case 4:
-                st = Value & 0b11000000;
+                st = Value & 0b10100000;
                 break;
             case 5:
             case 6:
