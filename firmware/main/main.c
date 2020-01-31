@@ -262,6 +262,10 @@ void app_main(void)
             ESP_LOGI(TAG, "No mod detected, assuming PSG");
             Clk_Set(CLK_PSG, 3579545);
             break;
+        case MEGAMOD_OPLLPSG:
+            ESP_LOGI(TAG, "OPLL+PSG detected, switching FM clock to PSG");
+            Clk_Set(CLK_FM, 3579545);
+            break;
         case MEGAMOD_OPL3:
             ESP_LOGI(TAG, "OPL3 detected, switching FM clock to OPL3");
             Clk_Set(CLK_FM, 14318180);
