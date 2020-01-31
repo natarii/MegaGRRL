@@ -13,6 +13,7 @@ This project is divided into several subdirectories:
   * **enclosure/** - 3D printing design files for the enclosure
 
 ## Compiling and initial flash
+0. If you are on Windows and flashing a MegaGRRL Desktop, a simplified guide is available [here](https://git.agiri.ninja/snippets/3). Otherwise, proceed with the instructions below.
 1. Set up ESP-IDF v3.3 following the [Espressif documentation](https://docs.espressif.com/projects/esp-idf/en/v3.3/get-started/index.html).
 2. Clone the repo
    - `cd ~`
