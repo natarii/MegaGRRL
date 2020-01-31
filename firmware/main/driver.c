@@ -359,7 +359,7 @@ void Driver_FmOutopna(uint8_t Port, uint8_t Register, uint8_t Value) {
     Driver_Output();
     Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; // /wr high
     Driver_Output();
-    Driver_Sleep(5);
+    Driver_Sleep(10);
     Driver_SrBuf[SR_CONTROL] |= SR_BIT_A0; //set A0
     Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR; // /wr low
     Driver_SrBuf[SR_DATABUS] = Value;
@@ -439,7 +439,7 @@ void Driver_FmOutopna(uint8_t Port, uint8_t Register, uint8_t Value) {
     if (Port == 0 && Register == 0x10) {
         Driver_Sleep(100);
     } else {
-        Driver_Sleep(15);
+        Driver_Sleep(20);
     }
 }
 
@@ -694,6 +694,8 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
         } else { //not fixing psg frequency
             Driver_PsgOut(cmd[1]); //just write it normally
         }
+    } else if (cmd[0] == 0x51) {
+        Driver_FmOutopl3(0, cmd[1], cmd[2]);
     } else if (cmd[0] == 0x5e || cmd[0] == 0x5b || cmd[0] == 0x5a) { //ymf262 port 0, ym3812, ym3526
         Driver_FmOutopl3(0, cmd[1], cmd[2]);
     } else if (cmd[0] == 0x5f) { //ymf262 port 1
