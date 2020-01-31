@@ -286,10 +286,10 @@ bool Player_StartTrack(char *FilePath) {
     ESP_LOGI(TAG, "Checking file type of %s", FilePath);
     FILE *test = fopen(FilePath, "r");
     if (!test) {
-        if (*(FilePath+(strlen(FilePath)-1)) == 'z') {
-            ESP_LOGW(TAG, "vgz doesn't exist, let's try vgm")
-            *(FilePath+(strlen(FilePath)-1)) = 'm';
-            FILE *test = fopen(FilePath, "r");
+        if (*(FilePath+(strlen(FilePath)-1)) == 'z' || *(FilePath+(strlen(FilePath)-1)) == 'Z') {
+            ESP_LOGW(TAG, "vgz doesn't exist, let's try vgm");
+            *(FilePath+(strlen(FilePath)-1)) -= 0x0d;
+            test = fopen(FilePath, "r");
             if (!test) {
                 ESP_LOGE(TAG, "vgm doesn't exist either");
                 return false;
@@ -307,14 +307,15 @@ bool Player_StartTrack(char *FilePath) {
         ESP_LOGI(TAG, "Compressed");
         Ui_StatusBar_SetExtract(true);
         Player_Unvgz(FilePath, false);
+        strcpy(FilePath, "/sd/.mega/unvgz.tmp");
         Ui_StatusBar_SetExtract(false);
-    } else if (magic == 0x5667) {
+    } else if (magic == 0x6756) {
         ESP_LOGI(TAG, "Uncompressed");
     } else {
         ESP_LOGI(TAG, "Unknown");
         return false;
     }
-    ESP_LOGI(TAG, "parsing header")
+    ESP_LOGI(TAG, "parsing header");
     Player_VgmFile = fopen(FilePath, "r");
     Player_PcmFile = fopen(FilePath, "r");
     Player_DsFindFile = fopen(FilePath, "r");
