@@ -283,25 +283,38 @@ void Player_Unvgz(char *FilePath, bool ReplaceOriginalFile) {
 }
 
 bool Player_StartTrack(char *FilePath) {
-    if (strcasecmp(FilePath+(strlen(FilePath)-4), ".vgz") == 0) {
-        FILE *test = fopen(FilePath, "r");
-        bool KeepOriginalFile = false; ///file replacement sorting bug :(
-        if (test) {
-            //only unvgz if the vgz actually exists.
-            //if a playlist contains .vgzs, they get played through, extracted, and then played again, theyll be vgz in the playlist but vgm on disk
-            fclose(test);
-            Ui_StatusBar_SetExtract(true);
-            Player_Unvgz(FilePath, KeepOriginalFile);
-            Ui_StatusBar_SetExtract(false);
-            if (KeepOriginalFile) {
-                *(FilePath+(strlen(FilePath)-1)) = 'm';
-            } else {
-                strcpy(FilePath, "/sd/.mega/unvgz.tmp");
+    ESP_LOGI(TAG, "Checking file type of %s", FilePath);
+    FILE *test = fopen(FilePath, "r");
+    if (!test) {
+        if (*(FilePath+(strlen(FilePath)-1)) == 'z') {
+            ESP_LOGW(TAG, "vgz doesn't exist, let's try vgm")
+            *(FilePath+(strlen(FilePath)-1)) = 'm';
+            FILE *test = fopen(FilePath, "r");
+            if (!test) {
+                ESP_LOGE(TAG, "vgm doesn't exist either");
+                return false;
             }
         } else {
-            *(FilePath+(strlen(FilePath)-1)) = 'm';
+            ESP_LOGE(TAG, "file doesn't exist");
+            return false;
         }
     }
+    uint16_t magic = 0;
+    fseek(test, 0, SEEK_SET);
+    fread(&magic, 2, 1, test);
+    fclose(test);
+    if (magic == 0x8b1f) {
+        ESP_LOGI(TAG, "Compressed");
+        Ui_StatusBar_SetExtract(true);
+        Player_Unvgz(FilePath, false);
+        Ui_StatusBar_SetExtract(false);
+    } else if (magic == 0x5667) {
+        ESP_LOGI(TAG, "Uncompressed");
+    } else {
+        ESP_LOGI(TAG, "Unknown");
+        return false;
+    }
+    ESP_LOGI(TAG, "parsing header")
     Player_VgmFile = fopen(FilePath, "r");
     Player_PcmFile = fopen(FilePath, "r");
     Player_DsFindFile = fopen(FilePath, "r");
@@ -362,10 +375,11 @@ bool Player_StartTrack(char *FilePath) {
         fread(&opll,4,1,Player_VgmFile);
         if ((psg & 0x80000000) || (opll & 0x80000000)) {
             ESP_LOGW(TAG, "Only one of each chip supported !!");
-        } else if (psg != opll) {
+        } else if (psg && opll && (psg != opll)) {
             ESP_LOGW(TAG, "Different clocks not supported !!");
         }
-        ESP_LOGI(TAG, "Clock from vgm: %d", psg);
+        ESP_LOGI(TAG, "Clock from vgm: PSG: %d, OPLL: %d", psg, opll);
+        if (psg == 0) psg = opll;
         if (psg < 3000000) psg = 3000000;
         else if (psg > 4100000) psg = 4100000;
         ESP_LOGI(TAG, "Clock clamped: %d", psg);
