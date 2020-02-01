@@ -21,6 +21,19 @@ const char *chnames[11] = {
     "PSG 3",
     "PSG Noise"
 };
+const char *chnames_opna[11] = {
+    "FM 1",
+    "FM 2",
+    "FM 3",
+    "FM 4",
+    "FM 5",
+    "FM 6",
+    "PCM",
+    "SSG 1",
+    "SSG 2",
+    "SSG 3",
+    "SSG Noise"
+};
 const char titletext[] = "Channel Muting Setup";
 const char mute[] = "Mute";
 const char unmute[] = "Unmute";
@@ -105,7 +118,12 @@ void Ui_Muting_Setup(lv_obj_t *uiscreen) {
     for (uint8_t i=0;i<11;i++) {
         ch_label[i] = lv_label_create(container, NULL);
         lv_obj_set_pos(ch_label[i], 42, 25+(20*i));
-        lv_label_set_static_text(ch_label[i], chnames[i]);
+        //this is going to have to change a lot to support other mods without the same channel count:
+        if (Driver_DetectedMod == MEGAMOD_NONE) {
+            lv_label_set_static_text(ch_label[i], chnames[i]);
+        } else if (Driver_DetectedMod == MEGAMOD_OPNA) {
+            lv_label_set_static_text(ch_label[i], chnames_opna[i]);
+        }
 
         ch_status[i] = lv_label_create(container, NULL);
         lv_obj_set_pos(ch_status[i], 20, 24+(20*i));

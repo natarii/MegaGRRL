@@ -110,6 +110,9 @@ volatile uint8_t Driver_FmMask = 0b01111111;
 volatile uint8_t Driver_PsgMask = 0b00001111;
 uint8_t Driver_DacEn = 0;
 volatile bool Driver_ForceMono = false;
+uint8_t Driver_Opna_AdpcmConfig = 0b11000000; //todo verify in emu? 
+uint8_t Driver_Opna_RhythmConfig[6] = {0b11000000,0b11000000,0b11000000,0b11000000,0b11000000,0b11000000}; //todo verify in emu
+uint8_t Driver_Opna_SsgConfig = 0b00111111; //todo verify in emu
 
 uint32_t Driver_PsgCh3Freq = 0;
 bool Driver_PsgNoisePeriodic = false;
@@ -580,6 +583,22 @@ void Driver_UpdateCh6Muting() {
     Driver_FmOut(1, 0xb6, reg);
 }
 
+uint8_t Driver_ProcessOpnaSsgWrite(uint8_t ssgreg) {
+    //tones
+    for (uint8_t i=0;i<3;i++) {
+        if (Driver_PsgMask & (1<<i)) { //unmuted
+            //do nothing
+        } else { //muted
+            ssgreg |= (1<<i); //force bit on (tone off)
+        }
+    }
+    //noise
+    if (Driver_PsgMask & (1<<3)) { //single bit for noise
+        ssgreg |= 0b00111000;
+    }
+    return ssgreg;
+}
+
 void Driver_UpdateMuting() {
     if (Driver_DetectedMod == MEGAMOD_NONE) {
         if (Driver_MitigateVgmTrim) {
@@ -613,6 +632,25 @@ void Driver_UpdateMuting() {
             }
             Driver_PsgOut(atten);
         }
+    } else if (Driver_DetectedMod == MEGAMOD_OPNA) {
+        //todo: handle vgm_trim mitigation
+        //todo: force mono
+        //FM:
+        for (uint8_t i=0;i<6;i++) {
+            uint8_t mask = (Driver_FmMask & (1<<i))?0b11111111:0b00111111;
+            uint8_t reg = Driver_FmPans[i] & mask;
+            Driver_FmOutopna((i<3)?0:1, 0xb4 + ((i<3)?i:(i-3)), reg);
+        }
+        //PCM:
+        Driver_FmOutopna(1, 0x01, Driver_Opna_AdpcmConfig & ((Driver_FmMask&(1<<6))?0b11111111:0b00111111));
+        //rhythm:
+        for (uint8_t i=0x18;i<=0x1d;i++) {
+            uint8_t mask = (Driver_FmMask & (1<<6))?0b11111111:0b00111111;
+            uint8_t reg = Driver_Opna_RhythmConfig[i-0x18] & mask;
+            Driver_FmOutopna(0, i, reg);
+        }
+        //ssg:
+        Driver_FmOutopna(0,0x07,Driver_ProcessOpnaSsgWrite(Driver_Opna_SsgConfig));
     }
 }
 
@@ -638,7 +676,6 @@ uint16_t opnastart = 0;
 uint16_t opnastart_hacked = 0;
 uint16_t opnastop = 0;
 uint16_t opnastop_hacked = 0;
-uint8_t opna_adpcm_reg1 = 0;
 bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the queue. command length as a parameter just to avoid looking it up a second time
     uint8_t cmd[CommandLength]; //buffer for command + attached data
     bool nw = false; //skip write
@@ -704,9 +741,12 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
         //using longer delays here because writes are missing (?)
         //todo look into this further
         if (cmd[0] == 0x57) {
-            if (cmd[1] == 0x01) { //control
-                opna_adpcm_reg1 = cmd[2];
-                cmd[2] &= 0b11111100;
+            if (cmd[1] == 0x01) { //control/config
+                cmd[2] &= 0b11111100; //always force type=DRAM and width=1bit. even store it this way in the register backup! that way we don't have to mask it off every single time...
+                Driver_Opna_AdpcmConfig = cmd[2];
+                //todo vgm_trim mitigation
+                //todo force mono
+                cmd[2] &= (Driver_FmMask&(1<<6))?0b11111111:0b00111111; //muting mask
             } else if (cmd[1] == 0x02) { //start L
                 ESP_LOGD(TAG, "start    %02x", cmd[2]);
                 opnastart = (opnastart & 0xff00) | cmd[2];
@@ -724,7 +764,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
                 opnastop = (((uint16_t)cmd[2])<<8) | (opnastop & 0xff);
                 nw = true;
             } else if (cmd[1] == 0x00 && cmd[2] & 0x80) { //pcm start
-                if (opna_adpcm_reg1 & 0b00000011) { //if in rom or 8bit dram mode, convert addresses
+                if (Driver_Opna_AdpcmConfig & 0b00000011) { //if in rom or 8bit dram mode, convert addresses
                     ESP_LOGD(TAG, "converting opna pcm addresses");
                     opnastart_hacked = opnastart * 8;
                     Driver_FmOutopna(1,0x02,opnastart_hacked&0xff);
@@ -742,6 +782,24 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
             } else if (cmd[1] == 0x0c || cmd[1] == 0x0d) { //limit
                 nw = true;
             }
+        }
+        if (cmd[1] >= 0xb4 && cmd[1] <= 0xb6) { //pan, AMS, PMS
+            //todo vgm_trim mitigation
+            //todo force mono
+            uint8_t i = ((cmd[0]&1)?3:0)+cmd[1]-0xb4;
+            Driver_FmPans[i] = cmd[2];
+            cmd[2] &= (Driver_FmMask & (1<<i))?0b11111111:0b00111111;
+        } else if (cmd[0] == 0x56 && cmd[1] >= 0x18 && cmd[1] <= 0x1d) { //rhythm pan/level
+            //todo vgm_trim mitigation
+            //todo force mono
+            uint8_t i = cmd[1]-0x18;
+            Driver_Opna_RhythmConfig[i] = cmd[2];
+            cmd[2] &= (Driver_FmMask & (1<<6))?0b11111111:0b00111111;
+        } else if (cmd[0] == 0x56 && cmd[1] == 0x07) { //ssg tone enable
+            //todo vgm_trim mitigation
+            //todo force mono
+            Driver_Opna_SsgConfig = cmd[2];
+            cmd[2] = Driver_ProcessOpnaSsgWrite(cmd[2]); //this handles masks
         }
         if (!nw) Driver_FmOutopna(cmd[0]&1, cmd[1], cmd[2]);
     } else if (cmd[0] == 0x55) { //ym2203
@@ -874,6 +932,9 @@ void Driver_Main() {
             Driver_PsgLastChannel = 0; //psg can't really be reset, so technically this is kinda wrong? but it's consistent.
             Driver_FirstWait = true;
             memset(&Driver_FmPans[0], 0b11000000, sizeof(Driver_FmPans));
+            Driver_Opna_AdpcmConfig = 0b11000000; //todo verify in emu?
+            memset(&Driver_Opna_RhythmConfig[0], 0b11000000, sizeof(Driver_Opna_RhythmConfig)); //todo verify in emu
+            Driver_Opna_SsgConfig = 0b00111111; //todo verify in emu
             for (uint8_t i=0;i<4;i++) {
                 Driver_PsgAttenuation[i] = 0b10011111 | (i<<5);
             }
