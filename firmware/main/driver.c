@@ -634,19 +634,22 @@ void Driver_UpdateMuting() {
         }
     } else if (Driver_DetectedMod == MEGAMOD_OPNA) {
         //todo: handle vgm_trim mitigation
-        //todo: force mono
         //FM:
         for (uint8_t i=0;i<6;i++) {
             uint8_t mask = (Driver_FmMask & (1<<i))?0b11111111:0b00111111;
             uint8_t reg = Driver_FmPans[i] & mask;
+            if (Driver_ForceMono && (reg & 0b11000000)) reg |= 0b11000000;
             Driver_FmOutopna((i<3)?0:1, 0xb4 + ((i<3)?i:(i-3)), reg);
         }
         //PCM:
-        Driver_FmOutopna(1, 0x01, Driver_Opna_AdpcmConfig & ((Driver_FmMask&(1<<6))?0b11111111:0b00111111));
+        uint8_t adpcmreg = Driver_Opna_AdpcmConfig & ((Driver_FmMask&(1<<6))?0b11111111:0b00111111);
+        if (Driver_ForceMono && (adpcmreg & 0b11000000)) adpcmreg |= 0b11000000;
+        Driver_FmOutopna(1, 0x01, adpcmreg);
         //rhythm:
         for (uint8_t i=0x18;i<=0x1d;i++) {
             uint8_t mask = (Driver_FmMask & (1<<6))?0b11111111:0b00111111;
             uint8_t reg = Driver_Opna_RhythmConfig[i-0x18] & mask;
+            if (Driver_ForceMono && (reg & 0b11000000)) reg |= 0b11000000;
             Driver_FmOutopna(0, i, reg);
         }
         //ssg:
@@ -745,8 +748,8 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
                 cmd[2] &= 0b11111100; //always force type=DRAM and width=1bit. even store it this way in the register backup! that way we don't have to mask it off every single time...
                 Driver_Opna_AdpcmConfig = cmd[2];
                 //todo vgm_trim mitigation
-                //todo force mono
                 cmd[2] &= (Driver_FmMask&(1<<6))?0b11111111:0b00111111; //muting mask
+                if (Driver_ForceMono && (cmd[2] & 0b11000000)) cmd[2] |= 0b11000000;
             } else if (cmd[1] == 0x02) { //start L
                 ESP_LOGD(TAG, "start    %02x", cmd[2]);
                 opnastart = (opnastart & 0xff00) | cmd[2];
@@ -785,19 +788,18 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
         }
         if (cmd[1] >= 0xb4 && cmd[1] <= 0xb6) { //pan, AMS, PMS
             //todo vgm_trim mitigation
-            //todo force mono
             uint8_t i = ((cmd[0]&1)?3:0)+cmd[1]-0xb4;
             Driver_FmPans[i] = cmd[2];
             cmd[2] &= (Driver_FmMask & (1<<i))?0b11111111:0b00111111;
+            if (Driver_ForceMono && (cmd[2] & 0b11000000)) cmd[2] |= 0b11000000;
         } else if (cmd[0] == 0x56 && cmd[1] >= 0x18 && cmd[1] <= 0x1d) { //rhythm pan/level
             //todo vgm_trim mitigation
-            //todo force mono
             uint8_t i = cmd[1]-0x18;
             Driver_Opna_RhythmConfig[i] = cmd[2];
             cmd[2] &= (Driver_FmMask & (1<<6))?0b11111111:0b00111111;
+            if (Driver_ForceMono && (cmd[2] & 0b11000000)) cmd[2] |= 0b11000000;
         } else if (cmd[0] == 0x56 && cmd[1] == 0x07) { //ssg tone enable
             //todo vgm_trim mitigation
-            //todo force mono
             Driver_Opna_SsgConfig = cmd[2];
             cmd[2] = Driver_ProcessOpnaSsgWrite(cmd[2]); //this handles masks
         }
