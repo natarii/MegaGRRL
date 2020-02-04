@@ -642,7 +642,7 @@ void Driver_UpdateMuting() {
             Driver_FmOutopna((i<3)?0:1, 0xb4 + ((i<3)?i:(i-3)), reg);
         }
         //PCM:
-        uint8_t adpcmreg = Driver_Opna_AdpcmConfig & ((Driver_FmMask&(1<<6))?0b11111111:0b00111111);
+        uint8_t adpcmreg = Driver_Opna_AdpcmConfig & ((Driver_FmMask&(1<<6))?0b11111100:0b00111100); //the lowest two bits force type=dram and width=1bit
         if (Driver_ForceMono && (adpcmreg & 0b11000000)) adpcmreg |= 0b11000000;
         Driver_FmOutopna(1, 0x01, adpcmreg);
         //rhythm:
@@ -745,8 +745,8 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
         //todo look into this further
         if (cmd[0] == 0x57) {
             if (cmd[1] == 0x01) { //control/config
-                cmd[2] &= 0b11111100; //always force type=DRAM and width=1bit. even store it this way in the register backup! that way we don't have to mask it off every single time...
-                Driver_Opna_AdpcmConfig = cmd[2];
+                Driver_Opna_AdpcmConfig = cmd[2]; //don't force type=dram and width=1bit in the backup
+                cmd[2] &= 0b11111100; //but do it on the write
                 //todo vgm_trim mitigation
                 cmd[2] &= (Driver_FmMask&(1<<6))?0b11111111:0b00111111; //muting mask
                 if (Driver_ForceMono && (cmd[2] & 0b11000000)) cmd[2] |= 0b11000000;
