@@ -29,6 +29,7 @@ enum {
 #define PLAYER_STATUS_NOT_RUNNING   0x01
 #define PLAYER_STATUS_RUNNING       0x02
 #define PLAYER_STATUS_PAUSED        0x08
+#define PLAYER_STATUS_RAN_OUT       0x10
 
 extern EventGroupHandle_t Player_Status;
 extern char Player_Gd3_Title[PLAYER_GD3_FIELD_SIZES+1];

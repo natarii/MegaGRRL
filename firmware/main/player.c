@@ -46,11 +46,9 @@ bool Player_NextTrk(bool UserSpecified) { //returns true if there is now a track
         if (end) {
             if (Player_RepeatMode == REPEAT_NONE) {
                 return false; //nothing more to play
-            } else if (Player_RepeatMode == REPEAT_ALL) {
+            } else if (Player_RepeatMode == REPEAT_ALL || Player_RepeatMode == REPEAT_ONE) {
                 QueuePosition = 0;
                 QueueSetupEntry(false);
-            } else if (Player_RepeatMode == REPEAT_ONE) { //if it's repeat one and they manually pressed next
-                return false; //nothing more to play
             }
         } else { //not the end of the queue, just load the next track
             QueueNext();
@@ -69,12 +67,10 @@ bool Player_PrevTrk(bool UserSpecified) { //returns true if there is now a track
         bool end = (QueuePosition == 0);
         if (end) {
             if (Player_RepeatMode == REPEAT_NONE) {
-                return false; //nothing more to play
-            } else if (Player_RepeatMode == REPEAT_ALL) {
+                //nothing to do - just start the same track again
+            } else if (Player_RepeatMode == REPEAT_ALL || Player_RepeatMode == REPEAT_ONE) {
                 QueuePosition = QueueLength-1;
                 QueueSetupEntry(false);
-            } else if (Player_RepeatMode == REPEAT_ONE) { //if it's repeat one and they manually pressed prev
-                return false; //nothing more to play
             }
         } else { //not the end of the queue, just load the prev track
             QueuePrev();
@@ -91,6 +87,8 @@ void Player_Main() {
     while (1) {
         if (xTaskNotifyWait(0,0xffffffff, &notif, pdMS_TO_TICKS(250)) == pdTRUE) {
             if (notif == PLAYER_NOTIFY_START_RUNNING) {
+                ESP_LOGI(TAG, "control: start requested");
+                xEventGroupClearBits(Player_Status, PLAYER_STATUS_RAN_OUT);
                 xEventGroupClearBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
                 xEventGroupClearBits(Player_Status, PLAYER_STATUS_PAUSED);
                 if ((xEventGroupGetBits(Player_Status) & PLAYER_STATUS_RUNNING) == 0) {
@@ -101,37 +99,50 @@ void Player_Main() {
                     //already running. yikes!
                 }
             } else if (notif == PLAYER_NOTIFY_STOP_RUNNING) {
+                ESP_LOGI(TAG, "control: stop requested");
                 if (xEventGroupGetBits(Player_Status) & PLAYER_STATUS_RUNNING) {
+                    ESP_LOGI(TAG, "player running, stopping track");
                     Player_StopTrack();
                 }
                 xEventGroupClearBits(Player_Status, PLAYER_STATUS_RUNNING);
                 xEventGroupSetBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
+                xEventGroupClearBits(Player_Status, PLAYER_STATUS_RAN_OUT);
             } else if (notif == PLAYER_NOTIFY_NEXT) {
+                ESP_LOGI(TAG, "control: next requested");
                 xEventGroupClearBits(Player_Status, PLAYER_STATUS_PAUSED);
                 if (Player_NextTrk(true)) {
+                    ESP_LOGI(TAG, "next track proceeding");
                     xEventGroupSetBits(Player_Status, PLAYER_STATUS_RUNNING);
                     xEventGroupClearBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
                 } else {
+                    ESP_LOGI(TAG, "next track failed");
                     xEventGroupClearBits(Player_Status, PLAYER_STATUS_RUNNING);
                     xEventGroupSetBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
+                    xEventGroupSetBits(Player_Status, PLAYER_STATUS_RAN_OUT);
                 }
             } else if (notif == PLAYER_NOTIFY_PREV) {
+                ESP_LOGI(TAG, "control: prev requested");
                 xEventGroupClearBits(Player_Status, PLAYER_STATUS_PAUSED);
                 if (Driver_Sample < 3*44100) { //actually change track
+                    ESP_LOGI(TAG, "within 3 second window");
                     if (Player_PrevTrk(true)) {
+                        ESP_LOGI(TAG, "prev track proceeding");
                         xEventGroupSetBits(Player_Status, PLAYER_STATUS_RUNNING);
                         xEventGroupClearBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
                     } else {
+                        ESP_LOGI(TAG, "prev track failed");
                         xEventGroupClearBits(Player_Status, PLAYER_STATUS_RUNNING);
                         xEventGroupSetBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
                     }
                 } else { //just restart
+                    ESP_LOGI(TAG, "outside 3 second window, just restarting track");
                     Player_StopTrack();
                     Player_StartTrack(&QueuePlayingFilename[0]);
                     xEventGroupSetBits(Player_Status, PLAYER_STATUS_RUNNING);
                     xEventGroupClearBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
                 }
             } else if (notif == PLAYER_NOTIFY_PAUSE) {
+                ESP_LOGI(TAG, "control: pause requested");
                 if (xEventGroupGetBits(Driver_CommandEvents) & DRIVER_EVENT_RUNNING) {
                     ESP_LOGI(TAG, "Request driver stop...");
                     xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_STOP_REQUEST);
@@ -143,6 +154,7 @@ void Player_Main() {
                 }
                 xEventGroupSetBits(Player_Status, PLAYER_STATUS_PAUSED);
             } else if (notif == PLAYER_NOTIFY_PLAY) {
+                ESP_LOGI(TAG, "control: play requested");
                 if ((xEventGroupGetBits(Driver_CommandEvents) & DRIVER_EVENT_RUNNING) == 0) {
                     ESP_LOGI(TAG, "Request driver resume...");
                     xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_RESUME_REQUEST);
@@ -161,10 +173,13 @@ void Player_Main() {
             ESP_LOGI(TAG, "Driver finished, starting next track");
             xEventGroupClearBits(Player_Status, PLAYER_STATUS_PAUSED);
             if (Player_NextTrk(false)) {
-                    //nothing to do, i don't think...
+                ESP_LOGI(TAG, "next track proceeding");
+                //nothing to do, i don't think...
             } else {
+                ESP_LOGI(TAG, "next track failed");
                 xEventGroupClearBits(Player_Status, PLAYER_STATUS_RUNNING);
                 xEventGroupSetBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
+                xEventGroupSetBits(Player_Status, PLAYER_STATUS_RAN_OUT);
             }
         }
     }

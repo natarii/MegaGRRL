@@ -305,6 +305,7 @@ bool Ui_NowPlaying_Setup(lv_obj_t *uiscreen) {
 
 
     Ui_NowPlaying_FirstDraw = true;
+    xEventGroupClearBits(Player_Status, PLAYER_STATUS_RAN_OUT);
 
     return true;
 }
@@ -467,6 +468,19 @@ char timebuf[14];
 char loopbuf[11]; //size?
 char plsbuf[14]; //size?
 void Ui_NowPlaying_Tick() {
+    if (xEventGroupGetBits(Player_Status) & PLAYER_STATUS_RAN_OUT) {
+        ESP_LOGW(TAG, "player run out detected!!");
+        ESP_LOGW(TAG, "request stop");
+        xTaskNotify(Taskmgr_Handles[TASK_PLAYER], PLAYER_NOTIFY_STOP_RUNNING, eSetValueWithoutOverwrite);
+        ESP_LOGW(TAG, "wait stop");
+        xEventGroupWaitBits(Player_Status, PLAYER_STATUS_NOT_RUNNING, false, true, pdMS_TO_TICKS(3000));
+        QueueLength = 0;
+        QueuePosition = 0;
+        Ui_NowPlaying_FirstDraw = Ui_NowPlaying_NewTrack = false;
+        ESP_LOGW(TAG, "return to mainmenu");
+        Ui_Screen = UISCREEN_MAINMENU;
+        return;
+    }
     uint32_t total = Player_Info.TotalSamples;
     uint32_t pos = Driver_Sample;
     if (Driver_MitigateVgmTrim && Driver_FirstWait) pos = 0;
