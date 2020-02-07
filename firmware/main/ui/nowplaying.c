@@ -532,8 +532,8 @@ void Ui_NowPlaying_Tick() {
         lv_label_set_long_mode(text_game, LV_LABEL_LONG_ROLL);
         lv_obj_set_width(text_game, 230);
 
-        uint32_t p = QueuePosition+1;
-        sprintf(plsbuf, "%d / %d", (p<QueueLength)?p:QueueLength, QueueLength);
+
+        sprintf(plsbuf, "%d / %d", QueuePosition+1, QueueLength);
         lv_label_set_static_text(text_playlist, plsbuf);
 
         if (total) {
