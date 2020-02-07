@@ -599,7 +599,8 @@ void Ui_NowPlaying_Tick() {
                     curloop = ((Driver_Sample - looppoint) / loopsamples) + 1;
                 }
                 if (Player_LoopCount < 255) {
-                    sprintf(loopbuf, "%d / %d", curloop, (Player_Info.LoopOffset >= 0 && loopsamples)?Player_LoopCount:1);
+                    uint8_t loopcnt = (Player_Info.LoopOffset >= 0 && loopsamples)?Player_LoopCount:1;
+                    sprintf(loopbuf, "%d / %d", (curloop<loopcnt)?curloop:loopcnt, loopcnt);
                 } else {
                     sprintf(loopbuf, "%d / inf.", curloop);
                 }
