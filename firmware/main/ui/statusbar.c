@@ -27,6 +27,9 @@ typedef enum {
     ICON_STEREO,
     ICON_SOUND,
     ICON_EXTRACT,
+    ICON_REPEAT_NONE,
+    ICON_REPEAT_ONE,
+    ICON_REPEAT_ALL,
     ICON_COUNT
 } StatusbarIcon_t;
 
@@ -40,14 +43,17 @@ const StatusbarIconDef_t icondefs[] = {
     {SYMBOL_PLAY, 0, 0},
     {SYMBOL_PAUSE, 0, 0},
     {SYMBOL_STOP, 0, 0},
-    {SYMBOL_WARNING, -1, 0},
+    {SYMBOL_WARNING, -2, 0},
     {"MO", 0, 0},
     {"ST", 0, 0},
     {SYMBOL_VOLUME_MAX, 5, 0},
     {SYMBOL_UPLOAD, 0, 0},
+    {"", 0, 0},
+    {"1", 0, 0},
+    {"A", 0, 0},
 };
 
-static lv_obj_t *iconlabels[4];
+static lv_obj_t *iconlabels[5];
 
 void Ui_StatusBar_DrawIcon(StatusbarIcon_t icon, lv_obj_t *label, int16_t x, int16_t y) {
     lv_label_set_static_text(label, icondefs[icon].c);
@@ -71,20 +77,20 @@ bool Ui_StatusBar_Setup(lv_obj_t *uiscreen) {
     lv_obj_set_width(container, 240);
     lv_cont_set_fit(container, false, false);
 
-    for (uint8_t i=0;i<4;i++) {
+    for (uint8_t i=0;i<5;i++) {
         iconlabels[i] = lv_label_create(container, NULL);
-        lv_label_set_text(iconlabels[i], "");
+        lv_label_set_static_text(iconlabels[i], "");
     }
 
     #if defined HWVER_PORTABLE
     charge = lv_label_create(container, NULL);
     lv_obj_set_pos(charge, 195, 6);
-    lv_label_set_text(charge, "");
+    lv_label_set_static_text(charge, "");
     lv_obj_set_width(charge, 24);
 
     battery = lv_label_create(container, NULL);
     lv_obj_set_pos(battery, 210, 6);
-    lv_label_set_text(battery, "");
+    lv_label_set_static_text(battery, "");
     lv_obj_set_width(charge, 24);
     #endif
 
@@ -111,6 +117,21 @@ void Ui_StatusBar_RedrawIcons() {
     } else {
         Ui_StatusBar_DrawIcon(ICON_CHANNELMUTED, iconlabels[2], 60, 7);
     }
+
+    switch (Player_RepeatMode) {
+        case REPEAT_NONE:
+            Ui_StatusBar_DrawIcon(ICON_REPEAT_NONE, iconlabels[4], 83, 7);
+            break;
+        case REPEAT_ONE:
+            Ui_StatusBar_DrawIcon(ICON_REPEAT_ONE, iconlabels[4], 83, 7);
+            break;
+        case REPEAT_ALL:
+            Ui_StatusBar_DrawIcon(ICON_REPEAT_ALL, iconlabels[4], 83, 7);
+            break;
+        default:
+            //oh god oh fuck
+            break;
+    }
 }
 
 void Ui_StatusBar_SetExtract(bool extracting) {
@@ -127,6 +148,7 @@ uint32_t last = 0;
 EventBits_t lastplayerevents = 0xff;
 bool lastforcemono = true;
 uint8_t statusbarmasks[2] = {0xff, 0xff};
+uint8_t lastrepeatmode = 0xff;
 void Ui_StatusBar_Tick() {
     if (xthal_get_ccount() - last >= 24000000) {
         EventBits_t playerevents = xEventGroupGetBits(Player_Status);
@@ -141,12 +163,15 @@ void Ui_StatusBar_Tick() {
         if (Driver_FmMask != statusbarmasks[0] || Driver_PsgMask != statusbarmasks[1]) {
             redraw = true;
         }
+        if (lastrepeatmode != Player_RepeatMode) {
+            redraw = true;
+        }
         if (redraw) Ui_StatusBar_RedrawIcons();
         #if defined HWVER_PORTABLE
         if (IoExp_ChargeStatus()) {
             lv_label_set_text(charge, SYMBOL_CHARGE);
         } else {
-            lv_label_set_text(charge, "");
+            lv_label_set_static_text(charge, "");
         }
         if (BatteryMgr_Voltage >= 3900) {
             lv_label_set_text(battery, SYMBOL_BATTERY_FULL);
@@ -165,6 +190,7 @@ void Ui_StatusBar_Tick() {
         lastforcemono = Driver_ForceMono;
         statusbarmasks[0] = Driver_FmMask;
         statusbarmasks[1] = Driver_PsgMask;
+        lastrepeatmode = Player_RepeatMode;
         last = xthal_get_ccount();
     }
 }
