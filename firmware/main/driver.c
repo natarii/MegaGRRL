@@ -1052,7 +1052,11 @@ void Driver_Main() {
                     if (xthal_get_ccount() - DacStreamSampleTime >= (DRIVER_CLOCK_RATE/DacStreamSampleRate)) {
                         uint8_t sample;
                         xQueueReceive(DacStreamEntries[DacStreamId].Queue, &sample, 0);
-                        Driver_FmOut(DacStreamPort, DacStreamCommand, sample);
+                        if (Driver_DetectedMod == MEGAMOD_OPNA) {
+                            Driver_FmOutopna(DacStreamPort, DacStreamCommand, sample);
+                        } else {
+                            Driver_FmOut(DacStreamPort, DacStreamCommand, sample);
+                        }
                         DacStreamSampleTime += (DRIVER_CLOCK_RATE/DacStreamSampleRate);
                         DacStreamSamplesPlayed++;
                         if (DacStreamSamplesPlayed == DacStreamDataLength && (DacStreamLengthMode == 0 || DacStreamLengthMode == 1 || DacStreamLengthMode == 3)) {
