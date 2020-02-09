@@ -499,13 +499,13 @@ void openselection() {
                 opendirectory();
                 return;
             } else if (ent->d_type == DT_REG) {
-                closedir(dir);
-                dir = NULL;
                 /*strcpy(temppath, path);
                 strcat(temppath, "/");
                 strcat(temppath, ent->d_name);
                 op*enfile();*/
                 if ((strcasecmp(&ent->d_name[strlen(ent->d_name)-4], ".vgm") == 0) || (strcasecmp(&ent->d_name[strlen(ent->d_name)-4], ".vgz") == 0)) {
+                    closedir(dir);
+                    dir = NULL;
                     ESP_LOGI(TAG, "playing vgm");
                     ESP_LOGI(TAG, "request stop");
                     xTaskNotify(Taskmgr_Handles[TASK_PLAYER], PLAYER_NOTIFY_STOP_RUNNING, eSetValueWithoutOverwrite);
@@ -521,6 +521,8 @@ void openselection() {
                     ESP_LOGI(TAG, "ok");
                     savelast();
                 } else if (strcasecmp(&ent->d_name[strlen(ent->d_name)-4], ".m3u") == 0) {
+                    closedir(dir);
+                    dir = NULL;
                     ESP_LOGI(TAG, "playing m3u");
                     ESP_LOGI(TAG, "request stop");
                     xTaskNotify(Taskmgr_Handles[TASK_PLAYER], PLAYER_NOTIFY_STOP_RUNNING, eSetValueWithoutOverwrite);
@@ -541,13 +543,15 @@ void openselection() {
                     ESP_LOGI(TAG, "ok");
                     savelast();
                 } else if (strcasecmp(&ent->d_name[strlen(ent->d_name)-4], ".mgu") == 0) {
+                    closedir(dir);
+                    dir = NULL;
                     strcpy(temppath, path);
                     strcat(temppath, "/");
                     strcat(temppath, ent->d_name);
                     fwupdate_file = temppath;
                     Ui_Screen = UISCREEN_FWUPDATE;
                 } else {
-                    ESP_LOGE(TAG, "invalid file type played lmao");
+                    ESP_LOGE(TAG, "invalid file type not played");
                 }
                 return;
             }
