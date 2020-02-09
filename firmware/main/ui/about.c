@@ -9,7 +9,7 @@ const char *about_text =
 "\nFirmware ver: "FWVER_D
 "\n#462dff by# #ffffff kunoichi labs#\n"
 "#462dff //# #ffafff natalie null#\n"
-"#00ff00 Copyright 2018-2019#\n"
+"#00ff00 Copyright 2018-2020#\n"
 "#ffff00 https://kunoichilabs.dev#\n\n"
 "Some icons by Icons8 - #ffff00 http://icons8.com#\n"
 "MegaGRRL uses ESP-IDF and LittlevGL\n\n\n"
