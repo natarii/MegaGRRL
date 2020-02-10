@@ -137,7 +137,7 @@ void Ui_StatusBar_RedrawIcons() {
 void Ui_StatusBar_SetExtract(bool extracting) {
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     if (extracting) {
-        Ui_StatusBar_DrawIcon(ICON_EXTRACT, iconlabels[3], 83, 7);
+        Ui_StatusBar_DrawIcon(ICON_EXTRACT, iconlabels[3], (Player_RepeatMode==REPEAT_NONE)?83:100, 7);
     } else {
         lv_label_set_static_text(iconlabels[3], "");
     }
