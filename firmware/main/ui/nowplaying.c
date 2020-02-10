@@ -573,7 +573,7 @@ void Ui_NowPlaying_Tick() {
                     inloop = true;
                     pos = looppoint + ((pos-looppoint)%loopsamples);
                 }
-                lv_obj_set_pos(bar_scrub, 10+map(pos, 0, total, 0, 220), 128);
+                lv_obj_set_pos(bar_scrub, 10+map(pos/100, 0, total/100, 0, 220), 128);
             }
             uint32_t totalwithloops = (looppoint + (loopsamples * Player_LoopCount))/44100;
             uint8_t totalmins = totalwithloops/60;
