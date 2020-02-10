@@ -464,7 +464,7 @@ void Ui_NowPlaying_Key(KeyEvent_t event) {
 
 char npnone[] = "(none)";
 uint32_t nptimer = 0;
-char timebuf[14];
+char timebuf[16];
 char loopbuf[11]; //size?
 char plsbuf[14]; //size?
 void Ui_NowPlaying_Tick() {
