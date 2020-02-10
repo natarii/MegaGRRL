@@ -537,8 +537,8 @@ void Ui_NowPlaying_Tick() {
         lv_label_set_static_text(text_playlist, plsbuf);
 
         if (total) {
-            uint32_t tracklength = map(looppoint, 0, total, 0, 220);
-            uint32_t looplength = map(loopsamples, 0, total, 0, 220);
+            uint32_t tracklength = map(looppoint/100, 0, total/100, 0, 220);
+            uint32_t looplength = map(loopsamples/100, 0, total/100, 0, 220);
             lv_obj_set_size(bar_track, tracklength, 10);
             lv_obj_set_size(bar_trackloop, looplength, 10);
             lv_obj_set_pos(bar_trackloop, 10+tracklength, 128);
