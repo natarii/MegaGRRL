@@ -592,8 +592,10 @@ uint8_t Driver_ProcessOpnaSsgWrite(uint8_t ssgreg) {
             ssgreg |= (1<<i); //force bit on (tone off)
         }
     }
-    //noise
-    if (Driver_PsgMask & (1<<3)) { //single bit for noise
+    //noise, single bit controls all of it
+    if (Driver_PsgMask & (1<<3)) { //unmuted
+        //do nothing
+    } else { //muted
         ssgreg |= 0b00111000;
     }
     return ssgreg;
