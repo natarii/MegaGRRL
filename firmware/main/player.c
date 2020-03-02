@@ -445,6 +445,20 @@ bool Player_StartTrack(char *FilePath) {
             ESP_LOGI(TAG, "set %d", opl);
             Clk_Set(CLK_FM, opl);
         }
+    } else if (Driver_DetectedMod == MEGAMOD_OPM) {
+        ESP_LOGI(TAG, "MegaMod: OPM");
+        Clk_Set(CLK_PSG, 0);
+        uint32_t opm = 0;
+        fseek(Player_VgmFile, 0x30, SEEK_SET);
+        fread(&opm,4,1,Player_VgmFile);
+        if (opm & 0x80000000) {
+            ESP_LOGW(TAG, "Only one opm supported !!");
+        }
+        ESP_LOGI(TAG, "Clock from vgm: %d", opm);
+        if (opm < 3000000) opm = 3000000;
+        else if (opm > 5000000) opm = 5000000;
+        ESP_LOGI(TAG, "Clock clamped: %d", opm);
+        Clk_Set(CLK_FM, opm);
     }
 
     ESP_LOGI(TAG, "Signalling driver reset");

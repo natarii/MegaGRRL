@@ -15,6 +15,7 @@ typedef enum {
     MEGAMOD_OPNA = 2,
     MEGAMOD_OPL3 = 3,
     MEGAMOD_OPLLPSG = 4,
+    MEGAMOD_OPM = 7,
 } MegaMod_t;
 
 //PlayEvents

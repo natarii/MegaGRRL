@@ -738,6 +738,8 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
         }
     } else if (cmd[0] == 0x51) {
         Driver_FmOutopl3(0, cmd[1], cmd[2]);
+    } else if (cmd[0] == 0x54) { //opm
+        Driver_FmOutopl3(0, cmd[1], cmd[2]); //todo: proper timing for this
     } else if (cmd[0] == 0x5e || cmd[0] == 0x5b || cmd[0] == 0x5a) { //ymf262 port 0, ym3812, ym3526
         Driver_FmOutopl3(0, cmd[1], cmd[2]);
     } else if (cmd[0] == 0x5f) { //ymf262 port 1
