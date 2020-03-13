@@ -744,9 +744,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
         Driver_FmOutopl3(0, cmd[1], cmd[2]);
     } else if (cmd[0] == 0x5f) { //ymf262 port 1
         Driver_FmOutopl3(1, cmd[1], cmd[2]);
-    } else if (cmd[0] == 0x56 || cmd[0] == 0x57) { //opna
-        //using longer delays here because writes are missing (?)
-        //todo look into this further
+    } else if (cmd[0] == 0x56 || cmd[0] == 0x57 || cmd[0] == 0x55) { //opna both banks, opn
         if (cmd[0] == 0x57) {
             if (cmd[1] == 0x01) { //control/config
                 Driver_Opna_AdpcmConfig = cmd[2]; //don't force type=dram and width=1bit in the backup
@@ -802,14 +800,12 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
             Driver_Opna_RhythmConfig[i] = cmd[2];
             cmd[2] &= (Driver_FmMask & (1<<6))?0b11111111:0b00111111;
             if (Driver_ForceMono && (cmd[2] & 0b11000000)) cmd[2] |= 0b11000000;
-        } else if (cmd[0] == 0x56 && cmd[1] == 0x07) { //ssg tone enable
+        } else if ((cmd[0] == 0x56 || cmd[0] == 0x55) && cmd[1] == 0x07) { //ssg tone enable
             //todo vgm_trim mitigation
             Driver_Opna_SsgConfig = cmd[2];
             cmd[2] = Driver_ProcessOpnaSsgWrite(cmd[2]); //this handles masks
         }
-        if (!nw) Driver_FmOutopna(cmd[0]&1, cmd[1], cmd[2]);
-    } else if (cmd[0] == 0x55) { //ym2203
-        Driver_FmOutopna(0, cmd[1], cmd[2]);
+        if (!nw) Driver_FmOutopna((cmd[0] == 0x57)?1:0, cmd[1], cmd[2]); //not just checking the low bit because of opn
     } else if (cmd[0] == 0x52) { //YM2612 port 0
         if (cmd[1] >= 0xb4 && cmd[1] <= 0xb6) { //pan, FMS, AMS
             Driver_FmPans[cmd[1]-0xb4] = cmd[2];
