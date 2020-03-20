@@ -12,6 +12,9 @@ This project is divided into several subdirectories:
   * **pcb/** - PCB and schematic files for EAGLE
   * **enclosure/** - 3D printing design files for the enclosure
 
+## Updating firmware
+To update to the latest firmware after your player is up and running, download the latest .mgu file for your hardware version (desktop or portable) from the [Releases page](https://git.agiri.ninja/natalie/megagrrl/-/releases) and copy it to the SD card. Launch the update from MegaGRRL's file browser.
+
 ## Compiling and initial flash
 0. If you are on Windows and flashing a MegaGRRL Desktop, a simplified guide is available [here](https://git.agiri.ninja/snippets/3). Otherwise, proceed with the instructions below.
 1. Set up ESP-IDF v3.3 following the [Espressif documentation](https://docs.espressif.com/projects/esp-idf/en/v3.3/get-started/index.html).
@@ -35,9 +38,14 @@ This project is divided into several subdirectories:
 11. Populate the SD card D2 pullup resistor.
 12. Insert the card into the MegaGRRL and power it on. The firmware will now self-flash, and reboot into the OS.
 
+## Development
+For testing code during development, you must flash it to the correct partition. Under Linux with a standard esp-idf setup, a command such as the following will work:
+`python $IDF_PATH/components/esptool_py/esptool/esptool.py --chip esp32 --port /dev/ttyUSB0 --baud 2000000 --before default_reset --after hard_reset write_flash -z --flash_mode qio --flash_freq 80m --flash_size detect 0x110000 build/megagrrl.bin`
+
+Debugging should be done using serial (`make monitor`). JTAG is not usable due to GPIO overlap with the SD card interface.
+
 ## Obtaining VGM files
 The defacto standard Genesis/Mega Drive VGM repository is [Project 2612](https://project2612.org/). Both .vgm and .vgz files are supported, but load times are shorter if using vgm.
 
 ## More information
-
 Additional info and project logs are available on the [Hackaday.io project page](https://hackaday.io/project/161741-megagrrl-portable-ym2612-vgm-player)
