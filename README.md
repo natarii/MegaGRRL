@@ -38,6 +38,8 @@ To update to the latest firmware after your player is up and running, download t
 11. Populate the SD card D2 pullup resistor.
 12. Insert the card into the MegaGRRL and power it on. The firmware will now self-flash, and reboot into the OS.
 
+Note: If the default serial device (`/dev/ttyUSB0`) doesn't work on your machine, you may need to set it manually using the `--port` option (for Python scripts) or the `ESPPORT` environment variable (for `make`). On macOS, for example, the device path may take the form of `/dev/cu.usbserial-1420` (with the Apple driver in Mojave and later) or `/dev/cu.wchusbserial1420` (with the OEM CH34x driver). On BSD systems, a path like `/dev/cuaU0` may be used.
+
 ## Development
 For testing code during development, you must flash it to the correct partition. Under Linux with a standard esp-idf setup, a command such as the following will work:
 `python $IDF_PATH/components/esptool_py/esptool/esptool.py --chip esp32 --port /dev/ttyUSB0 --baud 2000000 --before default_reset --after hard_reset write_flash -z --flash_mode qio --flash_freq 80m --flash_size detect 0x110000 build/megagrrl.bin`
