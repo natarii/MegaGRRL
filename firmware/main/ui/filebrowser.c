@@ -672,6 +672,8 @@ void Ui_FileBrowser_Key(KeyEvent_t event) {
                 pagenum--;
                 lastup = true;
             }
+        } else if (event.Key == KEY_C) {
+            openselection();
         }
         
         if (event.Key == KEY_B) {
@@ -688,13 +690,6 @@ void Ui_FileBrowser_Key(KeyEvent_t event) {
             updatescrollbar();
             //last_time = xthal_get_ccount();
             //last_needsave = true;
-        }
-    }
-    if (event.Key == KEY_C) {
-        if ((event.State == KEY_EVENT_UP) && (event.State & KEY_EVENT_HELD) == 0) { //changed & UP to == UP, temp hack
-            openselection();
-        } else if (event.State & KEY_EVENT_HOLD) {
-            ESP_LOGE(TAG, "DICKS 2.0");
         }
     }
     if (event.Key == KEY_A && event.State == KEY_EVENT_PRESS) {
