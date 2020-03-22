@@ -98,7 +98,7 @@ void Ui_Options_Cats_Key(KeyEvent_t event) {
                 redrawoptcats();
             }
         } else if (event.Key == KEY_DOWN) {
-            if (Options_Cat < OPTION_CATEGORY_COUNT) {
+            if (Options_Cat < OPTION_CATEGORY_COUNT-1) {
                 Options_Cat++;
                 redrawoptcats();
             }
