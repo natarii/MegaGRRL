@@ -485,7 +485,6 @@ void m3u2m3u() {
 }
 
 void openselection() {
-    //1dir = opendir(path);
     uint16_t c = 0;
     seekdir(dir, pageloc[pagenum]);
     while ((ent=readdir(dir))!=NULL) {
@@ -557,7 +556,6 @@ void openselection() {
             }
         }
     }
-    //1closedir(dir);
 }
 
 void backdir() {
@@ -583,7 +581,6 @@ void backdir() {
 }
 
 void startdir() {
-    //dirfiles = filecount(); //done by dirfiles = offset below
     ESP_LOGI(TAG, "generating dir cache");
     uint32_t s = xthal_get_ccount();
     dir = opendir(path);
@@ -602,16 +599,10 @@ void startdir() {
     }
     dirfiles = offset;
     ESP_LOGI(TAG, "done after %d msec", ((xthal_get_ccount()-s)/240000));
-    //1closedir(dir);
     lastpageloc = -1;
-    //redrawlist();
-    //redrawselection();
     redrawlistsel(true, true);
     updatescrollbar();
     Ui_SoftBar_Update(1, strcmp(path, startpath) != 0, SYMBOL_UP" "SYMBOL_DIRECTORY"Up", true);
-    //last_time = xthal_get_ccount();
-    //last_needsave = true;
-    //savelast();
 }
 
 void Ui_FileBrowser_Key(KeyEvent_t event) {
