@@ -673,36 +673,23 @@ void Ui_FileBrowser_Key(KeyEvent_t event) {
                 lastup = true;
             }
         } else if (event.Key == KEY_C) {
+            KeyMgr_Consume(KEY_C);
             openselection();
-        }
-        
-        if (event.Key == KEY_B) {
+        } else if (event.Key == KEY_B) {
+            KeyMgr_Consume(KEY_B);
             if (strcmp(path, startpath) != 0) backdir();
+        } else if (event.Key == KEY_A) {
+            KeyMgr_Consume(KEY_A);
+            Ui_Screen = UISCREEN_MAINMENU;
         }
 
-        /*if (list) {
-            redrawlist();
-            redrawselection();
-        }
-        if (sel) redrawselection();*/
         if (list || sel) { //if page or selection was changed
             redrawlistsel(list, sel);
             updatescrollbar();
-            //last_time = xthal_get_ccount();
-            //last_needsave = true;
         }
-    }
-    if (event.Key == KEY_A && event.State == KEY_EVENT_PRESS) {
-        Ui_Screen = UISCREEN_MAINMENU;
     }
 }
 
 void Ui_FileBrowser_Tick() {
-    /*if (last_needsave) {
-        if (xthal_get_ccount() - last_time >= 240000000*3) {
-            ESP_LOGI(TAG, "timer expired, saving last");
-            savelast();
-            last_needsave = false;
-        }
-    }*/
+    //unused atm
 }
