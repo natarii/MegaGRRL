@@ -105,6 +105,7 @@ void Player_Main() {
                     Player_StopTrack();
                 }
                 xEventGroupClearBits(Player_Status, PLAYER_STATUS_RUNNING);
+                xEventGroupClearBits(Player_Status, PLAYER_STATUS_PAUSED);
                 xEventGroupSetBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
                 xEventGroupClearBits(Player_Status, PLAYER_STATUS_RAN_OUT);
             } else if (notif == PLAYER_NOTIFY_NEXT) {
