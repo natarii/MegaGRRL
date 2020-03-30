@@ -64,10 +64,10 @@ typedef struct {
 uint8_t mm_curicon = 1;
 
 const mm_icon_t mm_icontable[] = {
-    {"Music Player", "Shows and controls the currently playing tracks.", &img_player, &img_player_half, UISCREEN_NOWPLAYING},
+    {"Music Player", "View and control the currently playing track.", &img_player, &img_player_half, UISCREEN_NOWPLAYING},
     {"File Browser", "Browse files stored on the SD card.", &img_library, &img_library_half, UISCREEN_FILEBROWSER},
     {"Settings", "Adjust system settings.", &img_settings, &img_settings_half, UISCREEN_OPTIONS_CATS},
-    {"About", "Information, credits, acknowledgements.", &img_about, &img_about_half, UISCREEN_ABOUT},
+    {"About", "View information, credits, acknowledgements.", &img_about, &img_about_half, UISCREEN_ABOUT},
 };
 
 void mm_updateicons();
