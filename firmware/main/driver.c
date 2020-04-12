@@ -113,6 +113,7 @@ volatile bool Driver_ForceMono = false;
 uint8_t Driver_Opna_AdpcmConfig = 0b11000000; //todo verify in emu? 
 uint8_t Driver_Opna_RhythmConfig[6] = {0b11000000,0b11000000,0b11000000,0b11000000,0b11000000,0b11000000}; //todo verify in emu
 uint8_t Driver_Opna_SsgConfig = 0b00111111; //todo verify in emu
+uint8_t Driver_Opna_SsgLevel[3] = {0,0,0}; //todo verify in emu
 
 uint32_t Driver_PsgCh3Freq = 0;
 bool Driver_PsgNoisePeriodic = false;
@@ -416,7 +417,7 @@ void Driver_FmOutopna(uint8_t Port, uint8_t Register, uint8_t Value) {
             ChannelMgr_States[(Port?3:0)+(Register%3)] |= CHSTATE_PARAM;
         } else if (Port == 0 && Register == 0x07) { //ssg tone enable
             for (uint8_t i=0;i<3;i++) { //tones
-                if ((Value & (1<<i))) {
+                if ((Value & (1<<i)) || Driver_Opna_SsgLevel[i] == 0) {
                     ChannelMgr_States[6+i] &= ~CHSTATE_KON;
                 } else {
                     ChannelMgr_States[6+i] |= CHSTATE_KON;
@@ -429,6 +430,11 @@ void Driver_FmOutopna(uint8_t Port, uint8_t Register, uint8_t Value) {
             }
         } else if (Port == 0 && Register >= 0x08 && Register <= 0x0a) { //level
             ch = Register - 0x08;
+            if ((Driver_Opna_SsgConfig & (1<<ch)) || Driver_Opna_SsgLevel[ch] == 0) { //basically the same logic as in tone enable.
+                ChannelMgr_States[6+ch] &= ~CHSTATE_KON;
+            } else {
+                ChannelMgr_States[6+ch] |= CHSTATE_KON;
+            }
             ChannelMgr_States[6+ch] |= CHSTATE_PARAM;
             ChannelMgr_States[6+3] |= CHSTATE_PARAM; //implicit noise update too, todo only do this if noise is enabled on that ch
         } else if (Port == 0 && Register == 0x06) { //noise period
@@ -784,6 +790,8 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
                     Driver_FmOutopna(1,0x04,opnastop&0xff);
                     Driver_FmOutopna(1,0x05,opnastop>>8);
                 }
+                ChannelMgr_PcmAccu = 127;
+                ChannelMgr_PcmCount = 1;
             } else if (cmd[1] == 0x0c || cmd[1] == 0x0d) { //limit
                 nw = true;
             }
@@ -804,6 +812,13 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
             //todo vgm_trim mitigation
             Driver_Opna_SsgConfig = cmd[2];
             cmd[2] = Driver_ProcessOpnaSsgWrite(cmd[2]); //this handles masks
+        } else if (cmd[0] == 0x56 && cmd[1] == 0x10) { //rhythm
+            if (cmd[2] & 0b00111111) {
+                ChannelMgr_PcmAccu = 127;
+                ChannelMgr_PcmCount = 1;
+            }
+        } else if (cmd[0] == 0x56 && cmd[1] >= 0x08 && cmd[1] <= 0x0a) {
+            Driver_Opna_SsgLevel[cmd[1] - 0x08] = cmd[2];
         }
         if (!nw) Driver_FmOutopna((cmd[0] == 0x57)?1:0, cmd[1], cmd[2]); //not just checking the low bit because of opn
     } else if (cmd[0] == 0x52) { //YM2612 port 0
@@ -937,6 +952,7 @@ void Driver_Main() {
             Driver_Opna_AdpcmConfig = 0b11000000; //todo verify in emu?
             memset(&Driver_Opna_RhythmConfig[0], 0b11000000, sizeof(Driver_Opna_RhythmConfig)); //todo verify in emu
             Driver_Opna_SsgConfig = 0b00111111; //todo verify in emu
+            memset(&Driver_Opna_SsgLevel[0], 0, sizeof(Driver_Opna_SsgLevel)); //todo verify in emu
             for (uint8_t i=0;i<4;i++) {
                 Driver_PsgAttenuation[i] = 0b10011111 | (i<<5);
             }
