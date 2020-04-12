@@ -1129,5 +1129,6 @@ void Driver_Main() {
 
             vTaskDelay(2);
         }
+        Driver_CpuPeriod += (xthal_get_ccount() - Driver_Cc);
     }
 }
