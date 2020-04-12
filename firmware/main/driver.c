@@ -817,7 +817,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
                 ChannelMgr_PcmAccu = 127;
                 ChannelMgr_PcmCount = 1;
             }
-        } else if (cmd[0] == 0x56 && cmd[1] >= 0x08 && cmd[1] <= 0x0a) {
+        } else if ((cmd[0] == 0x56 || cmd[0] == 0x55) && cmd[1] >= 0x08 && cmd[1] <= 0x0a) {
             Driver_Opna_SsgLevel[cmd[1] - 0x08] = cmd[2];
         }
         if (!nw) Driver_FmOutopna((cmd[0] == 0x57)?1:0, cmd[1], cmd[2]); //not just checking the low bit because of opn
