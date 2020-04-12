@@ -60,8 +60,8 @@ void Ui_Options_Cats_Setup(lv_obj_t *uiscreen) {
     }
 
     Ui_SoftBar_Update(0, true, SYMBOL_HOME"Home", false);
-    Ui_SoftBar_Update(1, true, "Back", false);
-    Ui_SoftBar_Update(2, true, "Open", false);
+    Ui_SoftBar_Update(1, true, SYMBOL_LEFT" Back", false);
+    Ui_SoftBar_Update(2, true, SYMBOL_RIGHT" Open", false);
 
     LcdDma_Mutex_Give();
 

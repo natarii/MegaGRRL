@@ -98,7 +98,7 @@ void Ui_About_Setup(lv_obj_t *uiscreen) {
 
     Ui_SoftBar_Update(0, false, "", false);
     Ui_SoftBar_Update(1, false, "", false);
-    Ui_SoftBar_Update(2, true, "Done", false);
+    Ui_SoftBar_Update(2, true, SYMBOL_OK" Done", false);
 
     LcdDma_Mutex_Give();
 }

@@ -448,7 +448,7 @@ void Ui_NowPlaying_Key(KeyEvent_t event) {
                 break;
             case KEY_C:
                 optionsopen = !optionsopen;
-                if (optionsopen) Ui_SoftBar_Update(2, true, "Done", true);
+                if (optionsopen) Ui_SoftBar_Update(2, true, SYMBOL_OK" Done", true);
                 else Ui_SoftBar_Update(2, true, "Options", true);
                 drawopts();
                 break;

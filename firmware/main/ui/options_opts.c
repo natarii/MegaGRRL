@@ -192,7 +192,7 @@ void Ui_Options_Opts_Setup(lv_obj_t *uiscreen) {
     lv_obj_set_pos(optiondefault, 10, 155);
 
     Ui_SoftBar_Update(0, true, SYMBOL_HOME"Home", false);
-    Ui_SoftBar_Update(1, true, "Back", false);
+    Ui_SoftBar_Update(1, true, SYMBOL_LEFT" Back", false);
     Ui_SoftBar_Update(2, true, SYMBOL_EDIT"Edit", false);
 
     LcdDma_Mutex_Give();
@@ -287,18 +287,18 @@ void Ui_Options_Opts_Key(KeyEvent_t event) {
                 editing = false;
                 redrawopt();
                 Ui_SoftBar_Update(2, true, SYMBOL_EDIT" Edit", true);
-                Ui_SoftBar_Update(1, true, "Back", true);
+                Ui_SoftBar_Update(1, true, SYMBOL_LEFT" Back", true);
             } else {
                 Ui_Screen = UISCREEN_OPTIONS_CATS;
             }
         } else if (event.Key == KEY_C) {
             if (!editing) {
                 Ui_SoftBar_Update(2, true, SYMBOL_SAVE" Save", true);
-                Ui_SoftBar_Update(1, true, "Cancel", true);
+                Ui_SoftBar_Update(1, true, SYMBOL_CLOSE"Cancel", true);
                 oldval = *(uint8_t*)Options[Options_OptId].var;
             } else {
                 Ui_SoftBar_Update(2, true, SYMBOL_EDIT" Edit", true);
-                Ui_SoftBar_Update(1, true, "Back", true);
+                Ui_SoftBar_Update(1, true, SYMBOL_LEFT" Back", true);
                 OptionsMgr_Touch();
             }
             editing = !editing;
