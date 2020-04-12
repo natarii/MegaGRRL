@@ -37,7 +37,6 @@ static char defaultvalue_buf[32] = "";
 
 void redrawopts();
 void redrawopt();
-char *fuck = "test";
 static void displayvalue(char *buf, bool def) {
     if (!def && Options[Options_OptId].var == NULL) return;
     uint8_t val = def?Options[Options_OptId].defaultval:*(uint8_t*)Options[Options_OptId].var;
