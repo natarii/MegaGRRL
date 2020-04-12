@@ -4,6 +4,7 @@
 #include "driver.h"
 #include "leddrv.h"
 #include "loader.h"
+#include "userled.h"
 
 static const char* TAG = "OptionsMgr";
 
@@ -96,6 +97,33 @@ const option_t Options[OPTION_COUNT] = {
         &LedDrv_Brightness, //
         0x40,
         LedDrv_UpdateBrightness
+    },
+    {
+        "User LED A",
+        "Sets the source of User LED A",
+        OPTION_CATEGORY_LEDS,
+        OPTION_TYPE_USERLED,
+        &UserLedMgr_Source[0],
+        USERLED_SRC_PLAYPAUSE,
+        NULL
+    },
+    {
+        "User LED B",
+        "Sets the source of User LED B",
+        OPTION_CATEGORY_LEDS,
+        OPTION_TYPE_USERLED,
+        &UserLedMgr_Source[1],
+        USERLED_SRC_DISK_ALL,
+        NULL
+    },
+    {
+        "User LED C",
+        "Sets the source of User LED C",
+        OPTION_CATEGORY_LEDS,
+        OPTION_TYPE_USERLED,
+        &UserLedMgr_Source[2],
+        USERLED_SRC_NONE,
+        NULL
     },
 /* just getting rid of this for now. portable only
     {

@@ -38,7 +38,7 @@ void Taskmgr_CreateTasks() {
     xTaskCreatePinnedToCore(Player_Main, "Player", 4096, NULL, 5, &Taskmgr_Handles[TASK_PLAYER], 0);
     xTaskCreatePinnedToCore(ChannelMgr_Main, "ChannelMgr", 1024, NULL, 18, &Taskmgr_Handles[TASK_CHANNELMGR], 0);
     xTaskCreatePinnedToCore(Ui_Main, "Ui", 3000, NULL, 12, &Taskmgr_Handles[TASK_UI], 0);
-    xTaskCreatePinnedToCore(UserLedMgr_Main, "UserLed", 1024, NULL, 17, &Taskmgr_Handles[TASK_USERLED], 0);
+    xTaskCreatePinnedToCore(UserLedMgr_Main, "UserLed", 2048, NULL, 17, &Taskmgr_Handles[TASK_USERLED], 0);
     xTaskCreatePinnedToCore(OptionsMgr_Main, "OptionsMgr", 2048, NULL, 8, &Taskmgr_Handles[TASK_OPTIONS], 0);
     //xTaskCreatePinnedToCore(Taskmgr_Monitor, "Task Monitor", 2048, NULL, 8, &Taskmgr_Handles[TASK_MONITOR], 0);
     

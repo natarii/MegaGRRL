@@ -10,6 +10,7 @@ typedef enum {
     OPTION_TYPE_PLAYMODE,
     OPTION_TYPE_BACKLIGHTTIME,
     OPTION_TYPE_STEREOMONO,
+    OPTION_TYPE_USERLED,
     OPTION_TYPE_COUNT
 } optiontype_t;
 
@@ -31,9 +32,9 @@ typedef struct {
     void (*cb)();
 } option_t;
 
-#define OPTION_COUNT 5
+#define OPTION_COUNT 8
 
-#define OPTIONS_ACTUAL_VER 0x03
+#define OPTIONS_ACTUAL_VER 0x04
 
 #if defined HWVER_PORTABLE
 #define OPTIONS_VER OPTIONS_ACTUAL_VER

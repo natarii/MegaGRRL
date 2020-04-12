@@ -8,6 +8,7 @@
 #include "../options.h"
 #include "softbar.h"
 #include "../player.h" //for repeat mode defs
+#include "../userled.h" //for user led source defs
 
 lv_obj_t *container;
 lv_style_t containerstyle;
@@ -83,6 +84,36 @@ static void displayvalue(char *buf, bool def) {
                     break;
             }
             break;
+        case OPTION_TYPE_USERLED:
+            switch ((UserLedSource_t)val) {
+                case USERLED_SRC_NONE:
+                    strcat(buf, "Disabled");
+                    break;
+                case USERLED_SRC_PLAYPAUSE:
+                    strcat(buf, "Play/Pause");
+                    break;
+                case USERLED_SRC_DISK_ALL:
+                    strcat(buf, "SD Read");
+                    break;
+                case USERLED_SRC_DISK_VGM:
+                    strcat(buf, "SD Read (VGM)");
+                    break;
+                case USERLED_SRC_DISK_DSALL:
+                    strcat(buf, "SD Read (DACStream)");
+                    break;
+                case USERLED_SRC_DISK_DSFILL:
+                    strcat(buf, "SD Read (DS Fill)");
+                    break;
+                case USERLED_SRC_DISK_DSFIND:
+                    strcat(buf, "SD Read (DS Find)");
+                    break;
+                case USERLED_SRC_DRIVERCPU:
+                    strcat(buf, "Driver CPU");
+                    break;
+                default:
+                    break;
+            }
+            break;
         default:
             break;
     }
@@ -94,6 +125,17 @@ static void changevalue(bool inc) {
         case OPTION_TYPE_NUMERIC:
             if (inc) {
                 if (*var < 255) {
+                    *var += 1;
+                }
+            } else {
+                if (*var > 0) {
+                    *var -= 1;
+                }
+            }
+            break;
+        case OPTION_TYPE_USERLED:
+            if (inc) {
+                if (*var < USERLED_SRC_COUNT-1) {
                     *var += 1;
                 }
             } else {
