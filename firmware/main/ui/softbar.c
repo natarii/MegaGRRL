@@ -6,8 +6,9 @@
 
 static const char* TAG = "Ui_SoftBar";
 
-lv_obj_t *container;
-lv_obj_t *softbarlabels[3];
+static IRAM_ATTR lv_obj_t *container;
+IRAM_ATTR lv_obj_t *softbarlabels[3];
+static IRAM_ATTR lv_obj_t *line[2];
 lv_style_t softbarstyle;
 lv_style_t softbarstyle_disbl;
 
@@ -35,10 +36,10 @@ bool Ui_SoftBar_Setup(lv_obj_t *uiscreen) {
     
     static lv_point_t points[] = {{0,0}, {0,34}};
     for (uint8_t i=1;i<=2;i++) {
-        lv_obj_t *line = lv_line_create(container, NULL);
-        lv_line_set_points(line, points, 2);
-        lv_obj_set_pos(line, ((240/3)*i)-1, 0);
-        lv_line_set_style(line, &softbarstyle);
+        line[i] = lv_line_create(container, NULL);
+        lv_line_set_points(line[i], points, 2);
+        lv_obj_set_pos(line[i], ((240/3)*i)-1, 0);
+        lv_line_set_style(line[i], &softbarstyle);
     }
 
     for (uint8_t i=0;i<3;i++) {

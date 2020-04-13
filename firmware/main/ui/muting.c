@@ -6,7 +6,7 @@
 #include "softbar.h"
 #include "../driver.h"
 
-lv_obj_t *container;
+static IRAM_ATTR lv_obj_t *container;
 lv_style_t containerstyle;
 const char *chnames[11] = {
     "FM 1",
@@ -40,15 +40,15 @@ const char unmute[] = "Unmute";
 const char muted[] = SYMBOL_MUTE;
 const char unmuted[] = SYMBOL_VOLUME_MAX;
 
-lv_obj_t *ch_label[11];
-lv_obj_t *ch_status[11];
-lv_obj_t *done_label;
+IRAM_ATTR lv_obj_t *ch_label[11];
+IRAM_ATTR lv_obj_t *ch_status[11];
+IRAM_ATTR lv_obj_t *done_label;
 lv_style_t ch_label_style;
 lv_style_t ch_label_style_sel;
 lv_style_t ch_on;
 lv_style_t ch_off;
 uint8_t ch_sel = 0;
-lv_obj_t *title;
+IRAM_ATTR lv_obj_t *title;
 lv_style_t title_style;
 
 void Ui_Muting_Destroy() {

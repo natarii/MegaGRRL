@@ -58,9 +58,9 @@ int32_t about_map(int32_t x, int32_t in_min, int32_t in_max, int32_t out_min, in
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
-lv_obj_t *container;
+static IRAM_ATTR lv_obj_t *container;
 lv_style_t containerstyle;
-lv_obj_t *about_ta;
+IRAM_ATTR lv_obj_t *about_ta;
 lv_style_t about_ta_style;
 uint32_t about_time = 0;
 uint32_t about_last_time = 0;

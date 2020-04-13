@@ -7,13 +7,13 @@
 #include "../options.h"
 #include "softbar.h"
 
-lv_obj_t *container;
+static IRAM_ATTR lv_obj_t *container;
 lv_style_t containerstyle;
 
 uint8_t Options_Cat = 0;
 
-lv_obj_t *optioncatlines[OPTION_CATEGORY_COUNT];
-lv_obj_t *optioncatlabels[OPTION_CATEGORY_COUNT];
+IRAM_ATTR lv_obj_t *optioncatlines[OPTION_CATEGORY_COUNT];
+IRAM_ATTR lv_obj_t *optioncatlabels[OPTION_CATEGORY_COUNT];
 lv_style_t optioncatstyle_normal;
 lv_style_t optioncatstyle_sel;
 

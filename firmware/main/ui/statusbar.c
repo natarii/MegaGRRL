@@ -12,10 +12,10 @@
 
 static const char* TAG = "Ui_StatusBar";
 
-static lv_obj_t *container;
+static IRAM_ATTR lv_obj_t *container;
 #if defined HWVER_PORTABLE
-static lv_obj_t *charge;
-static lv_obj_t *battery;
+static IRAM_ATTR lv_obj_t *charge;
+static IRAM_ATTR lv_obj_t *battery;
 #endif
 
 typedef enum {
@@ -53,7 +53,7 @@ const StatusbarIconDef_t icondefs[] = {
     {"A", 0, 0},
 };
 
-static lv_obj_t *iconlabels[5];
+static IRAM_ATTR lv_obj_t *iconlabels[5];
 
 void Ui_StatusBar_DrawIcon(StatusbarIcon_t icon, lv_obj_t *label, int16_t x, int16_t y) {
     lv_label_set_static_text(label, icondefs[icon].c);

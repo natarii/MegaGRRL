@@ -28,17 +28,17 @@ LV_IMG_DECLARE(img_lcdhenohenomoheji);
 LV_IMG_DECLARE(img_lcdsad);
 LV_IMG_DECLARE(img_lcdhappy);
 
-lv_obj_t *container;
+static IRAM_ATTR lv_obj_t *container;
 lv_style_t containerstyle;
 char *fwupdate_file;
-lv_obj_t *fwupdate_ta;
+IRAM_ATTR lv_obj_t *fwupdate_ta;
 lv_style_t fwupdate_ta_style;
 mgu_header_t newfirmware;
 bool fwupdate_valid = false;
 uint8_t *fwupdate_buf = NULL;
 
-lv_obj_t *fwupdate_frame;
-lv_obj_t *fwupdate_lcd;
+IRAM_ATTR lv_obj_t *fwupdate_frame;
+IRAM_ATTR lv_obj_t *fwupdate_lcd;
 
 void Ui_Fwupdate_Setup(lv_obj_t *uiscreen) {
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));

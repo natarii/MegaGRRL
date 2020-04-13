@@ -28,30 +28,25 @@ LV_IMG_DECLARE(img_settings_half);
 LV_IMG_DECLARE(img_about_half);
 LV_IMG_DECLARE(img_blank);
 //LV_IMG_DECLARE(img_kunoichilabs_smol);
-lv_obj_t *mm_logo;
-//lv_obj_t *mm_logo_kl;
-lv_obj_t *mm_icon;
-lv_obj_t *mm_iconL;
-lv_obj_t *mm_iconR;
-lv_obj_t *mm_icontext;
+IRAM_ATTR lv_obj_t *mm_logo;
+//IRAM_ATTR lv_obj_t *mm_logo_kl;
+IRAM_ATTR lv_obj_t *mm_icon;
+IRAM_ATTR lv_obj_t *mm_iconL;
+IRAM_ATTR lv_obj_t *mm_iconR;
+IRAM_ATTR lv_obj_t *mm_icontext;
 lv_style_t mm_icontext_style;
-lv_obj_t *mm_icondesc;
+IRAM_ATTR lv_obj_t *mm_icondesc;
 lv_style_t mm_icondesc_style;
 
-lv_obj_t *container;
+static IRAM_ATTR lv_obj_t *container;
 lv_style_t containerstyle;
 lv_style_t linestyle;
 lv_point_t points[2*7];
-lv_obj_t *lines[7];
+IRAM_ATTR lv_obj_t *lines[7];
 lv_point_t pointsL[2*7];
-lv_obj_t *linesL[7];
+IRAM_ATTR lv_obj_t *linesL[7];
 lv_point_t pointsX[2*14];
-lv_obj_t *linesX[14];
-
-bool coveranim = true;
-uint32_t coverstart = 0;
-lv_obj_t *cover;
-lv_style_t coverstyle;
+IRAM_ATTR lv_obj_t *linesX[14];
 
 typedef struct {
     const char *text;
@@ -117,7 +112,7 @@ void Ui_MainMenu_Setup(lv_obj_t *uiscreen) {
         lv_line_set_style(linesL[i], &linestyle);
     }
 
-    static lv_obj_t *mline;
+    static IRAM_ATTR lv_obj_t *mline;
     mline = lv_line_create(container, NULL);
     static lv_point_t mpoints[2] = {{120, 53},{120, 250}};
     lv_line_set_points(mline, mpoints, 2);

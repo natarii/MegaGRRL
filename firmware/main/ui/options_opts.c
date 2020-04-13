@@ -10,23 +10,23 @@
 #include "../player.h" //for repeat mode defs
 #include "../userled.h" //for user led source defs
 
-lv_obj_t *container;
+static IRAM_ATTR lv_obj_t *container;
 lv_style_t containerstyle;
 
 uint8_t Options_OptId = 0;
 uint8_t Options_Sel = 0;
 uint8_t Options_Off = 0;
 
-lv_obj_t *optionoptlines[5];
-lv_obj_t *optionoptlabels[5];
+IRAM_ATTR lv_obj_t *optionoptlines[5];
+IRAM_ATTR lv_obj_t *optionoptlabels[5];
 lv_style_t optionoptstyle_normal;
 lv_style_t optionoptstyle_sel;
 lv_style_t optiondescstyle;
 
-//lv_obj_t *optiontitle;
-lv_obj_t *optiondesc;
-lv_obj_t *optionvalue;
-lv_obj_t *optiondefault;
+//IRAM_ATTR lv_obj_t *optiontitle;
+IRAM_ATTR lv_obj_t *optiondesc;
+IRAM_ATTR lv_obj_t *optionvalue;
+IRAM_ATTR lv_obj_t *optiondefault;
 
 static bool editing = false;
 static uint8_t oldval = 0;

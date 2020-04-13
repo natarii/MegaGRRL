@@ -14,18 +14,18 @@
 
 static const char* TAG = "Ui_Debug";
 
-lv_obj_t *container;
+static IRAM_ATTR lv_obj_t *container;
 lv_style_t containerstyle;
-static lv_obj_t *tasklabel;
+static IRAM_ATTR lv_obj_t *tasklabel;
 static lv_style_t tasklabel_style;
-static lv_obj_t *driverbuflabel;
-static lv_obj_t *heaplabel;
-static lv_obj_t *dslabel;
+static IRAM_ATTR lv_obj_t *driverbuflabel;
+static IRAM_ATTR lv_obj_t *heaplabel;
+static IRAM_ATTR lv_obj_t *dslabel;
 static lv_style_t bar_style;
 static lv_style_t bar_style_idle;
-static lv_obj_t *driverbuf;
-static lv_obj_t *driverbufpcm;
-static lv_obj_t *ds[DACSTREAM_PRE_COUNT];
+static IRAM_ATTR lv_obj_t *driverbuf;
+static IRAM_ATTR lv_obj_t *driverbufpcm;
+static IRAM_ATTR lv_obj_t *ds[DACSTREAM_PRE_COUNT];
 static char tasklabel_buf[(50*TASK_COUNT)+50];
 static TaskStatus_t taskstatus[TASK_COUNT+6]; //6 = IDLE0, IDLE1, Tmr Svc, ipc0, ipc1, esp_timer
 static const char *taskblacklist[6] = { "IDLE0", "IDLE1", "Tmr Svc", "ipc0", "ipc1", "esp_timer" };
