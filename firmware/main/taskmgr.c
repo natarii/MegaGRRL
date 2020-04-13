@@ -18,12 +18,6 @@ static const char* TAG = "Taskmgr";
 
 TaskHandle_t Taskmgr_Handles[TASK_COUNT];
 
-void Taskmgr_Debug() {
-    while (1) {
-        vTaskDelay(pdMS_TO_TICKS(500));
-    }
-}
-
 void Taskmgr_CreateTasks() {
     for (uint8_t i=0;i<TASK_COUNT;i++) {
         if (i == TASK_LCDDMA) continue;
@@ -40,27 +34,6 @@ void Taskmgr_CreateTasks() {
     xTaskCreatePinnedToCore(Ui_Main, "Ui    ", 3000, NULL, 12, &Taskmgr_Handles[TASK_UI], 0);
     xTaskCreatePinnedToCore(UserLedMgr_Main, "UsrLed", 1536, NULL, 17, &Taskmgr_Handles[TASK_USERLED], 0);
     xTaskCreatePinnedToCore(OptionsMgr_Main, "OpnMgr", 1024, NULL, 8, &Taskmgr_Handles[TASK_OPTIONS], 0);
-    //xTaskCreatePinnedToCore(Taskmgr_Monitor, "Task Monitor", 2048, NULL, 8, &Taskmgr_Handles[TASK_MONITOR], 0);
-    
 
     xTaskCreatePinnedToCore(Driver_Main, "Driver", 3072, NULL, configMAX_PRIORITIES-2, &Taskmgr_Handles[TASK_DRIVER], 1);
-}
-
-char taskstatbuf[50*TASK_COUNT];
-void Taskmgr_Monitor() {
-    ESP_LOGI(TAG, "Task start");
-    while (1) {
-        ESP_LOGI(TAG, "Task stack high water mark follows");
-        for (uint8_t i=0;i<TASK_COUNT;i++) {
-            if (Taskmgr_Handles[i] != NULL) {
-                ESP_LOGI(TAG, "#%d: %d bytes free", i, uxTaskGetStackHighWaterMark(Taskmgr_Handles[i]));
-            } else {
-                ESP_LOGI(TAG, "#%d: not started", i);
-            }
-        }
-        ESP_LOGI(TAG, "Task runtime stats follow");
-        vTaskGetRunTimeStats((char*)taskstatbuf);
-        printf(taskstatbuf);
-        vTaskDelay(pdMS_TO_TICKS(3000));
-    }
 }
