@@ -30,20 +30,20 @@ void Taskmgr_CreateTasks() {
         Taskmgr_Handles[i] = NULL;
     }
     xTaskCreatePinnedToCore(BatteryMgr_Main, "BatMgr", 2048, NULL, 3, &Taskmgr_Handles[TASK_BATTERYMGR], 0);
-    xTaskCreatePinnedToCore(Loader_Main, "Loader", 4096, NULL, LOADER_TASK_PRIO_NORM, &Taskmgr_Handles[TASK_LOADER], 0);
+    xTaskCreatePinnedToCore(Loader_Main, "Loader", 2560, NULL, LOADER_TASK_PRIO_NORM, &Taskmgr_Handles[TASK_LOADER], 0);
     xTaskCreatePinnedToCore(IoExp_Main, "IoExp ", 2048, NULL, 19, &Taskmgr_Handles[TASK_IOEXP], 0);
     xTaskCreatePinnedToCore(KeyMgr_Main, "KeyMgr", 2048, NULL, 19, &Taskmgr_Handles[TASK_KEYMGR], 0);
-    xTaskCreatePinnedToCore(DacStream_FindTask, "DsFind", 4096, NULL, 9, &Taskmgr_Handles[TASK_DACSTREAM_FIND], 0);
-    xTaskCreatePinnedToCore(DacStream_FillTask, "DsFill", 4096, NULL, 14, &Taskmgr_Handles[TASK_DACSTREAM_FILL], 0);
-    xTaskCreatePinnedToCore(Player_Main, "Player", 4096, NULL, 5, &Taskmgr_Handles[TASK_PLAYER], 0);
-    xTaskCreatePinnedToCore(ChannelMgr_Main, "ChnMgr", 1024, NULL, 18, &Taskmgr_Handles[TASK_CHANNELMGR], 0);
+    xTaskCreatePinnedToCore(DacStream_FindTask, "DsFind", 2560, NULL, 9, &Taskmgr_Handles[TASK_DACSTREAM_FIND], 0);
+    xTaskCreatePinnedToCore(DacStream_FillTask, "DsFill", 2560, NULL, 14, &Taskmgr_Handles[TASK_DACSTREAM_FILL], 0);
+    xTaskCreatePinnedToCore(Player_Main, "Player", 3072, NULL, 5, &Taskmgr_Handles[TASK_PLAYER], 0);
+    xTaskCreatePinnedToCore(ChannelMgr_Main, "ChnMgr", 1280, NULL, 18, &Taskmgr_Handles[TASK_CHANNELMGR], 0);
     xTaskCreatePinnedToCore(Ui_Main, "Ui    ", 3000, NULL, 12, &Taskmgr_Handles[TASK_UI], 0);
-    xTaskCreatePinnedToCore(UserLedMgr_Main, "UsrLed", 2048, NULL, 17, &Taskmgr_Handles[TASK_USERLED], 0);
-    xTaskCreatePinnedToCore(OptionsMgr_Main, "OpnMgr", 2048, NULL, 8, &Taskmgr_Handles[TASK_OPTIONS], 0);
+    xTaskCreatePinnedToCore(UserLedMgr_Main, "UsrLed", 1536, NULL, 17, &Taskmgr_Handles[TASK_USERLED], 0);
+    xTaskCreatePinnedToCore(OptionsMgr_Main, "OpnMgr", 1024, NULL, 8, &Taskmgr_Handles[TASK_OPTIONS], 0);
     //xTaskCreatePinnedToCore(Taskmgr_Monitor, "Task Monitor", 2048, NULL, 8, &Taskmgr_Handles[TASK_MONITOR], 0);
     
 
-    xTaskCreatePinnedToCore(Driver_Main, "Driver", 4096, NULL, configMAX_PRIORITIES-2, &Taskmgr_Handles[TASK_DRIVER], 1);
+    xTaskCreatePinnedToCore(Driver_Main, "Driver", 3072, NULL, configMAX_PRIORITIES-2, &Taskmgr_Handles[TASK_DRIVER], 1);
 }
 
 char taskstatbuf[50*TASK_COUNT];
