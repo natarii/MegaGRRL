@@ -175,7 +175,7 @@ void Loader_Main() {
                                 fread(&Loader_PcmBuf[0], 1, FREAD_LOCAL_BUF, Loader_PcmFile); //todo: fix read past eof
                                 Loader_PcmBufUsed = 0;
                             }
-                            xQueueSendToBack(Driver_PcmQueue, &Loader_PcmBuf[Loader_PcmBufUsed++], 0); //theoretically pcmqueue should never ever be full while there are still spaces in commandqueue
+                            xQueueSendToBackFromISR(Driver_PcmQueue, &Loader_PcmBuf[Loader_PcmBufUsed++], 0); //theoretically pcmqueue should never ever be full while there are still spaces in commandqueue
                             Loader_PcmPos++;
                             #ifdef PARANOID_THAT_THERE_MIGHT_BE_VGMS_THAT_PLAY_PCM_ACROSS_BLOCK_BOUNDARIES
                             uint32_t NewOff = Loader_GetPcmOffset(Loader_PcmPos);
@@ -192,13 +192,13 @@ void Loader_Main() {
                             ESP_LOGI(TAG, "reached end of music");
                             if (Loader_VgmInfo->LoopOffset == 0 || (Loader_IgnoreZeroSampleLoops && Loader_VgmInfo->LoopSamples == 0)) { //there is no loop point at all
                                 ESP_LOGI(TAG, "no loop point");
-                                xQueueSendToBack(Driver_CommandQueue, &d, 0); //let driver figure out it's the end
+                                xQueueSendToBackFromISR(Driver_CommandQueue, &d, 0); //let driver figure out it's the end
                                 Loader_EndReached = true;
                                 break;
                             }
                             if (Player_LoopCount != 255 && ++Loader_CurLoop == Player_LoopCount) {
                                 ESP_LOGI(TAG, "looped enough, stopping");
-                                xQueueSendToBack(Driver_CommandQueue, &d, 0); //let driver figure out it's the end
+                                xQueueSendToBackFromISR(Driver_CommandQueue, &d, 0); //let driver figure out it's the end
                                 Loader_EndReached = true;
                                 break;
                             }
@@ -228,7 +228,7 @@ void Loader_Main() {
                     } else {
                         Loader_Pending--;
                     }
-                    xQueueSendToBack(Driver_CommandQueue, &d, 0);
+                    xQueueSendToBackFromISR(Driver_CommandQueue, &d, 0);
                 }
                 UserLedMgr_DiskState[DISKSTATE_VGM] = false;
                 UserLedMgr_Notify();
