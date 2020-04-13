@@ -220,7 +220,7 @@ bool LcdDma_Setup() {
 	lv_disp_drv_register(&disp);
     
     ESP_LOGI(TAG, "Start lvgl tick task");
-    xTaskCreatePinnedToCore(LcdDma_Main, "LCD DMA", 4096, NULL, 3, &Taskmgr_Handles[TASK_LCDDMA], 0);
+    xTaskCreatePinnedToCore(LcdDma_Main, "LcdDma", 4096, NULL, 3, &Taskmgr_Handles[TASK_LCDDMA], 0);
 
     ESP_LOGI(TAG, "Done");
     return true;

@@ -97,7 +97,7 @@ void Ui_About_Setup(lv_obj_t *uiscreen) {
     about_last_time = xthal_get_ccount();
 
     Ui_SoftBar_Update(0, false, "", false);
-    Ui_SoftBar_Update(1, false, "", false);
+    Ui_SoftBar_Update(1, true, SYMBOL_PLUS"Debug", false);
     Ui_SoftBar_Update(2, true, SYMBOL_OK" Done", false);
 
     LcdDma_Mutex_Give();
@@ -113,6 +113,9 @@ void Ui_About_Key(KeyEvent_t event) {
     if (event.Key == KEY_C && event.State == KEY_EVENT_PRESS) {
         KeyMgr_Consume(KEY_C);
         Ui_Screen = UISCREEN_MAINMENU;
+    } else if (event.Key == KEY_B && event.State == KEY_EVENT_PRESS) {
+        KeyMgr_Consume(KEY_B);
+        Ui_Screen = UISCREEN_DEBUG;
     }
 }
 

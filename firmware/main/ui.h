@@ -15,6 +15,7 @@ typedef enum {
     UISCREEN_MUTING,
     UISCREEN_ABOUT,
     UISCREEN_FWUPDATE,
+    UISCREEN_DEBUG,
 
     UISCREEN_COUNT
 } UiScreen_t;

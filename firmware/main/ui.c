@@ -19,6 +19,7 @@
 #include "ui/options_cats.h"
 #include "ui/options_opts.h"
 #include "ui/fwupdate.h"
+#include "ui/debug.h"
 
 static const char* TAG = "Ui";
 
@@ -124,6 +125,9 @@ void Ui_Main() {
                 case UISCREEN_FWUPDATE:
                     Ui_Fwupdate_Key(event);
                     break;
+                case UISCREEN_DEBUG:
+                    Ui_Debug_Key(event);
+                    break;
                 default:
                     break;
             }
@@ -157,6 +161,9 @@ void Ui_Main() {
                 case UISCREEN_FWUPDATE:
                     Ui_Fwupdate_Destroy();
                     break;
+                case UISCREEN_DEBUG:
+                    Ui_Debug_Destroy();
+                    break;
                 default:
                     break;
             }
@@ -185,6 +192,9 @@ void Ui_Main() {
                 case UISCREEN_FWUPDATE:
                     Ui_Fwupdate_Setup(uiscreen);
                     break;
+                case UISCREEN_DEBUG:
+                    Ui_Debug_Setup(uiscreen);
+                    break;
                 default:
                     break;
             }
@@ -201,6 +211,9 @@ void Ui_Main() {
                 break;*/
             case UISCREEN_ABOUT:
                 Ui_About_Tick();
+                break;
+            case UISCREEN_DEBUG:
+                Ui_Debug_Tick();
                 break;
             default:
                 break;
