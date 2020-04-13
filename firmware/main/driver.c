@@ -48,7 +48,7 @@ EventGroupHandle_t Driver_CommandEvents; //driver status flags
 EventGroupHandle_t Driver_QueueEvents; //queue status flags
 StaticQueue_t Driver_CommandStaticQueue;
 StaticQueue_t Driver_PcmStaticQueue;
-uint8_t Driver_CommandQueueBuf[DRIVER_QUEUE_SIZE];
+uint8_t *Driver_CommandQueueBuf;
 uint8_t Driver_PcmBuf[DACSTREAM_BUF_SIZE*DACSTREAM_PRE_COUNT];
 
 volatile uint32_t Driver_CpuPeriod = 0;
@@ -139,7 +139,13 @@ static uint32_t map(uint32_t x, uint32_t in_min, uint32_t in_max, uint32_t out_m
 bool Driver_Setup() {
     //create the queues and event groups
     ESP_LOGI(TAG, "Setting up");
-    Driver_CommandQueue = xQueueCreateStatic(DRIVER_QUEUE_SIZE, sizeof(uint8_t), &Driver_CommandQueueBuf[0], &Driver_CommandStaticQueue);
+    ESP_LOGI(TAG, "working around dram0 size - allocating commandqueue buffer...");
+    Driver_CommandQueueBuf = heap_caps_malloc(DRIVER_QUEUE_SIZE, MALLOC_CAP_8BIT);
+    if (Driver_CommandQueueBuf == NULL) {
+        ESP_LOGE(TAG, "failed !!");
+        return false;
+    }
+    Driver_CommandQueue = xQueueCreateStatic(DRIVER_QUEUE_SIZE, sizeof(uint8_t), Driver_CommandQueueBuf, &Driver_CommandStaticQueue);
     if (Driver_CommandQueue == NULL) {
         ESP_LOGE(TAG, "Command queue create failed !!");
         return false;

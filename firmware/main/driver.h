@@ -33,7 +33,7 @@ typedef enum {
 #define DRIVER_EVENT_PCM_UNDERRUN           0x02 //status flag - this should never ever happen, this should throw up a big error if it is ever set
 #define DRIVER_EVENT_COMMAND_HALF           0x04 //status flag
 
-extern uint8_t Driver_CommandQueueBuf[DRIVER_QUEUE_SIZE];
+extern uint8_t *Driver_CommandQueueBuf;
 extern uint8_t Driver_PcmBuf[DACSTREAM_BUF_SIZE*DACSTREAM_PRE_COUNT];
 
 extern volatile MegaMod_t Driver_DetectedMod;
