@@ -23,6 +23,10 @@ enum Tasks {
     TASK_COUNT
 };
 
+#define LOADER_TASK_PRIO_NORM 10
+#define LOADER_TASK_PRIO_HIGH 12
+#define LOADER_TASK_PRIO_MEGA 13
+
 extern TaskHandle_t Taskmgr_Handles[TASK_COUNT];
 
 void Taskmgr_CreateTasks();

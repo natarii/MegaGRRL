@@ -1,8 +1,3 @@
-/*
- * todo
- * watch driver queue
-*/
-
 #include "loader.h"
 #include "esp_log.h"
 #include "driver.h"
@@ -11,6 +6,7 @@
 #include "dacstream.h"
 #include "userled.h"
 #include "player.h"
+#include "taskmgr.h"
 
 static const char* TAG = "Loader";
 
@@ -81,6 +77,7 @@ uint8_t running = false;
 bool Loader_EndReached = false;
 uint8_t Loader_PcmBuf[FREAD_LOCAL_BUF];
 uint16_t Loader_PcmBufUsed = FREAD_LOCAL_BUF;
+static uint32_t adjustedprio = false;
 void Loader_Main() {
     ESP_LOGI(TAG, "Task start");
     while (1) {
@@ -110,14 +107,26 @@ void Loader_Main() {
             } else if (spaces < DRIVER_QUEUE_SIZE/3 || Loader_EndReached) {
                 xEventGroupSetBits(Loader_BufStatus, LOADER_BUF_OK);
                 xEventGroupClearBits(Loader_BufStatus, 0xff ^ LOADER_BUF_OK);
-            } else if (spaces >= DRIVER_QUEUE_SIZE/2) {
+            } else {
                 xEventGroupSetBits(Loader_BufStatus, LOADER_BUF_LOW);
                 xEventGroupClearBits(Loader_BufStatus, 0xff ^ LOADER_BUF_LOW);
+            }
+            if (adjustedprio) {
+                vTaskPrioritySet(Taskmgr_Handles[TASK_LOADER], LOADER_TASK_PRIO_NORM);
+                ESP_LOGW(TAG, "Returning to normal priority");
+                adjustedprio = false;
             }
             if (!Loader_EndReached && (spaces > DRIVER_QUEUE_SIZE/8)) {
                 UserLedMgr_DiskState[DISKSTATE_VGM] = true;
                 UserLedMgr_Notify();
                 while (running && uxQueueSpacesAvailable(Driver_CommandQueue)) {
+                    if (uxQueueSpacesAvailable(Driver_CommandQueue) > (DRIVER_QUEUE_SIZE/3)) {
+                        if (!adjustedprio) {
+                            ESP_LOGW(TAG, "Switching to high priority");
+                            vTaskPrioritySet(Taskmgr_Handles[TASK_LOADER], LOADER_TASK_PRIO_HIGH);
+                            adjustedprio = true;
+                        }
+                    }
                     uint8_t d = 0x00;
                     LOADER_BUF_READ(d);
                     if (Loader_Pending == 0) {
@@ -223,10 +232,11 @@ void Loader_Main() {
                 }
                 UserLedMgr_DiskState[DISKSTATE_VGM] = false;
                 UserLedMgr_Notify();
+                vTaskDelay(pdMS_TO_TICKS(75)); //just filled, big delay now
             } else {
+                vTaskDelay(pdMS_TO_TICKS(25)); //keep an eye on queue spaces
             }
         }
-        vTaskDelay(pdMS_TO_TICKS(75));
     }
 }
 

@@ -30,11 +30,11 @@ void Taskmgr_CreateTasks() {
         Taskmgr_Handles[i] = NULL;
     }
     xTaskCreatePinnedToCore(BatteryMgr_Main, "BatMgr", 2048, NULL, 3, &Taskmgr_Handles[TASK_BATTERYMGR], 0);
-    xTaskCreatePinnedToCore(Loader_Main, "Loader", 4096, NULL, 10, &Taskmgr_Handles[TASK_LOADER], 0);
+    xTaskCreatePinnedToCore(Loader_Main, "Loader", 4096, NULL, LOADER_TASK_PRIO_NORM, &Taskmgr_Handles[TASK_LOADER], 0);
     xTaskCreatePinnedToCore(IoExp_Main, "IoExp ", 2048, NULL, 19, &Taskmgr_Handles[TASK_IOEXP], 0);
     xTaskCreatePinnedToCore(KeyMgr_Main, "KeyMgr", 2048, NULL, 19, &Taskmgr_Handles[TASK_KEYMGR], 0);
     xTaskCreatePinnedToCore(DacStream_FindTask, "DsFind", 4096, NULL, 9, &Taskmgr_Handles[TASK_DACSTREAM_FIND], 0);
-    xTaskCreatePinnedToCore(DacStream_FillTask, "DsFill", 4096, NULL, 11, &Taskmgr_Handles[TASK_DACSTREAM_FILL], 0);
+    xTaskCreatePinnedToCore(DacStream_FillTask, "DsFill", 4096, NULL, 14, &Taskmgr_Handles[TASK_DACSTREAM_FILL], 0);
     xTaskCreatePinnedToCore(Player_Main, "Player", 4096, NULL, 5, &Taskmgr_Handles[TASK_PLAYER], 0);
     xTaskCreatePinnedToCore(ChannelMgr_Main, "ChnMgr", 1024, NULL, 18, &Taskmgr_Handles[TASK_CHANNELMGR], 0);
     xTaskCreatePinnedToCore(Ui_Main, "Ui    ", 3000, NULL, 12, &Taskmgr_Handles[TASK_UI], 0);
