@@ -165,7 +165,7 @@ void Ui_Debug_Setup(lv_obj_t *uiscreen) {
     for (uint8_t i=0;i<DACSTREAM_PRE_COUNT;i++) {
         ds[i] = lv_obj_create(container, NULL);
         lv_obj_set_pos(ds[i], 0, y-1);
-        y += 1;
+        y += 3;
         lv_obj_set_size(ds[i], 240, 1);
         lv_obj_set_style(ds[i], &bar_style);
     }
