@@ -699,7 +699,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
     
     //read command + data from the queue
     for (uint8_t i=0;i<CommandLength;i++) {
-        xQueueReceive(Driver_CommandQueue, &cmd[i], 0);
+        xQueueReceiveFromISR(Driver_CommandQueue, &cmd[i], 0);
     }
 
     if (cmd[0] == 0x50) { //SN76489
@@ -873,7 +873,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
     } else if ((cmd[0] & 0xf0) == 0x80) { //YM2612 DAC + wait
         uint8_t sample;
         //TODO check if queue is empty
-        xQueueReceive(Driver_PcmQueue, &sample, 0);
+        xQueueReceiveFromISR(Driver_PcmQueue, &sample, 0);
         Driver_FmOut(0, 0x2a, sample);
         Driver_NextSample += cmd[0] & 0x0f;
         if (Driver_FirstWait && (cmd[0] & 0x0f) > 0) {
@@ -1073,7 +1073,7 @@ void Driver_Main() {
                 if (uxQueueMessagesWaiting(DacStreamEntries[DacStreamId].Queue)) {
                     if (xthal_get_ccount() - DacStreamSampleTime >= (DRIVER_CLOCK_RATE/DacStreamSampleRate)) {
                         uint8_t sample;
-                        xQueueReceive(DacStreamEntries[DacStreamId].Queue, &sample, 0);
+                        xQueueReceiveFromISR(DacStreamEntries[DacStreamId].Queue, &sample, 0);
                         if (Driver_DetectedMod == MEGAMOD_OPNA) {
                             Driver_FmOutopna(DacStreamPort, DacStreamCommand, sample);
                         } else {
