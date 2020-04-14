@@ -524,6 +524,15 @@ void backdir() {
     startdir();
 }
 
+static int comp(const uint32_t *offset1, const uint32_t *offset2) {
+    char *s1 = direntry_cache + *offset1;
+    char *s2 = direntry_cache + *offset2;
+    unsigned char t1 = direntry_cache[*offset1-1];
+    unsigned char t2 = direntry_cache[*offset2-1];
+    if (t1 != t2) return t2-t1; //cheezy
+    return strcasecmp(s1, s2);
+}
+
 void startdir() {
     ESP_LOGI(TAG, "generating dir cache...");
     uint32_t s = xthal_get_ccount();
@@ -551,6 +560,8 @@ void startdir() {
     }
     closedir(dir);
     ESP_LOGI(TAG, "done after %d msec. %d entries, cache use %d", ((xthal_get_ccount()-s)/240000), direntry_count, off);
+    qsort(direntry_offset, direntry_count, sizeof(uint32_t), comp);
+    ESP_LOGI(TAG, "sorted");
     redrawlistsel(true, true);
     updatescrollbar();
     Ui_SoftBar_Update(1, strcmp(path, startpath) != 0, SYMBOL_UP" "SYMBOL_DIRECTORY"Up", true);
