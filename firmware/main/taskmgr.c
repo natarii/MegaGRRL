@@ -33,7 +33,7 @@ void Taskmgr_CreateTasks() {
     xTaskCreatePinnedToCore(ChannelMgr_Main, "ChnMgr", 1280, NULL, 18, &Taskmgr_Handles[TASK_CHANNELMGR], 0);
     xTaskCreatePinnedToCore(Ui_Main, "Ui    ", 3000, NULL, 12, &Taskmgr_Handles[TASK_UI], 0);
     xTaskCreatePinnedToCore(UserLedMgr_Main, "UsrLed", 1536, NULL, 17, &Taskmgr_Handles[TASK_USERLED], 0);
-    xTaskCreatePinnedToCore(OptionsMgr_Main, "OpnMgr", 1024, NULL, 8, &Taskmgr_Handles[TASK_OPTIONS], 0);
+    xTaskCreatePinnedToCore(OptionsMgr_Main, "OpnMgr", 2048, NULL, 8, &Taskmgr_Handles[TASK_OPTIONS], 0);
 
     xTaskCreatePinnedToCore(Driver_Main, "Driver", 3072, NULL, configMAX_PRIORITIES-2, &Taskmgr_Handles[TASK_DRIVER], 1);
 }
