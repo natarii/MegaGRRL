@@ -443,16 +443,12 @@ void openselection() {
     char *name = direntry_cache + direntry_offset[diroffset + selectedfile];
     unsigned char type = direntry_cache[direntry_offset[diroffset + selectedfile]-1];
     if (type == DT_DIR) {
-        closedir(dir);
-        dir = NULL;
         strcat(path, "/");
         strcat(path, name);
         opendirectory();
         return;
     } else if (type == DT_REG) {
         if ((strcasecmp(&name[strlen(name)-4], ".vgm") == 0) || (strcasecmp(&name[strlen(name)-4], ".vgz") == 0)) {
-            closedir(dir);
-            dir = NULL;
             ESP_LOGI(TAG, "playing vgm");
             ESP_LOGI(TAG, "request stop");
             xTaskNotify(Taskmgr_Handles[TASK_PLAYER], PLAYER_NOTIFY_STOP_RUNNING, eSetValueWithoutOverwrite);
@@ -468,8 +464,6 @@ void openselection() {
             ESP_LOGI(TAG, "ok");
             savelast();
         } else if (strcasecmp(&name[strlen(name)-4], ".m3u") == 0) {
-            closedir(dir);
-            dir = NULL;
             ESP_LOGI(TAG, "playing m3u");
             ESP_LOGI(TAG, "request stop");
             xTaskNotify(Taskmgr_Handles[TASK_PLAYER], PLAYER_NOTIFY_STOP_RUNNING, eSetValueWithoutOverwrite);
@@ -490,8 +484,6 @@ void openselection() {
             ESP_LOGI(TAG, "ok");
             savelast();
         } else if (strcasecmp(&name[strlen(name)-4], ".mgu") == 0) {
-            closedir(dir);
-            dir = NULL;
             strcpy(temppath, path);
             strcat(temppath, "/");
             strcat(temppath, name);
