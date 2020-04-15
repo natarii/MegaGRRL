@@ -399,27 +399,24 @@ void opendirectory() {
 }
 
 uint8_t dumpm3u() {
-    DIR* m3udir = opendir(path);
-    uint16_t c = 0;
-    uint8_t m = 0;
-    uint8_t r = 0;
+    uint16_t m = 0;
+    uint16_t r = 0;
     FILE *p;
     p = fopen("/sd/.mega/temp.m3u", "w");
-    while ((ent=readdir(m3udir))!=NULL) {
-        BROWSER_IGNORE;
-        if ((strcasecmp(&ent->d_name[strlen(ent->d_name)-4], ".vgm") == 0) || (strcasecmp(&ent->d_name[strlen(ent->d_name)-4], ".vgz") == 0)) {
+    for (uint16_t i=0;i<direntry_count;i++) {
+        char *name = direntry_cache + direntry_offset[i];
+        unsigned char type = direntry_cache[direntry_offset[i]-1];
+        if (type == DT_REG && ((strcasecmp(&name[strlen(name)-4], ".vgm") == 0) || (strcasecmp(&name[strlen(name)-4], ".vgz") == 0))) {
             strcpy(temppath, path);
             strcat(temppath, "/");
-            strcat(temppath, ent->d_name);
+            strcat(temppath, name);
             strcat(temppath, "\n");
             fwrite(temppath, strlen(temppath), 1, p);
-            if (c == diroffset + selectedfile) r = m;
+            if (i == diroffset + selectedfile) r = m;
             m++;
         }
-        c++;
     }
     fclose(p);
-    closedir(m3udir);
     return r;
 }
 
