@@ -104,7 +104,7 @@ void Loader_Main() {
             } else if (spaces == DRIVER_QUEUE_SIZE) {
                 xEventGroupSetBits(Loader_BufStatus, LOADER_BUF_EMPTY);
                 xEventGroupClearBits(Loader_BufStatus, 0xff ^ LOADER_BUF_EMPTY);
-            } else if (spaces < DRIVER_QUEUE_SIZE/3 || Loader_EndReached) {
+            } else if (spaces < (DRIVER_QUEUE_SIZE-(DRIVER_QUEUE_SIZE/4)) || Loader_EndReached) {
                 xEventGroupSetBits(Loader_BufStatus, LOADER_BUF_OK);
                 xEventGroupClearBits(Loader_BufStatus, 0xff ^ LOADER_BUF_OK);
             } else {
