@@ -5,6 +5,7 @@
 #include "leddrv.h"
 #include "loader.h"
 #include "userled.h"
+#include "ui/filebrowser.h"
 
 static const char* TAG = "OptionsMgr";
 
@@ -12,9 +13,10 @@ volatile bool OptionsMgr_Unsaved = false;
 volatile uint8_t OptionsMgr_ShittyTimer = 0;
 
 const char *OptionCatNames[OPTION_CATEGORY_COUNT] = {
+    "File Browser",
+    "LEDs",
     "Playback",
     //"Screen", portable only, so getting rid of it for now
-    "LEDs",
 };
 
 static void opts_mutingupdate() {
@@ -23,6 +25,10 @@ static void opts_mutingupdate() {
 
 static void opts_fixloopcount() {
     Player_LoopCount = Player_SetLoopCount;
+}
+
+static void opts_invalidatefilebrowser() {
+    
 }
 
 const option_t Options[OPTION_COUNT] = {
@@ -124,6 +130,33 @@ const option_t Options[OPTION_COUNT] = {
         &UserLedMgr_Source[2],
         USERLED_SRC_NONE,
         NULL
+    },
+    {
+        "Sort directory contents",
+        "Enabling this sorts directory contents according to the sorting options. When disabled, contents will be displayed in the order they are found in the filesystem.",
+        OPTION_CATEGORY_FILEBROWSER,
+        OPTION_TYPE_BOOL,
+        &Ui_FileBrowser_Sort,
+        true,
+        opts_invalidatefilebrowser
+    },
+    {
+        "Alphabetical sort direction",
+        "Set whether directory contents are sorted in ascending or descending order.",
+        OPTION_CATEGORY_FILEBROWSER,
+        OPTION_TYPE_SORTDIR,
+        &Ui_FileBrowser_SortDir,
+        SORT_ASCENDING,
+        opts_invalidatefilebrowser
+    },
+    {
+        "Sort dirs before files",
+        "Set whether directories appear before files.",
+        OPTION_CATEGORY_FILEBROWSER,
+        OPTION_TYPE_BOOL,
+        &Ui_FileBrowser_DirsBeforeFiles,
+        true,
+        opts_invalidatefilebrowser
     },
 /* just getting rid of this for now. portable only
     {

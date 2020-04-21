@@ -11,13 +11,15 @@ typedef enum {
     OPTION_TYPE_BACKLIGHTTIME,
     OPTION_TYPE_STEREOMONO,
     OPTION_TYPE_USERLED,
+    OPTION_TYPE_SORTDIR,
     OPTION_TYPE_COUNT
 } optiontype_t;
 
 typedef enum {
+    OPTION_CATEGORY_FILEBROWSER,
+    OPTION_CATEGORY_LEDS,
     OPTION_CATEGORY_PLAYBACK,
     //OPTION_CATEGORY_SCREEN, //disabling for now, portable only
-    OPTION_CATEGORY_LEDS,
     OPTION_CATEGORY_COUNT
 } optioncategory_t;
 
@@ -32,7 +34,7 @@ typedef struct {
     void (*cb)();
 } option_t;
 
-#define OPTION_COUNT 8
+#define OPTION_COUNT 11
 
 #define OPTIONS_ACTUAL_VER 0x04
 

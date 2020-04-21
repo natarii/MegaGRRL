@@ -9,6 +9,7 @@
 #include "softbar.h"
 #include "../player.h" //for repeat mode defs
 #include "../userled.h" //for user led source defs
+#include "filebrowser.h" //for sort dir defs
 
 static IRAM_ATTR lv_obj_t *container;
 lv_style_t containerstyle;
@@ -114,6 +115,17 @@ static void displayvalue(char *buf, bool def) {
                     break;
             }
             break;
+        case OPTION_TYPE_SORTDIR:
+            switch ((SortDirection_t)val) {
+                case SORT_ASCENDING:
+                    strcat(buf, "Ascending");
+                    break;
+                case SORT_DESCENDING:
+                    strcat(buf, "Descending");
+                    break;
+                default:
+                    break;
+            };
         default:
             break;
     }
@@ -170,6 +182,12 @@ static void changevalue(bool inc) {
         case OPTION_TYPE_STEREOMONO:
             *var = (uint8_t)inc;
             break;
+        case OPTION_TYPE_SORTDIR:
+            if (inc) {
+                *var = SORT_DESCENDING;
+            } else {
+                *var = SORT_ASCENDING;
+            }
         default:
             break;
     }

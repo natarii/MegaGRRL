@@ -59,139 +59,170 @@ void startdir();
 char thumbsdb[] = "Thumbs.db";
 char sysvolinfo[] = "System Volume Information";
 #define BROWSER_IGNORE if (ent->d_name[0] == '.' || strcasecmp(ent->d_name, thumbsdb) == 0 || strcmp(ent->d_name, sysvolinfo) == 0) continue;
-#define BROWSER_LAST_VER 0x07
-//uint32_t lastselectedfiletell = 0;
+#define BROWSER_LAST_VER 0x11
+
+volatile SortDirection_t Ui_FileBrowser_SortDir = SORT_ASCENDING;
+volatile bool Ui_FileBrowser_Sort = true;
+volatile bool Ui_FileBrowser_DirsBeforeFiles = true;
+
+static int comp(const uint32_t *offset1, const uint32_t *offset2) {
+    char *s1 = direntry_cache + *offset1;
+    char *s2 = direntry_cache + *offset2;
+    unsigned char t1 = direntry_cache[*offset1-1];
+    unsigned char t2 = direntry_cache[*offset2-1];
+    if (Ui_FileBrowser_DirsBeforeFiles) if (t1 != t2) return t2-t1; //cheezy, but should be fine
+    if (Ui_FileBrowser_SortDir == SORT_ASCENDING) {
+        return strcasecmp(s1, s2);
+    } else {
+        return strcasecmp(s2, s1);
+    }
+}
+
+void cachedir(char *path) {
+    ESP_LOGI(TAG, "generating dir cache for %s...", path);
+    uint32_t s = xthal_get_ccount();
+    dir = opendir(path);
+    uint32_t off = 0;
+    direntry_count = 0;
+    while ((ent=readdir(dir))!=NULL) {
+        BROWSER_IGNORE;
+        direntry_cache[off] = ent->d_type;
+        off += 1;
+        direntry_offset[direntry_count] = off;
+        strcpy(&direntry_cache[off], ent->d_name);
+        off += strlen(ent->d_name) + 1;
+        direntry_count++;
+        if (off > FILEBROWSER_CACHE_SIZE) {
+            ESP_LOGE(TAG, "filebrowser cache area over !!");
+            closedir(dir);
+            return;
+        }
+        if (direntry_count > FILEBROWSER_CACHE_MAXENTRIES) {
+            ESP_LOGE(TAG, "filebrowser cache over !!");
+            closedir(dir);
+            return;
+        }
+    }
+    closedir(dir);
+    ESP_LOGI(TAG, "done after %d msec. %d entries, cache use %d", ((xthal_get_ccount()-s)/240000), direntry_count, off);
+    if (Ui_FileBrowser_Sort) {
+        qsort(direntry_offset, direntry_count, sizeof(uint32_t), comp);
+        ESP_LOGI(TAG, "sorted");
+    }
+}
 
 void savelast() {
     FILE *last;
     last = fopen("/sd/.mega/fbrowser.las", "w");
     uint8_t ver = BROWSER_LAST_VER;
     fwrite(&ver, 1, 1, last);
-    uint16_t s = strlen(path);
-    fwrite(&s, 2, 1, last);
-    fwrite(&path, s, 1, last);
-    fwrite(&histdepth, 1, 1, last); //cheezy. this just saves us from having to loop through the path to count dirs when loading
-    dir = opendir(path);
-    if (dir == NULL) {
-        ESP_LOGE(TAG, "savelast(): dir is null");
-        return;
-    }
+    fwrite(&histdepth, 1, 1, last); //save it for convenience when loading
     char *name = direntry_cache + direntry_offset[diroffset + selectedfile];
-    s = strlen(name);
+    uint16_t s = strlen(path) + 1 + strlen(name);
     fwrite(&s, 2, 1, last);
-    fwrite(name, s, 1, last);
+    fwrite(path, strlen(path), 1, last);
+    fwrite("/", 1, 1, last);
+    fwrite(name, strlen(name), 1, last);
+    unsigned char type = direntry_cache[direntry_offset[diroffset + selectedfile]-1];
+    fwrite(&type, 1, 1, last);
+    s = strlen(path);
+    fwrite(&s, 2, 1, last); //save for convenience again
     fclose(last);
-    closedir(dir);
     ESP_LOGI(TAG, "dumped fbrowser.las");
+}
+
+bool loadhistory() {
+    //this shit will ASPLODE if you're more than 8 dirs deep RIP
+    //could rewrite it to iterate forward through the dirs starting at root
+    FILE *last;
+    last = fopen("/sd/.mega/fbrowser.las", "r");
+    if (!last) {
+        ESP_LOGW(TAG, "no filebrowser history exists");
+        return false;
+    }
+    ESP_LOGI(TAG, "loading filebrowser history");
+    uint8_t ver;
+    fread(&ver,1,1,last);
+    if (ver != BROWSER_LAST_VER) {
+        ESP_LOGW(TAG, "version 0x%02x doesn't match 0x%02x", ver, BROWSER_LAST_VER);
+        return false;
+    }
+    fread(&histdepth,1,1,last); //last history depth is saved in the file for convenience
+    uint16_t pathlen;
+    fread(&pathlen,2,1,last); //length of last file opened
+    fread(&path,1,pathlen,last); //last file opened
+    path[pathlen] = 0; //terminate string
+    uint8_t type;
+    fread(&type,1,1,last);
+    fread(&pathlen,2,1,last); //length of just the path portion, used later
+    fclose(last);
+    ESP_LOGI(TAG, "filebrowser last path: %s, type %d", path, type);
+    if (type == DT_DIR) {
+        DIR *test = opendir(path);
+        if (!test) {
+            ESP_LOGW(TAG, "path no longer exists");
+            return false;
+        }
+        closedir(test);
+    } else if (type == DT_REG) {
+        FILE *test = fopen(path, "r");
+        if (!test) {
+            ESP_LOGW(TAG, "path no longer exists");
+            return false;
+        }
+        fclose(test);
+    }
+    strcpy(temppath, path); //use temppath to store path as we work backwards though the tree
+    uint8_t histindex = histdepth;
+    //do { //work backwards through the tree
+    for (uint8_t o=0;o<=histdepth;o++) {
+        //find the last path separator
+        uint16_t l = 0xffff;
+        for (uint16_t i=0;i<strlen(temppath);i++) {
+            if (temppath[i] == '/') {
+                l = i;
+            }
+        }
+        //truncate temppath there (basically, get the parent dir)
+        temppath[l] = 0;
+        //generate directory listing for the parent dir
+        cachedir(temppath);
+        //find the current dir within the parent
+        for (uint16_t i=0;i<direntry_count;i++) {
+            char *name = direntry_cache + direntry_offset[i];
+            if (strcmp(name, &temppath[l+1]) == 0) {
+                if (histindex == histdepth) {
+                    diroffset = (i/10)*10;
+                    selectedfile = i%10;
+                } else {
+                    diroffset_hist[histindex] = (i/10)*10;
+                    selectedfile_hist[histindex] = i%10;
+                }
+                ESP_LOGI(TAG, "found %s in %s at diroffset %d selfile %d", &temppath[l+1], temppath, diroffset_hist[histindex], selectedfile_hist[histindex]);
+            }
+        }
+
+        //back towards the beginning of time
+        histindex--;
+    }
+
+    //now get rid of the filename from path, if necessary
+    if (type == DT_REG) path[pathlen] = 0;
+    
+    return true;
 }
 
 void Ui_FileBrowser_Setup() {
     selectedfile_last = selectedfile;
 
-    //this shit will ASPLODE if you're more than 8 dirs deep RIP
-    //could rewrite it to iterate forward through the dirs starting at root
-    FILE *last;
-    last = fopen("/sd/.mega/fbrowser.las", "r");
-    if (last) {
-        ESP_LOGI(TAG, "fbrowser.las exists");
-        uint8_t ver;
-        fread(&ver, 1, 1, last);
-        if (ver == BROWSER_LAST_VER) {
-            ESP_LOGI(TAG, "valid version");
-            uint16_t pathlen;
-            fread(&pathlen, 2, 1, last);
-            fread(&path, 1, pathlen, last);
-            path[pathlen] = 0;
-            ESP_LOGI(TAG, "read in path %s", path);
-            DIR *test;
-            test = opendir(path);
-            if (test) {
-                ESP_LOGI(TAG, "path is valid !!");
-                strcpy(temppath, path);
-                fread(&histdepth, 1, 1, last);
-                //mitigate shit deeper than 8 dirs
-                uint16_t c = 0;
-                for (uint16_t i=0;i<strlen(temppath);i++) {
-                    if (temppath[i] == '/') {
-                        if (c++ == 8) {
-                            temppath[i] = 0;
-                            break;
-                        }
-                    }
-                }
-                ESP_LOGI(TAG, "truncated deep dir to %s", temppath);
-                uint8_t d = histdepth-1;
-                do {
-                    uint16_t l = 0xffff;
-                    uint16_t sl = 0xffff;
-                    for (uint16_t i=0;i<strlen(temppath);i++) {
-                        if (temppath[i] == '/') {
-                            sl = l;
-                            l = i;
-                        }
-                    }
-                    if (strcmp(temppath, startpath) == 0) break; //reached root
-                    ESP_LOGI(TAG, "finding offsets for %s", temppath);
-                    DIR *finder;
-                    //char bak = temppath[sl];
-                    temppath[l] = 0;
-                    finder = opendir(temppath);
-                    uint16_t c = 0;
-                    while ((ent=readdir(finder))!=NULL) {
-                        BROWSER_IGNORE;
-                        if (ent->d_type == DT_DIR) {
-                            //ESP_LOGI(TAG, "is %s %s", ent->d_name, &temppath[l+1]);
-                            if (strcmp(ent->d_name, &temppath[l+1]) == 0) {
-                                diroffset_hist[d] = (c/10)*10;
-                                selectedfile_hist[d] = c%10;
-                                ESP_LOGI(TAG, "hist %d: diroffset %d selfile %d", d, diroffset_hist[d], selectedfile_hist[d]);
-                                break;
-                            }
-                        }
-                        c++;
-                    }
-                    closedir(finder);
-                    d--;
-                } while (strcmp(temppath, startpath));
-                closedir(test);
-                ESP_LOGI(TAG, "done");
-                fread(&pathlen, 2, 1, last);
-                fread(&temppath, 1, pathlen, last);
-                temppath[pathlen] = 0;
-                ESP_LOGI(TAG, "find offset for file %s", temppath);
-                test = opendir(path);
-                c = 0;
-                while ((ent=readdir(test))!=NULL) {
-                    BROWSER_IGNORE;
-                    if (strcmp(ent->d_name, &temppath) == 0) {
-                        diroffset = (c/10)*10;
-                        selectedfile = c%10;
-                        ESP_LOGI(TAG, "found file at diroffset %d selfile %d", diroffset, selectedfile);
-                        break;
-                    }
-                    c++;
-                }
-                closedir(test);
-                fclose(last);
-                //let startdir upon activate handle the rest
-                closedir(test);
-                return;
-            } else {
-                ESP_LOGW(TAG, "path doesn't exist anymore !!");
-            }
-        } else {
-            ESP_LOGW(TAG, "version 0x%02x doesn't match 0x%02x", ver, BROWSER_LAST_VER);
-        }
-        fclose(last);
+    if (loadhistory()) {
+        //nothing more to do
     } else {
-        ESP_LOGW(TAG, "no fbrowser.las");
+        histdepth = 0;
+        selectedfile_hist[0] = 0;
+        diroffset_hist[0] = 0;
+        strcpy(path, startpath);
     }
-
-    histdepth = 0;
-    selectedfile_hist[0] = 0;
-    diroffset_hist[0] = 0;
-
-    strcpy(path, startpath);
 }
 
 uint32_t filebrowser_map(uint32_t x, uint32_t in_min, uint32_t in_max, uint32_t out_min, uint32_t out_max) {
@@ -218,6 +249,7 @@ void updatescrollbar() {
 }
 
 bool Ui_FileBrowser_Activate(lv_obj_t *uiscreen) {
+
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
 
     container = lv_cont_create(uiscreen, NULL);
@@ -513,44 +545,8 @@ void backdir() {
     startdir();
 }
 
-static int comp(const uint32_t *offset1, const uint32_t *offset2) {
-    char *s1 = direntry_cache + *offset1;
-    char *s2 = direntry_cache + *offset2;
-    unsigned char t1 = direntry_cache[*offset1-1];
-    unsigned char t2 = direntry_cache[*offset2-1];
-    if (t1 != t2) return t2-t1; //cheezy
-    return strcasecmp(s1, s2);
-}
-
 void startdir() {
-    ESP_LOGI(TAG, "generating dir cache...");
-    uint32_t s = xthal_get_ccount();
-    dir = opendir(path);
-    uint32_t off = 0;
-    direntry_count = 0;
-    while ((ent=readdir(dir))!=NULL) {
-        BROWSER_IGNORE;
-        direntry_cache[off] = ent->d_type;
-        off += 1;
-        direntry_offset[direntry_count] = off;
-        strcpy(&direntry_cache[off], ent->d_name);
-        off += strlen(ent->d_name) + 1;
-        direntry_count++;
-        if (off > FILEBROWSER_CACHE_SIZE) {
-            ESP_LOGE(TAG, "filebrowser cache area over !!");
-            closedir(dir);
-            return;
-        }
-        if (direntry_count > FILEBROWSER_CACHE_MAXENTRIES) {
-            ESP_LOGE(TAG, "filebrowser cache over !!");
-            closedir(dir);
-            return;
-        }
-    }
-    closedir(dir);
-    ESP_LOGI(TAG, "done after %d msec. %d entries, cache use %d", ((xthal_get_ccount()-s)/240000), direntry_count, off);
-    qsort(direntry_offset, direntry_count, sizeof(uint32_t), comp);
-    ESP_LOGI(TAG, "sorted");
+    cachedir(path);
     redrawlistsel(true, true);
     updatescrollbar();
     Ui_SoftBar_Update(1, strcmp(path, startpath) != 0, SYMBOL_UP" "SYMBOL_DIRECTORY"Up", true);
