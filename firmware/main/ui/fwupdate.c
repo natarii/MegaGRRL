@@ -69,20 +69,20 @@ void Ui_Fwupdate_Setup(lv_obj_t *uiscreen) {
 
     Ui_SoftBar_Update(0, false, "", false);
     Ui_SoftBar_Update(1, true, "Back", false);
-    Ui_SoftBar_Update(2, false, SYMBOL_CHARGE" Flash", false);
+    Ui_SoftBar_Update(2, false, LV_SYMBOL_CHARGE" Flash", false);
 
-    lv_cont_set_style(container, &containerstyle);
+    lv_cont_set_style(container, LV_CONT_STYLE_MAIN, &containerstyle);
     lv_obj_set_height(container, 250);
     lv_obj_set_width(container, 240);
     lv_obj_set_pos(container, 0, 34+1);
-    lv_cont_set_fit(container, false, false);
+    //lv_cont_set_fit(container, false, false);
 
     lv_style_copy(&fwupdate_ta_style, &lv_style_plain);
     fwupdate_ta_style.text.color = LV_COLOR_MAKE(0xff,0xff,0xff);
     fwupdate_ta_style.text.line_space = 2;
     fwupdate_ta_style.body.main_color = LV_COLOR_MAKE(0,0,0);
     fwupdate_ta_style.body.grad_color = LV_COLOR_MAKE(0,0,0);
-    fwupdate_ta_style.text.font = &lv_font_monospace_8;
+    //fwupdate_ta_style.text.font = &lv_font_monospace_8;
 
     fwupdate_ta = lv_ta_create(container, NULL);
     lv_obj_set_style(fwupdate_ta, &fwupdate_ta_style);
@@ -194,7 +194,7 @@ void Ui_Fwupdate_Setup(lv_obj_t *uiscreen) {
 
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_ta_add_text(fwupdate_ta, "\nHold Flash to install");
-    Ui_SoftBar_Update(2, true, SYMBOL_CHARGE" Flash", false);
+    Ui_SoftBar_Update(2, true, LV_SYMBOL_CHARGE" Flash", false);
     LcdDma_Mutex_Give();
 
     fwupdate_valid = true;

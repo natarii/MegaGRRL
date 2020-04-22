@@ -19,6 +19,8 @@ lv_style_t optioncatstyle_sel;
 
 static UiScreen_t lastscreen = UISCREEN_MAINMENU;
 
+
+
 void redrawoptcats();
 
 void Ui_Options_Cats_Setup(lv_obj_t *uiscreen) {
@@ -28,14 +30,14 @@ void Ui_Options_Cats_Setup(lv_obj_t *uiscreen) {
     lv_style_copy(&containerstyle, &lv_style_plain);
     containerstyle.body.main_color = LV_COLOR_MAKE(0, 0, 0);
     containerstyle.body.grad_color = LV_COLOR_MAKE(0,0,0);
-    lv_cont_set_style(container, &containerstyle);
+    lv_cont_set_style(container, LV_CONT_STYLE_MAIN, &containerstyle);
     lv_obj_set_height(container, 250);
     lv_obj_set_width(container, 240);
     lv_obj_set_pos(container, 0, 34+1);
-    lv_cont_set_fit(container, false, false);
+    //lv_cont_set_fit(container, false, false);
 
     lv_style_copy(&optioncatstyle_normal, &lv_style_plain);
-    optioncatstyle_normal.text.font = &lv_font_dejavu_20;
+    optioncatstyle_normal.text.font = &lv_font_dejavu_18;
     optioncatstyle_normal.body.main_color = LV_COLOR_MAKE(0,0,0);
     optioncatstyle_normal.body.grad_color = LV_COLOR_MAKE(0,0,0);
     optioncatstyle_normal.text.color = LV_COLOR_MAKE(220,220,220);
@@ -55,13 +57,13 @@ void Ui_Options_Cats_Setup(lv_obj_t *uiscreen) {
         optioncatlabels[i] = lv_label_create(optioncatlines[i], NULL);
         lv_obj_set_pos(optioncatlabels[i], 2, 2);
         lv_label_set_text(optioncatlabels[i], "");
-        lv_label_set_long_mode(optioncatlabels[i], (i==0xff)?LV_LABEL_LONG_ROLL:LV_LABEL_LONG_DOT);
+        lv_label_set_long_mode(optioncatlabels[i], (i==0xff)?LV_LABEL_LONG_SROLL:LV_LABEL_LONG_DOT);
         lv_obj_set_width(optioncatlabels[i], 240);
     }
 
-    Ui_SoftBar_Update(0, true, SYMBOL_HOME"Home", false);
-    Ui_SoftBar_Update(1, true, SYMBOL_LEFT" Back", false);
-    Ui_SoftBar_Update(2, true, SYMBOL_RIGHT" Open", false);
+    Ui_SoftBar_Update(0, true, LV_SYMBOL_HOME"Home", false);
+    Ui_SoftBar_Update(1, true, LV_SYMBOL_LEFT" Back", false);
+    Ui_SoftBar_Update(2, true, LV_SYMBOL_RIGHT" Open", false);
 
     LcdDma_Mutex_Give();
 

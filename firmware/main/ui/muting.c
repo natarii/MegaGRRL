@@ -37,8 +37,8 @@ const char *chnames_opna[11] = {
 const char titletext[] = "Channel Muting Setup";
 const char mute[] = "Mute";
 const char unmute[] = "Unmute";
-const char muted[] = SYMBOL_MUTE;
-const char unmuted[] = SYMBOL_VOLUME_MAX;
+const char muted[] = LV_SYMBOL_MUTE;
+const char unmuted[] = LV_SYMBOL_VOLUME_MAX;
 
 IRAM_ATTR lv_obj_t *ch_label[11];
 IRAM_ATTR lv_obj_t *ch_status[11];
@@ -50,6 +50,8 @@ lv_style_t ch_off;
 uint8_t ch_sel = 0;
 IRAM_ATTR lv_obj_t *title;
 lv_style_t title_style;
+
+
 
 void Ui_Muting_Destroy() {
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
@@ -78,8 +80,8 @@ void drawlist() {
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
 
     for (uint8_t i=0;i<11;i++) {
-        lv_label_set_style(ch_label[i], (ch_sel==i)?&ch_label_style_sel:&ch_label_style);
-        lv_label_set_style(ch_status[i], ch_en(i)?&ch_on:&ch_off);
+        lv_label_set_style(ch_label[i], LV_LABEL_STYLE_MAIN, (ch_sel==i)?&ch_label_style_sel:&ch_label_style);
+        lv_label_set_style(ch_status[i], LV_LABEL_STYLE_MAIN, ch_en(i)?&ch_on:&ch_off);
         lv_label_set_static_text(ch_status[i], ch_en(i)?unmuted:muted);
     }
     
@@ -95,15 +97,15 @@ void Ui_Muting_Setup(lv_obj_t *uiscreen) {
     lv_style_copy(&containerstyle, &lv_style_plain);
     containerstyle.body.main_color = LV_COLOR_MAKE(0, 0, 0);
     containerstyle.body.grad_color = LV_COLOR_MAKE(0,0,0);
-    lv_cont_set_style(container, &containerstyle);
+    lv_cont_set_style(container, LV_CONT_STYLE_MAIN, &containerstyle);
     lv_obj_set_height(container, 250);
     lv_obj_set_width(container, 240);
     lv_obj_set_pos(container, 0, 34+1);
-    lv_cont_set_fit(container, false, false);
+    //lv_cont_set_fit(container, false, false);
 
     lv_style_copy(&ch_label_style, &lv_style_plain);
     ch_label_style.text.color = LV_COLOR_MAKE(200,200,200);
-    ch_label_style.text.font = &lv_font_dejavu_20;
+    ch_label_style.text.font = &lv_font_dejavu_18;
     lv_style_copy(&ch_label_style_sel, &ch_label_style);
     ch_label_style_sel.text.color = LV_COLOR_MAKE(255,255,0);
     lv_style_copy(&title_style, &ch_label_style);
@@ -130,12 +132,12 @@ void Ui_Muting_Setup(lv_obj_t *uiscreen) {
     }
 
     title = lv_label_create(container, NULL);
-    lv_label_set_style(title, &title_style);
+    lv_label_set_style(title, LV_LABEL_STYLE_MAIN, &title_style);
     lv_label_set_static_text(title, titletext);
     lv_obj_set_pos(title, 10, 5);
 
     Ui_SoftBar_Update(0, true, "Togg.All", false);
-    Ui_SoftBar_Update(1, true, SYMBOL_AUDIO"Player", false);
+    Ui_SoftBar_Update(1, true, LV_SYMBOL_AUDIO"Player", false);
 
     LcdDma_Mutex_Give();
 

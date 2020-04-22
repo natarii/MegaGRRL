@@ -12,6 +12,9 @@
 #include "mallocs.h"
 #include "taskmgr.h"
 
+#define LV_VDB_SIZE 4094/2
+#define LV_VDB_SIZE_IN_BYTES (LV_VDB_SIZE*2)
+
 static const char* TAG = "LcdDma";
 
 volatile bool LcdDma_AltMode = true;
@@ -21,9 +24,11 @@ SemaphoreHandle_t LcdDma_Mutex = NULL;
 
 DRAM_ATTR static uint8_t LcdDma_Lvgl_Buf[LV_VDB_SIZE_IN_BYTES];
 DRAM_ATTR static uint8_t LcdDma_Lvgl_Buf2[LV_VDB_SIZE_IN_BYTES];
+static lv_disp_buf_t disp_buf;
+static volatile IRAM_ATTR lv_disp_t *disp;
 
 void LcdDma_PostTransferCallback(spi_transaction_t *t) {
-    if (/*!LcdDma_AltMode && */(uint8_t)t->user & 1<<1) lv_flush_ready();
+    if (/*!LcdDma_AltMode && */(uint8_t)t->user & 1<<1) lv_disp_flush_ready(disp);
 }
 
 void LcdDma_PreTransferCallback(spi_transaction_t *t) {
@@ -110,8 +115,16 @@ void LcdDma_Data(uint8_t *data, uint16_t len) {
 }
 
 spi_transaction_t LcdDma_Flush_Txs[6];
-static void LcdDma_Lvgl_Flush(int32_t x1, int32_t y1, int32_t x2, int32_t y2, const lv_color_t * color_p) {
+//static void LcdDma_Lvgl_Flush(int32_t x1, int32_t y1, int32_t x2, int32_t y2, const lv_color_t * color_p) {
+static void LcdDma_Lvgl_Flush(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_color_t *color_p) {
     //don't bother checking the size of the data given to this, we should never receive more than the maximum dma transfer size, as ensured by the size of LV_VDB_SIZE.
+
+    int32_t x1, y1, x2, y2;
+    x1 = area->x1;
+    y1 = area->y1;
+    x2 = area->x2;
+    y2 = area->y2;
+
     for (uint8_t i=0;i<6;i++) {
         memset(&LcdDma_Flush_Txs[i], 0, sizeof(spi_transaction_t));
         if (i & 1) {
@@ -152,7 +165,7 @@ static void LcdDma_Lvgl_Flush(int32_t x1, int32_t y1, int32_t x2, int32_t y2, co
     spi_device_queue_trans(LcdDma_SpiDevice, &LcdDma_Flush_Txs[5], portMAX_DELAY);
 
     ESP_LOGD(TAG, "Tx buf%d %d bytes", ((void *)color_p >= (void *)&LcdDma_Lvgl_Buf[0] && (void *)color_p < (void *)&LcdDma_Lvgl_Buf[LV_VDB_SIZE_IN_BYTES])?1:2, pix<<1);
-
+    
     //alt mode. i guess another way to do this would be set a flag in the interrupt and check it here...
     return;
     if (LcdDma_AltMode) {
@@ -161,7 +174,7 @@ static void LcdDma_Lvgl_Flush(int32_t x1, int32_t y1, int32_t x2, int32_t y2, co
         do {
             err = spi_device_get_trans_result(LcdDma_SpiDevice, &check, pdMS_TO_TICKS(1000));
         } while (err != ESP_OK || ((uint8_t)check->user & 1<<1) == 0);
-        lv_flush_ready();
+        lv_disp_flush_ready(disp);
         ESP_LOGD(TAG, "Alt mode flush successful");
     }
 }
@@ -211,13 +224,15 @@ bool LcdDma_Setup() {
     ESP_LOGI(TAG, "Init lvgl...");
     lv_init();
     lv_tick_inc(20);
-    lv_vdb_set_adr(&LcdDma_Lvgl_Buf[0], &LcdDma_Lvgl_Buf2[0]);
+    //lv_vdb_set_adr(&LcdDma_Lvgl_Buf[0], &LcdDma_Lvgl_Buf2[0]);
+    lv_disp_buf_init(&disp_buf, LcdDma_Lvgl_Buf, LcdDma_Lvgl_Buf2, LV_VDB_SIZE);
     ESP_LOGI(TAG, "Lvgl display driver init...");
-    lv_disp_drv_t disp;
-	lv_disp_drv_init(&disp);
-	disp.disp_flush = LcdDma_Lvgl_Flush;
+    static lv_disp_drv_t disp_drv;
+	lv_disp_drv_init(&disp_drv);
+	disp_drv.flush_cb = LcdDma_Lvgl_Flush;
+    disp_drv.buffer = &disp_buf;
     ESP_LOGI(TAG, "Lvgl display driver register...");
-	lv_disp_drv_register(&disp);
+	disp = lv_disp_drv_register(&disp_drv);
     
     ESP_LOGI(TAG, "Start lvgl tick task");
     xTaskCreatePinnedToCore(LcdDma_Main, "LcdDma", 4096, NULL, 3, &Taskmgr_Handles[TASK_LCDDMA], 0);

@@ -79,6 +79,9 @@ LV_IMG_DECLARE(img_kunoichilabs_smol);
 
 static const char* TAG = "Main";
 
+
+//LV_FONT_DECLARE(lv_font_monospace_8);
+
 lv_obj_t *frame;
 lv_obj_t *progress;
 lv_style_t progressstyle;
@@ -135,14 +138,14 @@ void crash_sd(uint8_t reason) {
     lv_style_t rlabel_style;
     lv_style_copy(&rlabel_style, &lv_style_plain);
     rlabel_style.text.color = LV_COLOR_MAKE(255,255,255);
-    rlabel_style.text.font = &lv_font_monospace_8;
+    //rlabel_style.text.font = &lv_font_monospace_8;
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_obj_set_hidden(progress, true);
     rlabel = lv_label_create(lv_layer_top(), NULL);
-    lv_label_set_long_mode(rlabel, LV_LABEL_LONG_ROLL);
+    lv_label_set_long_mode(rlabel, LV_LABEL_LONG_SROLL);
     lv_obj_set_width(rlabel, 240);
     lv_label_set_align(rlabel, LV_LABEL_ALIGN_CENTER);
-    lv_label_set_style(rlabel, &rlabel_style);
+    lv_label_set_style(rlabel, LV_LABEL_STYLE_MAIN, &rlabel_style);
     if (reason == 1) {
         lv_label_set_static_text(rlabel, "No card inserted");
     } else if (reason == 2) {
@@ -358,7 +361,7 @@ void app_main(void)
     textarea_style.text.color = LV_COLOR_MAKE(0,0,0);
     textarea_style.body.main_color = LV_COLOR_MAKE(0x74,0xd7,0xec);
     textarea_style.body.grad_color = LV_COLOR_MAKE(0xff,0xaf,0xc7);
-    textarea_style.text.font = &lv_font_monospace_8;
+    //textarea_style.text.font = &lv_font_monospace_8;
 
     textarea = lv_ta_create(lv_layer_top(), NULL);
     lv_obj_set_size(textarea, 240, 320);
@@ -635,13 +638,13 @@ void app_main(void)
         lv_style_t mmlabel_style;
         lv_style_copy(&mmlabel_style, &lv_style_plain);
         mmlabel_style.text.color = LV_COLOR_MAKE(255,255,255);
-        mmlabel_style.text.font = &lv_font_dejavu_20;
+        mmlabel_style.text.font = &lv_font_dejavu_18;
         mmlabel = lv_label_create(lv_layer_top(), NULL);
-        lv_label_set_long_mode(mmlabel, LV_LABEL_LONG_ROLL);
+        lv_label_set_long_mode(mmlabel, LV_LABEL_LONG_SROLL);
         lv_obj_set_width(mmlabel, 240);
         lv_obj_set_height(mmlabel, 30);
         lv_label_set_align(mmlabel, LV_LABEL_ALIGN_CENTER);
-        lv_label_set_style(mmlabel, &mmlabel_style);
+        lv_label_set_style(mmlabel, LV_LABEL_STYLE_MAIN, &mmlabel_style);
         switch (Driver_DetectedMod) {
             case MEGAMOD_OPL3:
                 lv_label_set_static_text(mmlabel, "OPL3 MegaMod");

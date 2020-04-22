@@ -37,6 +37,8 @@ static char *defaultvalue = "Default: ";
 static char currentvalue_buf[32] = "";
 static char defaultvalue_buf[32] = "";
 
+
+
 void redrawopts();
 void redrawopt();
 static void displayvalue(char *buf, bool def) {
@@ -200,14 +202,14 @@ void Ui_Options_Opts_Setup(lv_obj_t *uiscreen) {
     lv_style_copy(&containerstyle, &lv_style_plain);
     containerstyle.body.main_color = LV_COLOR_MAKE(0, 0, 0);
     containerstyle.body.grad_color = LV_COLOR_MAKE(0,0,0);
-    lv_cont_set_style(container, &containerstyle);
+    lv_cont_set_style(container, LV_CONT_STYLE_MAIN, &containerstyle);
     lv_obj_set_height(container, 250);
     lv_obj_set_width(container, 240);
     lv_obj_set_pos(container, 0, 34+1);
-    lv_cont_set_fit(container, false, false);
+    //lv_cont_set_fit(container, false, false);
 
     lv_style_copy(&optionoptstyle_normal, &lv_style_plain);
-    optionoptstyle_normal.text.font = &lv_font_dejavu_20;
+    optionoptstyle_normal.text.font = &lv_font_dejavu_18;
     optionoptstyle_normal.body.main_color = LV_COLOR_MAKE(0,0,0);
     optionoptstyle_normal.body.grad_color = LV_COLOR_MAKE(0,0,0);
     optionoptstyle_normal.text.color = LV_COLOR_MAKE(220,220,220);
@@ -227,18 +229,18 @@ void Ui_Options_Opts_Setup(lv_obj_t *uiscreen) {
         optionoptlabels[i] = lv_label_create(optionoptlines[i], NULL);
         lv_obj_set_pos(optionoptlabels[i], 2, 2);
         lv_label_set_text(optionoptlabels[i], "");
-        lv_label_set_long_mode(optionoptlabels[i], (i==0xff)?LV_LABEL_LONG_ROLL:LV_LABEL_LONG_DOT); //todo
+        lv_label_set_long_mode(optionoptlabels[i], (i==0xff)?LV_LABEL_LONG_SROLL:LV_LABEL_LONG_DOT); //todo
         lv_obj_set_width(optionoptlabels[i], 240);
     }
 
     lv_style_copy(&optiondescstyle, &lv_style_plain);
-    optiondescstyle.text.font = &lv_font_dejavu_20;
+    optiondescstyle.text.font = &lv_font_dejavu_18;
     optiondescstyle.text.color = LV_COLOR_MAKE(127,127,127);
 
     optiondesc = lv_label_create(container, NULL);
     lv_obj_set_style(optiondesc, &optiondescstyle);
     lv_obj_set_pos(optiondesc, 10, 135);
-    lv_label_set_long_mode(optiondesc, LV_LABEL_LONG_ROLL);
+    lv_label_set_long_mode(optiondesc, LV_LABEL_LONG_SROLL);
     lv_obj_set_width(optiondesc, 220);
     lv_label_set_anim_speed(optiondesc, 75);
 
@@ -250,9 +252,9 @@ void Ui_Options_Opts_Setup(lv_obj_t *uiscreen) {
     lv_obj_set_style(optiondefault, &optiondescstyle);
     lv_obj_set_pos(optiondefault, 10, 155);
 
-    Ui_SoftBar_Update(0, true, SYMBOL_HOME"Home", false);
-    Ui_SoftBar_Update(1, true, SYMBOL_LEFT" Back", false);
-    Ui_SoftBar_Update(2, true, SYMBOL_EDIT"Edit", false);
+    Ui_SoftBar_Update(0, true, LV_SYMBOL_HOME"Home", false);
+    Ui_SoftBar_Update(1, true, LV_SYMBOL_LEFT" Back", false);
+    Ui_SoftBar_Update(2, true, LV_SYMBOL_EDIT"Edit", false);
 
     LcdDma_Mutex_Give();
 
@@ -286,7 +288,7 @@ void redrawopts() {
             Options_OptId = opt;
             lv_obj_set_style(optionoptlines[idx], &optionoptstyle_sel);
             lv_obj_set_style(optionoptlabels[idx], &optionoptstyle_sel);
-            lv_label_set_long_mode(optionoptlabels[idx], LV_LABEL_LONG_ROLL);
+            lv_label_set_long_mode(optionoptlabels[idx], LV_LABEL_LONG_SROLL);
             lv_label_set_text(optiondesc, Options[opt].description);
         }
         idx++;
@@ -345,19 +347,19 @@ void Ui_Options_Opts_Key(KeyEvent_t event) {
                 if (Options[Options_OptId].cb != NULL) Options[Options_OptId].cb();
                 editing = false;
                 redrawopt();
-                Ui_SoftBar_Update(2, true, SYMBOL_EDIT" Edit", true);
-                Ui_SoftBar_Update(1, true, SYMBOL_LEFT" Back", true);
+                Ui_SoftBar_Update(2, true, LV_SYMBOL_EDIT" Edit", true);
+                Ui_SoftBar_Update(1, true, LV_SYMBOL_LEFT" Back", true);
             } else {
                 Ui_Screen = UISCREEN_OPTIONS_CATS;
             }
         } else if (event.Key == KEY_C) {
             if (!editing) {
-                Ui_SoftBar_Update(2, true, SYMBOL_SAVE" Save", true);
-                Ui_SoftBar_Update(1, true, SYMBOL_CLOSE"Cancel", true);
+                Ui_SoftBar_Update(2, true, LV_SYMBOL_SAVE" Save", true);
+                Ui_SoftBar_Update(1, true, LV_SYMBOL_CLOSE"Cancel", true);
                 oldval = *(uint8_t*)Options[Options_OptId].var;
             } else {
-                Ui_SoftBar_Update(2, true, SYMBOL_EDIT" Edit", true);
-                Ui_SoftBar_Update(1, true, SYMBOL_LEFT" Back", true);
+                Ui_SoftBar_Update(2, true, LV_SYMBOL_EDIT" Edit", true);
+                Ui_SoftBar_Update(1, true, LV_SYMBOL_LEFT" Back", true);
                 OptionsMgr_Touch();
             }
             editing = !editing;

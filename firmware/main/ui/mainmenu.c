@@ -74,11 +74,11 @@ void Ui_MainMenu_Setup(lv_obj_t *uiscreen) {
     lv_style_copy(&containerstyle, &lv_style_plain);
     containerstyle.body.main_color = LV_COLOR_MAKE(0,0,0);
     containerstyle.body.grad_color = LV_COLOR_MAKE(0,0,0);
-    lv_cont_set_style(container, &containerstyle);
+    lv_cont_set_style(container, LV_CONT_STYLE_MAIN, &containerstyle);
     lv_obj_set_height(container, 250+1); //covering up the bottom row of bg pixels makes the grid look better
     lv_obj_set_width(container, 240);
     lv_obj_set_pos(container, 0, 34+1);
-    lv_cont_set_fit(container, false, false);
+    //lv_cont_set_fit(container, false, false);
 
     mm_logo = lv_img_create(container, NULL);
     lv_img_set_src(mm_logo, &img_megagrrlhdr);
@@ -103,20 +103,20 @@ void Ui_MainMenu_Setup(lv_obj_t *uiscreen) {
         points[(i*2)+1].x = x2+120;
         points[(i*2)+1].y = 250;
         lv_line_set_points(lines[i], &points[i*2], 2);
-        lv_line_set_style(lines[i], &linestyle);
+        lv_line_set_style(lines[i], LV_LINE_STYLE_MAIN, &linestyle);
         pointsL[(i*2)+0].x = 120-x1;
         pointsL[(i*2)+0].y = 54;
         pointsL[(i*2)+1].x = 120-x2;
         pointsL[(i*2)+1].y = 250;
         lv_line_set_points(linesL[i], &pointsL[i*2], 2);
-        lv_line_set_style(linesL[i], &linestyle);
+        lv_line_set_style(linesL[i], LV_LINE_STYLE_MAIN, &linestyle);
     }
 
     static IRAM_ATTR lv_obj_t *mline;
     mline = lv_line_create(container, NULL);
     static lv_point_t mpoints[2] = {{120, 53},{120, 250}};
     lv_line_set_points(mline, mpoints, 2);
-    lv_line_set_style(mline, &linestyle);
+    lv_line_set_style(mline, LV_LINE_STYLE_MAIN, &linestyle);
 
     for (uint8_t i=0;i<14;i++) {
         linesX[i] = lv_line_create(container, NULL);
@@ -125,7 +125,7 @@ void Ui_MainMenu_Setup(lv_obj_t *uiscreen) {
         pointsX[(i*2)+1].x = 240;
         pointsX[(i*2)+1].y = 53 + (i*14) + pow((double)1.5F, (double)i);
         lv_line_set_points(linesX[i], &pointsX[i*2], 2);
-        lv_line_set_style(linesX[i], &linestyle);
+        lv_line_set_style(linesX[i], LV_LINE_STYLE_MAIN, &linestyle);
     }
 
     mm_icon = lv_img_create(container, NULL);
@@ -147,19 +147,19 @@ void Ui_MainMenu_Setup(lv_obj_t *uiscreen) {
     lv_label_set_long_mode(mm_icontext, LV_LABEL_LONG_CROP);
     lv_obj_set_pos(mm_icontext, 1, (250/2)+(100/2)-3-15);
     lv_obj_set_size(mm_icontext, 239, 50);
-    lv_label_set_style(mm_icontext, &mm_icontext_style);
+    lv_label_set_style(mm_icontext, LV_LABEL_STYLE_MAIN, &mm_icontext_style);
     lv_label_set_align(mm_icontext, LV_LABEL_ALIGN_CENTER);
     lv_label_set_text(mm_icontext, "");
 
     lv_style_copy(&mm_icondesc_style, &lv_style_plain);
     mm_icondesc_style.text.color = LV_COLOR_MAKE(255,255,255);
-    mm_icondesc_style.text.font = &lv_font_dejavu_20;
+    mm_icondesc_style.text.font = &lv_font_dejavu_18;
 
     mm_icondesc = lv_label_create(container, NULL);
-    lv_label_set_long_mode(mm_icondesc, LV_LABEL_LONG_ROLL);
+    lv_label_set_long_mode(mm_icondesc, LV_LABEL_LONG_SROLL);
     lv_obj_set_pos(mm_icondesc, 10, (250/2)+(100/2)+32-15);
     lv_obj_set_size(mm_icondesc, 220, 50);
-    lv_label_set_style(mm_icondesc, &mm_icondesc_style);
+    lv_label_set_style(mm_icondesc, LV_LABEL_STYLE_MAIN, &mm_icondesc_style);
     lv_label_set_align(mm_icondesc, LV_LABEL_ALIGN_CENTER);
     lv_label_set_text(mm_icondesc, "");
     lv_label_set_anim_speed(mm_icondesc, 50);

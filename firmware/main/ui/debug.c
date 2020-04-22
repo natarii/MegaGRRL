@@ -102,11 +102,11 @@ void Ui_Debug_Setup(lv_obj_t *uiscreen) {
     containerstyle.body.main_color = LV_COLOR_MAKE(127,0,127);
     containerstyle.body.grad_color = LV_COLOR_MAKE(127,0,127);
 
-    lv_cont_set_style(container, &containerstyle);
+    lv_cont_set_style(container, LV_CONT_STYLE_MAIN, &containerstyle);
     lv_obj_set_height(container, 250);
     lv_obj_set_width(container, 240);
     lv_obj_set_pos(container, 0, 34+1);
-    lv_cont_set_fit(container, false, false);
+    //lv_cont_set_fit(container, false, false);
 
     uint16_t y = 0;
 
@@ -114,26 +114,26 @@ void Ui_Debug_Setup(lv_obj_t *uiscreen) {
     tasklabel_style.body.main_color = LV_COLOR_MAKE(127,0,127);
     tasklabel_style.body.grad_color = LV_COLOR_MAKE(127,0,127);
     tasklabel_style.text.color = LV_COLOR_MAKE(255,255,255);
-    tasklabel_style.text.font = &lv_font_monospace_8;
-    tasklabel_style.text.line_space = 1;
-    tasklabel_style.text.letter_space = 1;
+    tasklabel_style.text.font = &lv_font_unscii_8;
+    tasklabel_style.text.line_space = 0;
+    tasklabel_style.text.letter_space = -1;
 
     tasklabel = lv_label_create(container, NULL);
     lv_obj_set_pos(tasklabel, 2, 2);
     y = 2 + (TASK_COUNT+1)*9;
-    lv_label_set_style(tasklabel, &tasklabel_style);
+    lv_label_set_style(tasklabel, LV_LABEL_STYLE_MAIN, &tasklabel_style);
     lv_label_set_recolor(tasklabel, true);
 
     heaplabel = lv_label_create(container, NULL);
     lv_obj_set_pos(heaplabel, 2, y);
     y += 9;
-    lv_label_set_style(heaplabel, &tasklabel_style);
+    lv_label_set_style(heaplabel, LV_LABEL_STYLE_MAIN, &tasklabel_style);
     lv_label_set_recolor(heaplabel, true);
 
     driverbuflabel = lv_label_create(container, NULL);
     lv_obj_set_pos(driverbuflabel, 2, y);
     y += 9;
-    lv_label_set_style(driverbuflabel, &tasklabel_style);
+    lv_label_set_style(driverbuflabel, LV_LABEL_STYLE_MAIN, &tasklabel_style);
     lv_label_set_recolor(driverbuflabel, true);
 
     lv_style_copy(&bar_style, &lv_style_plain);
@@ -158,7 +158,7 @@ void Ui_Debug_Setup(lv_obj_t *uiscreen) {
     dslabel = lv_label_create(container, NULL);
     lv_obj_set_pos(dslabel, 2, y);
     y += 9;
-    lv_label_set_style(dslabel, &tasklabel_style);
+    lv_label_set_style(dslabel, LV_LABEL_STYLE_MAIN, &tasklabel_style);
     lv_label_set_recolor(dslabel, true);
     lv_label_set_static_text(dslabel, "#00007f DAC Streams#");
 
@@ -172,7 +172,7 @@ void Ui_Debug_Setup(lv_obj_t *uiscreen) {
 
     Ui_SoftBar_Update(0, false, "", false);
     Ui_SoftBar_Update(1, false, "", false);
-    Ui_SoftBar_Update(2, true, SYMBOL_OK" Done", false);
+    Ui_SoftBar_Update(2, true, LV_SYMBOL_OK" Done", false);
 
     LcdDma_Mutex_Give();
 
