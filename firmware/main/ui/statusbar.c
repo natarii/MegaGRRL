@@ -12,6 +12,8 @@
 
 static const char* TAG = "Ui_StatusBar";
 
+
+
 static IRAM_ATTR lv_obj_t *container;
 #if defined HWVER_PORTABLE
 static IRAM_ATTR lv_obj_t *charge;
@@ -40,14 +42,14 @@ typedef struct {
 } StatusbarIconDef_t;
 
 const StatusbarIconDef_t icondefs[] = {
-    {SYMBOL_PLAY, 0, 0},
-    {SYMBOL_PAUSE, 0, 0},
-    {SYMBOL_STOP, 0, 0},
-    {SYMBOL_WARNING, -2, 0},
+    {LV_SYMBOL_PLAY, 0, 0},
+    {LV_SYMBOL_PAUSE, 0, 0},
+    {LV_SYMBOL_STOP, 0, 0},
+    {LV_SYMBOL_WARNING, -2, 0},
     {"MO", 0, 0},
     {"ST", 0, 0},
-    {SYMBOL_VOLUME_MAX, 5, 0},
-    {SYMBOL_UPLOAD, 0, 0},
+    {LV_SYMBOL_VOLUME_MAX, 5, 0},
+    {LV_SYMBOL_UPLOAD, 0, 0},
     {"", 0, 0},
     {"1", 0, 0},
     {"A", 0, 0},
@@ -70,12 +72,12 @@ bool Ui_StatusBar_Setup(lv_obj_t *uiscreen) {
     statusstyle.body.main_color = LV_COLOR_MAKE(0,0,64);
     statusstyle.body.grad_color = LV_COLOR_MAKE(0,0,127);
     statusstyle.body.radius = 0;
-    statusstyle.text.font = &lv_font_dejavu_20;
+    statusstyle.text.font = &lv_font_dejavu_18;
     statusstyle.text.color = LV_COLOR_MAKE(255,255,255);
-    lv_cont_set_style(container, &statusstyle);
+    lv_cont_set_style(container, LV_CONT_STYLE_MAIN, &statusstyle);
     lv_obj_set_height(container, 34);
     lv_obj_set_width(container, 240);
-    lv_cont_set_fit(container, false, false);
+    //lv_cont_set_fit(container, false, false);
 
     for (uint8_t i=0;i<5;i++) {
         iconlabels[i] = lv_label_create(container, NULL);
@@ -169,20 +171,20 @@ void Ui_StatusBar_Tick() {
         if (redraw) Ui_StatusBar_RedrawIcons();
         #if defined HWVER_PORTABLE
         if (IoExp_ChargeStatus()) {
-            lv_label_set_text(charge, SYMBOL_CHARGE);
+            lv_label_set_text(charge, LV_SYMBOL_CHARGE);
         } else {
             lv_label_set_static_text(charge, "");
         }
         if (BatteryMgr_Voltage >= 3900) {
-            lv_label_set_text(battery, SYMBOL_BATTERY_FULL);
+            lv_label_set_text(battery, LV_SYMBOL_BATTERY_FULL);
         } else if (BatteryMgr_Voltage >= 3600) {
-            lv_label_set_text(battery, SYMBOL_BATTERY_3);
+            lv_label_set_text(battery, LV_SYMBOL_BATTERY_3);
         } else if (BatteryMgr_Voltage >= 3400) {
-            lv_label_set_text(battery, SYMBOL_BATTERY_2);
+            lv_label_set_text(battery, LV_SYMBOL_BATTERY_2);
         } else if (BatteryMgr_Voltage >= 3300) {
-            lv_label_set_text(battery, SYMBOL_BATTERY_1);
+            lv_label_set_text(battery, LV_SYMBOL_BATTERY_1);
         } else {
-            lv_label_set_text(battery, SYMBOL_BATTERY_EMPTY);
+            lv_label_set_text(battery, LV_SYMBOL_BATTERY_EMPTY);
         }
         #endif
         LcdDma_Mutex_Give();

@@ -23,23 +23,23 @@ bool Ui_SoftBar_Setup(lv_obj_t *uiscreen) {
     softbarstyle.body.radius = 0;
     softbarstyle.line.color = LV_COLOR_MAKE(255,255,255);
     softbarstyle.line.width = 2;
-    softbarstyle.text.font = &lv_font_dejavu_20;
+    softbarstyle.text.font = &lv_font_dejavu_18;
     softbarstyle.text.color = LV_COLOR_MAKE(220,220,220);
     lv_style_copy(&softbarstyle_disbl, &softbarstyle);
     softbarstyle_disbl.text.color = LV_COLOR_MAKE(100,100,100);
 
-    lv_cont_set_style(container, &softbarstyle);
+    lv_cont_set_style(container, LV_CONT_STYLE_MAIN, &softbarstyle);
     lv_obj_set_height(container, 34);
     lv_obj_set_width(container, 240);
     lv_obj_set_pos(container, 0, 320-34);
-    lv_cont_set_fit(container, false, false);
+    //lv_cont_set_fit(container, false, false);
     
     static lv_point_t points[] = {{0,0}, {0,34}};
     for (uint8_t i=1;i<=2;i++) {
         line[i] = lv_line_create(container, NULL);
         lv_line_set_points(line[i], points, 2);
         lv_obj_set_pos(line[i], ((240/3)*i)-1, 0);
-        lv_line_set_style(line[i], &softbarstyle);
+        lv_line_set_style(line[i], LV_LINE_STYLE_MAIN, &softbarstyle);
     }
 
     for (uint8_t i=0;i<3;i++) {

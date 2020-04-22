@@ -83,7 +83,7 @@ bool Ui_Setup() {
     hpoints[3].y = 320-34;
     for (uint8_t i=0;i<2;i++) {
         hlines[i] = lv_line_create(uiscreen, NULL);
-        lv_line_set_style(hlines[i], &hlinestyle);
+        lv_line_set_style(hlines[i], LV_LINE_STYLE_MAIN, &hlinestyle);
         lv_line_set_points(hlines[i], &hpoints[2*i], 2);
     }
 

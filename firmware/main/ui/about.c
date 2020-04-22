@@ -11,7 +11,8 @@ const char *about_text =
 "#462dff //# #ffafff natalie null#\n"
 "#00ff00 Copyright 2018-2020#\n"
 "#ffff00 https://kunoichilabs.dev#\n\n"
-"Some icons by Icons8 - #ffff00 http://icons8.com#\n"
+"Some icons by Icons8\n"
+"#ffff00 http://icons8.com#\n\n"
 "MegaGRRL uses ESP-IDF and LittlevGL\n\n\n"
 "#462dff Special Thanks#\n"
 "Aidan\n\n"
@@ -31,6 +32,7 @@ const char *about_text =
 "Maliki\n\n"
 "Lindsay\n\n"
 "Pure\n\n"
+"0x3F\n\n"
 "The writers at Hackaday and Hackster\n\n"
 "Plutiedev\n\n"
 "McQueen8601\n\n"
@@ -66,6 +68,8 @@ uint32_t about_time = 0;
 uint32_t about_last_time = 0;
 uint16_t about_h = 0;
 
+
+
 void Ui_About_Setup(lv_obj_t *uiscreen) {
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
 
@@ -74,20 +78,20 @@ void Ui_About_Setup(lv_obj_t *uiscreen) {
     containerstyle.body.main_color = LV_COLOR_MAKE(0x74>>1,0xd7>>1,0xec>>1);
     containerstyle.body.grad_color = LV_COLOR_MAKE(0xff>>1,0xaf>>1,0xc7>>1);
 
-    lv_cont_set_style(container, &containerstyle);
+    lv_cont_set_style(container, LV_CONT_STYLE_MAIN, &containerstyle);
     lv_obj_set_height(container, 250);
     lv_obj_set_width(container, 240);
     lv_obj_set_pos(container, 0, 34+1);
-    lv_cont_set_fit(container, false, false);
+    //lv_cont_set_fit(container, false, false);
 
     about_ta = lv_label_create(container, NULL);
     lv_style_copy(&about_ta_style, &lv_style_plain);
     about_ta_style.text.color = LV_COLOR_MAKE(255,255,255);
-    about_ta_style.text.font = &lv_font_dejavu_20;
+    about_ta_style.text.font = &lv_font_dejavu_18;
     lv_label_set_long_mode(about_ta, LV_LABEL_LONG_BREAK);
     lv_obj_set_width(about_ta, 240);
     lv_label_set_align(about_ta, LV_LABEL_ALIGN_CENTER);
-    lv_label_set_style(about_ta, &about_ta_style);
+    lv_label_set_style(about_ta, LV_LABEL_STYLE_MAIN, &about_ta_style);
     lv_label_set_recolor(about_ta, true);
     lv_label_set_static_text(about_ta, about_text);
     lv_obj_set_pos(about_ta, 0, 250);
@@ -97,8 +101,8 @@ void Ui_About_Setup(lv_obj_t *uiscreen) {
     about_last_time = xthal_get_ccount();
 
     Ui_SoftBar_Update(0, false, "", false);
-    Ui_SoftBar_Update(1, true, SYMBOL_PLUS"Debug", false);
-    Ui_SoftBar_Update(2, true, SYMBOL_OK" Done", false);
+    Ui_SoftBar_Update(1, true, LV_SYMBOL_PLUS"Debug", false);
+    Ui_SoftBar_Update(2, true, LV_SYMBOL_OK" Done", false);
 
     LcdDma_Mutex_Give();
 }

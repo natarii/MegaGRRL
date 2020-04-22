@@ -17,6 +17,8 @@
 
 static const char* TAG = "Ui_FileBrowser";
 
+
+
 static IRAM_ATTR lv_obj_t *container;
 lv_style_t containerstyle;
 lv_style_t filestyle;
@@ -260,7 +262,7 @@ bool Ui_FileBrowser_Activate(lv_obj_t *uiscreen) {
     lv_style_copy(&filestyle, &lv_style_plain);
     filestyle.body.main_color = LV_COLOR_MAKE(0,0,0); //255,255,255);
     filestyle.body.grad_color = LV_COLOR_MAKE(0,0,0); //255,255,255);
-    filestyle.text.font = &lv_font_dejavu_20;
+    filestyle.text.font = &lv_font_dejavu_18;
     filestyle.text.color = LV_COLOR_MAKE(220,220,220);
     lv_style_copy(&filelabelstyle_dir, &filestyle);
     lv_style_copy(&filelabelstyle_aud, &filestyle);
@@ -281,23 +283,23 @@ bool Ui_FileBrowser_Activate(lv_obj_t *uiscreen) {
 
 
 
-    lv_cont_set_style(container, &containerstyle);
+    lv_cont_set_style(container, LV_CONT_STYLE_MAIN, &containerstyle);
     lv_obj_set_height(container, 25*10);
     lv_obj_set_width(container, 240);
     lv_obj_set_pos(container, 0, 34+1);
-    lv_cont_set_fit(container, false, false);
+    //lv_cont_set_fit(container, false, false);
     //lv_obj_set_hidden(container, true);
 
     for (uint8_t i=0;i<10;i++) {
         files[i] = lv_cont_create(container, NULL);
-        lv_cont_set_style(files[i], (i==selectedfile)?&filestyle_sel:&filestyle);
+        lv_cont_set_style(files[i], LV_CONT_STYLE_MAIN, (i==selectedfile)?&filestyle_sel:&filestyle);
         lv_obj_set_height(files[i], 25);
         lv_obj_set_width(files[i],235);
         lv_obj_set_pos(files[i], 0, 25*i);
         labels[i] = lv_label_create(files[i], NULL);
         lv_obj_set_pos(labels[i], 26, 2);
         lv_label_set_text(labels[i], "");
-        lv_label_set_long_mode(labels[i], (i==selectedfile)?LV_LABEL_LONG_ROLL:LV_LABEL_LONG_DOT);
+        lv_label_set_long_mode(labels[i], (i==selectedfile)?LV_LABEL_LONG_SROLL:LV_LABEL_LONG_DOT);
         lv_obj_set_width(labels[i], 235-31);
         icons[i] = lv_label_create(files[i], NULL);
         lv_obj_set_pos(icons[i], 4, 2);
@@ -312,9 +314,9 @@ bool Ui_FileBrowser_Activate(lv_obj_t *uiscreen) {
     lv_obj_set_pos(scrollbar, 235, 0);
 
 
-    Ui_SoftBar_Update(0, true, SYMBOL_HOME "Home", false);
-    //Ui_SoftBar_Update(1, false, SYMBOL_DIRECTORY" Up "SYMBOL_UP);
-    //Ui_SoftBar_Update(2, true, SYMBOL_"Open");
+    Ui_SoftBar_Update(0, true, LV_SYMBOL_HOME "Home", false);
+    //Ui_SoftBar_Update(1, false, LV_SYMBOL_DIRECTORY" Up "LV_SYMBOL_UP);
+    //Ui_SoftBar_Update(2, true, LV_SYMBOL_"Open");
     LcdDma_Mutex_Give();
 
     startdir();
@@ -337,61 +339,61 @@ void redrawlistsel(bool list, bool sel) {
         unsigned char type = direntry_cache[direntry_offset[i]-1];
         if (list) {
             if (type == DT_DIR) {
-                lv_label_set_static_text(icons[u], SYMBOL_DIRECTORY);
+                lv_label_set_static_text(icons[u], LV_SYMBOL_DIRECTORY);
                 //lv_label_set_style(labels[u], &filelabelstyle_dir);
-                lv_label_set_style(icons[u], &filelabelstyle_dir);
+                lv_label_set_style(icons[u], LV_LABEL_STYLE_MAIN, &filelabelstyle_dir);
             } else if (type == DT_REG) {
                 uint8_t namelen = strlen(name);
                 if (namelen > 4) {
                     if ((strcasecmp(&name[namelen-4], ".vgm") == 0) || (strcasecmp(&name[namelen-4], ".vgz") == 0)) {
-                        lv_label_set_static_text(icons[u], SYMBOL_AUDIO);
-                        lv_label_set_style(icons[u], &filelabelstyle_aud);
+                        lv_label_set_static_text(icons[u], LV_SYMBOL_AUDIO);
+                        lv_label_set_style(icons[u], LV_LABEL_STYLE_MAIN, &filelabelstyle_aud);
                     } else if (strcasecmp(&name[namelen-4], ".jpg") == 0 || strcasecmp(&name[namelen-4], ".png") == 0) {
-                        lv_label_set_static_text(icons[u], SYMBOL_IMAGE);
-                        lv_label_set_style(icons[u], &filelabelstyle_other);
+                        lv_label_set_static_text(icons[u], LV_SYMBOL_IMAGE);
+                        lv_label_set_style(icons[u], LV_LABEL_STYLE_MAIN, &filelabelstyle_other);
                     } else if (strcasecmp(&name[namelen-4], ".txt") == 0) {
-                        lv_label_set_static_text(icons[u], SYMBOL_EDIT);
-                        lv_label_set_style(icons[u], &filelabelstyle_other);
+                        lv_label_set_static_text(icons[u], LV_SYMBOL_EDIT);
+                        lv_label_set_style(icons[u], LV_LABEL_STYLE_MAIN, &filelabelstyle_other);
                     } else if (strcasecmp(&name[namelen-4], ".m3u") == 0) {
-                        lv_label_set_static_text(icons[u], SYMBOL_LIST);
-                        lv_label_set_style(icons[u], &filelabelstyle_aud);
+                        lv_label_set_static_text(icons[u], LV_SYMBOL_LIST);
+                        lv_label_set_style(icons[u], LV_LABEL_STYLE_MAIN, &filelabelstyle_aud);
                     } else if (strcasecmp(&name[namelen-4], ".mgu") == 0) {
-                        lv_label_set_static_text(icons[u], SYMBOL_DOWNLOAD);
-                        lv_label_set_style(icons[u], &filelabelstyle_fw);
+                        lv_label_set_static_text(icons[u], LV_SYMBOL_DOWNLOAD);
+                        lv_label_set_style(icons[u], LV_LABEL_STYLE_MAIN, &filelabelstyle_fw);
                     } else {
-                        lv_label_set_static_text(icons[u], SYMBOL_FILE);
-                        lv_label_set_style(icons[u], &filelabelstyle_other);
+                        lv_label_set_static_text(icons[u], LV_SYMBOL_FILE);
+                        lv_label_set_style(icons[u], LV_LABEL_STYLE_MAIN, &filelabelstyle_other);
                     }
                 } else {
-                    lv_label_set_static_text(icons[u], SYMBOL_FILE);
-                    lv_label_set_style(icons[u], &filelabelstyle_other);
+                    lv_label_set_static_text(icons[u], LV_SYMBOL_FILE);
+                    lv_label_set_style(icons[u], LV_LABEL_STYLE_MAIN, &filelabelstyle_other);
                 }
             } else {
-                lv_label_set_static_text(icons[u], SYMBOL_FILE);
-                lv_label_set_style(icons[u], &filelabelstyle_other);
+                lv_label_set_static_text(icons[u], LV_SYMBOL_FILE);
+                lv_label_set_style(icons[u], LV_LABEL_STYLE_MAIN, &filelabelstyle_other);
             }
             lv_label_set_text(labels[u], name); //can't use lv_label_set_static_text here - it writes to the passed string to truncate it
         }
         if (sel) {
             if (u == selectedfile) {
                 if (type == DT_DIR) {
-                    Ui_SoftBar_Update(2, true, SYMBOL_RIGHT" Open", false);
+                    Ui_SoftBar_Update(2, true, LV_SYMBOL_RIGHT" Open", false);
                 } else if (type == DT_REG) {
                     uint8_t namelen = strlen(name);
                     if (namelen > 4) {
                         char exten[5];
                         strcpy(exten, name + namelen - 4);
                         if ((strcasecmp(exten, ".vgm") == 0) || (strcasecmp(exten, ".vgz") == 0)) {
-                            Ui_SoftBar_Update(2, true, SYMBOL_PLAY" Play", false);
+                            Ui_SoftBar_Update(2, true, LV_SYMBOL_PLAY" Play", false);
                         } else if (strcasecmp(&name[namelen-4], ".m3u") == 0) {
-                            Ui_SoftBar_Update(2, true, SYMBOL_PLAY" Play", false);
+                            Ui_SoftBar_Update(2, true, LV_SYMBOL_PLAY" Play", false);
                         } else if (strcasecmp(&name[namelen-4], ".mgu") == 0) {
-                            Ui_SoftBar_Update(2, true, SYMBOL_CHARGE" Flash", false);
+                            Ui_SoftBar_Update(2, true, LV_SYMBOL_CHARGE" Flash", false);
                         } else {
-                            Ui_SoftBar_Update(2, false, SYMBOL_CLOSE" N/A", false);
+                            Ui_SoftBar_Update(2, false, LV_SYMBOL_CLOSE" N/A", false);
                         }
                     } else {
-                        Ui_SoftBar_Update(2, false, SYMBOL_CLOSE" N/A", false);
+                        Ui_SoftBar_Update(2, false, LV_SYMBOL_CLOSE" N/A", false);
                     }
                 }
             }
@@ -405,11 +407,11 @@ void redrawlistsel(bool list, bool sel) {
         }
     }
     if (sel) {
-        lv_cont_set_style(files[selectedfile_last], &filestyle);
+        lv_cont_set_style(files[selectedfile_last], LV_CONT_STYLE_MAIN, &filestyle);
         lv_label_set_long_mode(labels[selectedfile_last], LV_LABEL_LONG_DOT);
         lv_obj_set_width(labels[selectedfile_last], 240-26-2);
-        lv_cont_set_style(files[selectedfile], &filestyle_sel);
-        lv_label_set_long_mode(labels[selectedfile], LV_LABEL_LONG_ROLL);
+        lv_cont_set_style(files[selectedfile], LV_CONT_STYLE_MAIN, &filestyle_sel);
+        lv_label_set_long_mode(labels[selectedfile], LV_LABEL_LONG_SROLL);
         lv_obj_set_width(labels[selectedfile], 240-26-2);
         selectedfile_last = selectedfile;
     }
@@ -549,7 +551,7 @@ void startdir() {
     cachedir(path);
     redrawlistsel(true, true);
     updatescrollbar();
-    Ui_SoftBar_Update(1, strcmp(path, startpath) != 0, SYMBOL_UP" "SYMBOL_DIRECTORY"Up", true);
+    Ui_SoftBar_Update(1, strcmp(path, startpath) != 0, LV_SYMBOL_UP" "LV_SYMBOL_DIRECTORY"Up", true);
 }
 
 void Ui_FileBrowser_Key(KeyEvent_t event) {
