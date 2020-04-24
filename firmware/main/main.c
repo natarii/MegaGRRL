@@ -50,6 +50,7 @@
 #include "ui.h"
 #include "hal.h"
 #include "leddrv.h"
+#include "hspi.h"
 #ifndef FWUPDATE
 #include "battery.h"
 #include "key.h"
@@ -78,7 +79,6 @@ LV_IMG_DECLARE(img_kunoichilabs_smol);
 #include <dirent.h>
 
 static const char* TAG = "Main";
-
 
 //LV_FONT_DECLARE(lv_font_monospace_8);
 
@@ -297,6 +297,9 @@ void app_main(void)
 
     ESP_LOGI(TAG, "Init IoExp...");
     bool IoUp = IoExp_Setup();
+
+    ESP_LOGI(TAG, "Init hspi...");
+    Hspi_Setup();
 
     #ifndef FWUPDATE
     #ifdef HWVER_PORTABLE

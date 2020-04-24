@@ -39,14 +39,6 @@ void LcdDma_PreTransferCallback(spi_transaction_t *t) {
     gpio_set_level(PIN_DISP_DC, (uint8_t)t->user); //no need to mask off the end of sequence bit - gpio driver just does "if (level)"
 }
 
-spi_bus_config_t LcdDma_SpiBusConfig = {
-    .miso_io_num = -1,
-    .mosi_io_num = PIN_DISP_MOSI,
-    .sclk_io_num = PIN_DISP_SCK,
-    .quadwp_io_num = -1,
-    .quadhd_io_num = -1,
-    .max_transfer_sz = 4094,
-};
 spi_device_interface_config_t LcdDma_SpiDeviceConfig = {
     .clock_speed_hz = 40000000,
     .mode = 0,
@@ -221,11 +213,6 @@ bool LcdDma_Setup() {
     }
 
     esp_err_t ret;
-    ret = spi_bus_initialize(HSPI_HOST, &LcdDma_SpiBusConfig, 1);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Spi bus init fail !! 0x%x", ret);
-        return false;
-    }
     ret = spi_bus_add_device(HSPI_HOST, &LcdDma_SpiDeviceConfig, &LcdDma_SpiDevice);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Spi bus device add fail !! 0x%x", ret);
