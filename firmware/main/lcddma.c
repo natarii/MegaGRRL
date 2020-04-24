@@ -18,6 +18,7 @@
 static const char* TAG = "LcdDma";
 
 volatile bool LcdDma_AltMode = true;
+volatile bool LcdDma_Screenshot = false;
 
 StaticSemaphore_t LcdDma_MutexBuffer;
 SemaphoreHandle_t LcdDma_Mutex = NULL;
@@ -26,6 +27,9 @@ DRAM_ATTR static uint8_t LcdDma_Lvgl_Buf[LV_VDB_SIZE_IN_BYTES];
 DRAM_ATTR static uint8_t LcdDma_Lvgl_Buf2[LV_VDB_SIZE_IN_BYTES];
 static lv_disp_buf_t disp_buf;
 static volatile IRAM_ATTR lv_disp_t *disp;
+
+static uint8_t ss_id = 0;
+static FILE *ss_file;
 
 void LcdDma_PostTransferCallback(spi_transaction_t *t) {
     if (/*!LcdDma_AltMode && */(uint8_t)t->user & 1<<1) lv_disp_flush_ready(disp);
@@ -115,7 +119,7 @@ void LcdDma_Data(uint8_t *data, uint16_t len) {
 }
 
 spi_transaction_t LcdDma_Flush_Txs[6];
-//static void LcdDma_Lvgl_Flush(int32_t x1, int32_t y1, int32_t x2, int32_t y2, const lv_color_t * color_p) {
+static uint8_t ss_buf[512];
 static void LcdDma_Lvgl_Flush(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_color_t *color_p) {
     //don't bother checking the size of the data given to this, we should never receive more than the maximum dma transfer size, as ensured by the size of LV_VDB_SIZE.
 
@@ -124,6 +128,34 @@ static void LcdDma_Lvgl_Flush(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv
     y1 = area->y1;
     x2 = area->x2;
     y2 = area->y2;
+    uint32_t pix = ((x2-x1)+1)*((y2-y1)+1);
+
+    //todo: maybe redo this, by adding another lvgl display device, and switching it to output to that when we want a screenshot
+    //this would produce broken images if lvgl ever rendered the screen out of order, but since we invalidate the whole screen and only render once, that should never happen
+    if (LcdDma_Screenshot) {
+        //GLLBBBBBRRRRRGHH (this is the byteswapped RGB565 bit layout, not me making random growling noises >_>)
+        uint16_t waiting = 0;
+        while (pix) {
+            uint16_t p = color_p->full;
+            uint8_t r = p & 0b11111000;
+            uint8_t g = ((p&0b111)<<5) | (p>>11);
+            uint8_t b = (p>>5) & 0b11111000;
+            pix--;
+            color_p++;
+            ss_buf[waiting++] = b;
+            ss_buf[waiting++] = g;
+            ss_buf[waiting++] = r;
+            if (waiting >= 509) {
+                fwrite(ss_buf, 1, waiting, ss_file);
+                waiting = 0;
+            }
+        }
+        if (waiting) {
+            fwrite(ss_buf, 1, waiting, ss_file);
+        }
+        lv_disp_flush_ready(disp);
+        return;
+    }
 
     for (uint8_t i=0;i<6;i++) {
         memset(&LcdDma_Flush_Txs[i], 0, sizeof(spi_transaction_t));
@@ -159,7 +191,6 @@ static void LcdDma_Lvgl_Flush(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv
     LcdDma_Flush_Txs[4].tx_data[0] = 0x2c;
     spi_device_queue_trans(LcdDma_SpiDevice, &LcdDma_Flush_Txs[4], portMAX_DELAY);
     LcdDma_Flush_Txs[5].tx_buffer = (uint8_t *)color_p;
-    uint32_t pix = ((x2-x1)+1)*((y2-y1)+1);
     LcdDma_Flush_Txs[5].length = pix<<4;
     LcdDma_Flush_Txs[5].user = 0b11; //bit 1 used as end of sequence flag, checked in post-transfer callback
     spi_device_queue_trans(LcdDma_SpiDevice, &LcdDma_Flush_Txs[5], portMAX_DELAY);
@@ -240,6 +271,18 @@ bool LcdDma_Setup() {
     ESP_LOGI(TAG, "Done");
     return true;
 }
+static const uint8_t ss_tgaheader[18] = {0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf0, 0x00, 0x40, 0x01, 24, 0b00100000}; //240x320, 24bit RGB, top-down
+static void ss_start() {
+    char fn[32];
+    strcpy(fn, "/sd/.mega/screen");
+    sprintf(&fn[strlen(fn)], "%02x", ss_id++);
+    strcat(fn, ".tga");
+    ss_file = fopen(fn, "w");
+    fwrite(ss_tgaheader, 18, 1, ss_file);
+}
+static void ss_finish() {
+    fclose(ss_file);
+}
 
 void LcdDma_Main() {
     ESP_LOGI(TAG, "Task start");
@@ -250,7 +293,20 @@ void LcdDma_Main() {
         lv_tick_inc(xTaskGetTickCount() - last);
         last = cur;
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
-        lv_task_handler();
+        if (LcdDma_Screenshot) {
+            //these two draws should be identical, since there is no lv_tick_inc in between
+            LcdDma_Screenshot = false;
+            lv_obj_invalidate(lv_scr_act());
+            lv_refr_now(disp);
+            LcdDma_Screenshot = true;
+            ss_start();
+            lv_obj_invalidate(lv_scr_act());
+            lv_refr_now(disp);
+            ss_finish();
+            LcdDma_Screenshot = false;
+        } else {
+            lv_task_handler();
+        }
         LcdDma_Mutex_Give();
         vTaskDelay(pdMS_TO_TICKS(20));
     }

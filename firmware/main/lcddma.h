@@ -82,6 +82,7 @@
 #define TFT_CMD_DELAY	0x80
 
 extern volatile bool LcdDma_AltMode;
+extern volatile bool LcdDma_Screenshot;
 
 bool LcdDma_Setup();
 void LcdDma_Main();
