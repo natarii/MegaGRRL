@@ -195,6 +195,10 @@ void Ui_Debug_Key(KeyEvent_t event) {
         KeyMgr_Consume(KEY_C);
         Ui_Screen = UISCREEN_ABOUT;
     }
+    if (event.Key == KEY_A && event.State & KEY_EVENT_HOLD) {
+        ESP_LOGI(TAG, "Enabling screenshot key");
+        Ui_ScreenshotEnabled = true;
+    }
 }
 
 void Ui_Debug_Tick() {

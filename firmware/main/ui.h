@@ -22,6 +22,7 @@ typedef enum {
 
 extern volatile UiScreen_t Ui_Screen;
 extern UiScreen_t Ui_Screen_Last;
+extern volatile bool Ui_ScreenshotEnabled;
 
 bool Ui_EarlySetup();
 bool Ui_Setup();

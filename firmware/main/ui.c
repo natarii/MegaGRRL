@@ -27,6 +27,8 @@ QueueHandle_t Ui_KeyQueue = NULL;
 StaticQueue_t Ui_KeyStaticQueue;
 static uint8_t Ui_KeyQueueBuf[UI_KEYQUEUE_SIZE*sizeof(KeyEvent_t)];
 
+volatile bool Ui_ScreenshotEnabled = false;
+
 volatile UiScreen_t Ui_Screen;
 UiScreen_t Ui_Screen_Last;
 
@@ -100,38 +102,52 @@ void Ui_Main() {
         while (uxQueueMessagesWaiting(Ui_KeyQueue)) {
             KeyEvent_t event;
             xQueueReceive(Ui_KeyQueue, &event, 0);
-            switch (Ui_Screen) {
-                case UISCREEN_FILEBROWSER:
-                    Ui_FileBrowser_Key(event);
-                    break;
-                case UISCREEN_NOWPLAYING:
-                    Ui_NowPlaying_Key(event);
-                    break;
-                case UISCREEN_MAINMENU:
-                    Ui_MainMenu_Key(event);
-                    break;
-                case UISCREEN_MUTING:
-                    Ui_Muting_Key(event);
-                    break;
-                case UISCREEN_ABOUT:
-                    Ui_About_Key(event);
-                    break;
-                case UISCREEN_OPTIONS_CATS:
-                    Ui_Options_Cats_Key(event);
-                    break;
-                case UISCREEN_OPTIONS_OPTS:
-                    Ui_Options_Opts_Key(event);
-                    break;
-                case UISCREEN_FWUPDATE:
-                    Ui_Fwupdate_Key(event);
-                    break;
-                case UISCREEN_DEBUG:
-                    Ui_Debug_Key(event);
-                    break;
-                default:
-                    break;
+            if (Ui_ScreenshotEnabled && event.Key == KEY_A) {
+                if (event.State & KEY_EVENT_DOWN) {
+                    ESP_LOGI(TAG, "Taking screenshot");
+                    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+                    LcdDma_Screenshot = true;
+                    LcdDma_Mutex_Give();
+                    vTaskDelay(pdMS_TO_TICKS(500)); //kinda hacky...
+                } else if (event.State & KEY_EVENT_HOLD) {
+                    KeyMgr_Consume(KEY_A);
+                    ESP_LOGI(TAG, "Disabling screenshot key");
+                    Ui_ScreenshotEnabled = false;
+                }
+            } else {
+                switch (Ui_Screen) {
+                    case UISCREEN_FILEBROWSER:
+                        Ui_FileBrowser_Key(event);
+                        break;
+                    case UISCREEN_NOWPLAYING:
+                        Ui_NowPlaying_Key(event);
+                        break;
+                    case UISCREEN_MAINMENU:
+                        Ui_MainMenu_Key(event);
+                        break;
+                    case UISCREEN_MUTING:
+                        Ui_Muting_Key(event);
+                        break;
+                    case UISCREEN_ABOUT:
+                        Ui_About_Key(event);
+                        break;
+                    case UISCREEN_OPTIONS_CATS:
+                        Ui_Options_Cats_Key(event);
+                        break;
+                    case UISCREEN_OPTIONS_OPTS:
+                        Ui_Options_Opts_Key(event);
+                        break;
+                    case UISCREEN_FWUPDATE:
+                        Ui_Fwupdate_Key(event);
+                        break;
+                    case UISCREEN_DEBUG:
+                        Ui_Debug_Key(event);
+                        break;
+                    default:
+                        break;
+                }
+                if (Ui_Screen != Ui_Screen_Last) break;
             }
-            if (Ui_Screen != Ui_Screen_Last) break;
         }
         if (Ui_Screen != Ui_Screen_Last) {
             switch (Ui_Screen_Last) {
