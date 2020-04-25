@@ -123,16 +123,19 @@ bool Ui_NowPlaying_Setup(lv_obj_t *uiscreen) {
     text_title = lv_label_create(container, NULL);
     lv_label_set_style(text_title, LV_LABEL_STYLE_MAIN, &textstyle);
     lv_obj_set_pos(text_title, 5, 25);
+    lv_label_set_anim_speed(text_title, 50);
     lv_label_set_static_text(text_title, loading);
 
     text_author = lv_label_create(container, NULL);
     lv_label_set_style(text_author, LV_LABEL_STYLE_MAIN, &textstyle);
     lv_obj_set_pos(text_author, 5, 65);
+    lv_label_set_anim_speed(text_author, 50);
     lv_label_set_static_text(text_author, loading);
 
     text_game = lv_label_create(container, NULL);
     lv_label_set_style(text_game, LV_LABEL_STYLE_MAIN, &textstyle);
     lv_obj_set_pos(text_game, 5, 105);
+    lv_label_set_anim_speed(text_game, 50);
     lv_label_set_static_text(text_game, loading);
 
 
