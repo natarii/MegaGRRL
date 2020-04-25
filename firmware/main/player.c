@@ -55,7 +55,6 @@ bool Player_NextTrk(bool UserSpecified) { //returns true if there is now a track
             QueueSetupEntry(false);
         }
     }
-    Player_StartTrack(&QueuePlayingFilename[0]);
     return true;
 }
 
@@ -77,7 +76,6 @@ bool Player_PrevTrk(bool UserSpecified) { //returns true if there is now a track
             QueueSetupEntry(false);
         }
     }
-    Player_StartTrack(&QueuePlayingFilename[0]);
     return true;
 }
 
@@ -115,6 +113,7 @@ void Player_Main() {
                     ESP_LOGI(TAG, "next track proceeding");
                     xEventGroupSetBits(Player_Status, PLAYER_STATUS_RUNNING);
                     xEventGroupClearBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
+                    Player_StartTrack(QueuePlayingFilename);
                 } else {
                     ESP_LOGI(TAG, "next track failed");
                     xEventGroupClearBits(Player_Status, PLAYER_STATUS_RUNNING);
@@ -130,6 +129,7 @@ void Player_Main() {
                         ESP_LOGI(TAG, "prev track proceeding");
                         xEventGroupSetBits(Player_Status, PLAYER_STATUS_RUNNING);
                         xEventGroupClearBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
+                        Player_StartTrack(QueuePlayingFilename);
                     } else {
                         ESP_LOGI(TAG, "prev track failed");
                         xEventGroupClearBits(Player_Status, PLAYER_STATUS_RUNNING);
@@ -175,7 +175,7 @@ void Player_Main() {
             xEventGroupClearBits(Player_Status, PLAYER_STATUS_PAUSED);
             if (Player_NextTrk(false)) {
                 ESP_LOGI(TAG, "next track proceeding");
-                //nothing to do, i don't think...
+                Player_StartTrack(QueuePlayingFilename);
             } else {
                 ESP_LOGI(TAG, "next track failed");
                 xEventGroupClearBits(Player_Status, PLAYER_STATUS_RUNNING);
