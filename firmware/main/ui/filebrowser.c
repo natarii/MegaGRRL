@@ -39,10 +39,6 @@ uint16_t selectedfile = 0;
 uint16_t selectedfile_last = 0xff;
 uint16_t diroffset = 0;
 
-uint8_t histdepth = 0;
-uint16_t selectedfile_hist[8];
-uint16_t diroffset_hist[8];
-
 char startpath[] = "/sd";
 char path[264];
 char temppath[264];
@@ -52,16 +48,18 @@ struct dirent *ent;
 static char direntry_cache[FILEBROWSER_CACHE_SIZE];
 static IRAM_ATTR uint32_t direntry_offset[FILEBROWSER_CACHE_MAXENTRIES];
 static uint16_t direntry_count = 0;
+static bool direntry_invalidated = false;
 
 void openselection();
 void redrawselection();
 void redrawlist();
-void startdir();
+void startdir(bool docache);
+void backdir();
 
 char thumbsdb[] = "Thumbs.db";
 char sysvolinfo[] = "System Volume Information";
 #define BROWSER_IGNORE if (ent->d_name[0] == '.' || strcasecmp(ent->d_name, thumbsdb) == 0 || strcmp(ent->d_name, sysvolinfo) == 0) continue;
-#define BROWSER_LAST_VER 0x11
+#define BROWSER_LAST_VER 0x15
 
 volatile SortDirection_t Ui_FileBrowser_SortDir = SORT_ASCENDING;
 volatile bool Ui_FileBrowser_Sort = true;
@@ -117,18 +115,21 @@ void savelast() {
     FILE *last;
     last = fopen("/sd/.mega/fbrowser.las", "w");
     uint8_t ver = BROWSER_LAST_VER;
+    //ver no.
     fwrite(&ver, 1, 1, last);
-    fwrite(&histdepth, 1, 1, last); //save it for convenience when loading
     char *name = direntry_cache + direntry_offset[diroffset + selectedfile];
     uint16_t s = strlen(path) + 1 + strlen(name);
+    //full path including last played filename, and length thereof
     fwrite(&s, 2, 1, last);
     fwrite(path, strlen(path), 1, last);
     fwrite("/", 1, 1, last);
     fwrite(name, strlen(name), 1, last);
+    //offset of just the last played filename
+    s = strlen(path)+1;
+    fwrite(&s, 2, 1, last);
+    //write out the type, so we know what to check for when loading
     unsigned char type = direntry_cache[direntry_offset[diroffset + selectedfile]-1];
     fwrite(&type, 1, 1, last);
-    s = strlen(path);
-    fwrite(&s, 2, 1, last); //save for convenience again
     fclose(last);
     ESP_LOGI(TAG, "dumped fbrowser.las");
 }
@@ -149,67 +150,53 @@ bool loadhistory() {
         ESP_LOGW(TAG, "version 0x%02x doesn't match 0x%02x", ver, BROWSER_LAST_VER);
         return false;
     }
-    fread(&histdepth,1,1,last); //last history depth is saved in the file for convenience
     uint16_t pathlen;
-    fread(&pathlen,2,1,last); //length of last file opened
-    fread(&path,1,pathlen,last); //last file opened
-    path[pathlen] = 0; //terminate string
+    fread(&pathlen,2,1,last); //length of last path + filename
+    fread(&path,1,pathlen,last); //last path + filename
+    uint16_t nameoff;
+    fread(&nameoff,2,1,last); //offset of just the filename
     uint8_t type;
-    fread(&type,1,1,last);
-    fread(&pathlen,2,1,last); //length of just the path portion, used later
+    fread(&type,1,1,last); //type of last selected/opened file
     fclose(last);
-    ESP_LOGI(TAG, "filebrowser last path: %s, type %d", path, type);
+    path[pathlen] = 0; //terminate string
+    ESP_LOGI(TAG, "loadhistory: checking if %s (type %d) still exists...", path, type);
+    DIR *test;
+    last = NULL;
+    test = NULL;
     if (type == DT_DIR) {
-        DIR *test = opendir(path);
-        if (!test) {
-            ESP_LOGW(TAG, "path no longer exists");
-            return false;
-        }
-        closedir(test);
+        test = opendir(path);
     } else if (type == DT_REG) {
-        FILE *test = fopen(path, "r");
-        if (!test) {
-            ESP_LOGW(TAG, "path no longer exists");
-            return false;
-        }
-        fclose(test);
+        last = fopen(path, "r");
+    } else {
+        ESP_LOGE(TAG, "error: unknown type");
+        return false;
     }
-    strcpy(temppath, path); //use temppath to store path as we work backwards though the tree
-    uint8_t histindex = histdepth;
-    //do { //work backwards through the tree
-    for (uint8_t o=0;o<=histdepth;o++) {
-        //find the last path separator
-        uint16_t l = 0xffff;
-        for (uint16_t i=0;i<strlen(temppath);i++) {
-            if (temppath[i] == '/') {
-                l = i;
-            }
+    if (last || test) {
+        if (type == DT_DIR) {
+            closedir(test);
+        } else if (type == DT_REG) {
+            fclose(last);
         }
-        //truncate temppath there (basically, get the parent dir)
-        temppath[l] = 0;
-        //generate directory listing for the parent dir
-        cachedir(temppath);
-        //find the current dir within the parent
-        for (uint16_t i=0;i<direntry_count;i++) {
-            char *name = direntry_cache + direntry_offset[i];
-            if (strcmp(name, &temppath[l+1]) == 0) {
-                if (histindex == histdepth) {
-                    diroffset = (i/10)*10;
-                    selectedfile = i%10;
-                } else {
-                    diroffset_hist[histindex] = (i/10)*10;
-                    selectedfile_hist[histindex] = i%10;
-                }
-                ESP_LOGI(TAG, "found %s in %s at diroffset %d selfile %d", &temppath[l+1], temppath, diroffset_hist[histindex], selectedfile_hist[histindex]);
-            }
-        }
+        ESP_LOGI(TAG, "it does");
+    } else {
+        ESP_LOGW(TAG, "it does not");
+        return false;
+    }
+    path[nameoff-1] = 0; //chop off the filename from the path, at the last /
 
-        //back towards the beginning of time
-        histindex--;
+    ESP_LOGI(TAG, "loadhistory: going back to %s, last selection was %s", path, &path[nameoff]);
+
+    cachedir(path);
+    for (uint16_t i=0;i<direntry_count;i++) {
+        char *name = direntry_cache + direntry_offset[i];
+        if (strcmp(name, &path[nameoff]) == 0) {
+            diroffset = (i/10)*10;
+            selectedfile = i%10;
+            ESP_LOGI(TAG, "loadhistory done: found last selection at diroffset %d selfile %d", diroffset, selectedfile);
+        }
     }
 
-    //now get rid of the filename from path, if necessary
-    if (type == DT_REG) path[pathlen] = 0;
+    ESP_LOGI(TAG, "all done");
     
     return true;
 }
@@ -220,9 +207,6 @@ void Ui_FileBrowser_Setup() {
     if (loadhistory()) {
         //nothing more to do
     } else {
-        histdepth = 0;
-        selectedfile_hist[0] = 0;
-        diroffset_hist[0] = 0;
         strcpy(path, startpath);
     }
 }
@@ -319,12 +303,31 @@ bool Ui_FileBrowser_Activate(lv_obj_t *uiscreen) {
     //Ui_SoftBar_Update(2, true, LV_SYMBOL_"Open");
     LcdDma_Mutex_Give();
 
-    startdir();
+    if (direntry_invalidated) {
+        //if model sort option changes are ever allowed, just move the cache+loop to its own function and reuse it there
+        ESP_LOGI(TAG, "direntry was invalidated, re-caching");
+        ESP_LOGI(TAG, "current path: %s", path);
+        strcpy(temppath, direntry_cache + direntry_offset[diroffset+selectedfile]);
+        ESP_LOGI(TAG, "currently selected: %s", temppath);
+        cachedir(path);
+        for (uint16_t i=0;i<direntry_count;i++) {
+            char *name = direntry_cache + direntry_offset[i];
+            if (strcmp(name, temppath) == 0) {
+                diroffset = (i/10)*10;
+                selectedfile = i%10;
+                ESP_LOGI(TAG, "found last selection at diroffset %d selfile %d", diroffset, selectedfile);
+            }
+        }
+        startdir(false);
+    } else {
+        startdir(true);
+    }
 
     return true;
 }
 
 void Ui_FileBrowser_Destroy() {
+    direntry_invalidated = true;
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_obj_del(container);
     LcdDma_Mutex_Give();
@@ -421,15 +424,10 @@ void redrawlistsel(bool list, bool sel) {
 void opendirectory() {
     ESP_LOGI(TAG, "browser enter %s", path);
 
-    if (histdepth < 8) {
-        diroffset_hist[histdepth] = diroffset;
-        selectedfile_hist[histdepth] = selectedfile;
-    }
-    histdepth++;
     diroffset = 0;
     selectedfile = 0;
 
-    startdir();
+    startdir(true);
 }
 
 uint8_t dumpm3u() {
@@ -534,21 +532,23 @@ void backdir() {
     }
     path[l] = 0;
 
-    ESP_LOGI(TAG, "browser enter %s", path);
+    ESP_LOGI(TAG, "browser going back to %s, last selection was %s", path, &path[l+1]);
 
-    if (histdepth < 8) {
-        diroffset_hist[histdepth] = diroffset;
-        selectedfile_hist[histdepth] = selectedfile;
+    cachedir(path);
+    for (uint16_t i=0;i<direntry_count;i++) {
+        char *name = direntry_cache + direntry_offset[i];
+        if (strcmp(name, &path[l+1]) == 0) {
+            diroffset = (i/10)*10;
+            selectedfile = i%10;
+            ESP_LOGI(TAG, "found last selection at diroffset %d selfile %d", diroffset, selectedfile);
+        }
     }
-    histdepth--;
-    diroffset = diroffset_hist[histdepth];
-    selectedfile = selectedfile_hist[histdepth];
 
-    startdir();
+    startdir(false);
 }
 
-void startdir() {
-    cachedir(path);
+void startdir(bool docache) {
+    if (docache) cachedir(path);
     redrawlistsel(true, true);
     updatescrollbar();
     Ui_SoftBar_Update(1, strcmp(path, startpath) != 0, LV_SYMBOL_UP" "LV_SYMBOL_DIRECTORY"Up", true);
