@@ -284,6 +284,7 @@ bool Ui_FileBrowser_Activate(lv_obj_t *uiscreen) {
         lv_obj_set_pos(labels[i], 26, 2);
         lv_label_set_text(labels[i], "");
         lv_label_set_long_mode(labels[i], (i==selectedfile)?LV_LABEL_LONG_SROLL:LV_LABEL_LONG_DOT);
+        lv_label_set_anim_speed(labels[i], 50);
         lv_obj_set_width(labels[i], 235-31);
         icons[i] = lv_label_create(files[i], NULL);
         lv_obj_set_pos(icons[i], 4, 2);
