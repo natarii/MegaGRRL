@@ -116,7 +116,7 @@ void Loader_Main() {
                 ESP_LOGW(TAG, "Returning to normal priority");
                 adjustedprio = false;
             }
-            if (!Loader_EndReached && (spaces > DRIVER_QUEUE_SIZE/8)) {
+            if (!Loader_EndReached && (spaces > DRIVER_QUEUE_SIZE/16)) {
                 UserLedMgr_DiskState[DISKSTATE_VGM] = true;
                 UserLedMgr_Notify();
                 while (running && uxQueueSpacesAvailable(Driver_CommandQueue)) {
