@@ -31,16 +31,16 @@ LV_IMG_DECLARE(img_blank);
 LV_IMG_DECLARE(img_mainmenu0); LV_IMG_DECLARE(img_mainmenu1); LV_IMG_DECLARE(img_mainmenu2); LV_IMG_DECLARE(img_mainmenu3); LV_IMG_DECLARE(img_mainmenu4); LV_IMG_DECLARE(img_mainmenu5); LV_IMG_DECLARE(img_mainmenu6); LV_IMG_DECLARE(img_mainmenu7); LV_IMG_DECLARE(img_mainmenu8); LV_IMG_DECLARE(img_mainmenu9); LV_IMG_DECLARE(img_mainmenu10); LV_IMG_DECLARE(img_mainmenu11); LV_IMG_DECLARE(img_mainmenu12); LV_IMG_DECLARE(img_mainmenu13); LV_IMG_DECLARE(img_mainmenu14); LV_IMG_DECLARE(img_mainmenu15); LV_IMG_DECLARE(img_mainmenu16); LV_IMG_DECLARE(img_mainmenu17); LV_IMG_DECLARE(img_mainmenu18); LV_IMG_DECLARE(img_mainmenu19); LV_IMG_DECLARE(img_mainmenu20); LV_IMG_DECLARE(img_mainmenu21); LV_IMG_DECLARE(img_mainmenu22); LV_IMG_DECLARE(img_mainmenu23); LV_IMG_DECLARE(img_mainmenu24); LV_IMG_DECLARE(img_mainmenu25); LV_IMG_DECLARE(img_mainmenu26); LV_IMG_DECLARE(img_mainmenu27); LV_IMG_DECLARE(img_mainmenu28); LV_IMG_DECLARE(img_mainmenu29); LV_IMG_DECLARE(img_mainmenu30); LV_IMG_DECLARE(img_mainmenu31); LV_IMG_DECLARE(img_mainmenu32); LV_IMG_DECLARE(img_mainmenu33); LV_IMG_DECLARE(img_mainmenu34); LV_IMG_DECLARE(img_mainmenu35); LV_IMG_DECLARE(img_mainmenu36); LV_IMG_DECLARE(img_mainmenu37); LV_IMG_DECLARE(img_mainmenu38); LV_IMG_DECLARE(img_mainmenu39); LV_IMG_DECLARE(img_mainmenu40); LV_IMG_DECLARE(img_mainmenu41); LV_IMG_DECLARE(img_mainmenu42); LV_IMG_DECLARE(img_mainmenu43); LV_IMG_DECLARE(img_mainmenu44); LV_IMG_DECLARE(img_mainmenu45); LV_IMG_DECLARE(img_mainmenu46); LV_IMG_DECLARE(img_mainmenu47); LV_IMG_DECLARE(img_mainmenu48); LV_IMG_DECLARE(img_mainmenu49); LV_IMG_DECLARE(img_mainmenu50); LV_IMG_DECLARE(img_mainmenu51); LV_IMG_DECLARE(img_mainmenu52); LV_IMG_DECLARE(img_mainmenu53); LV_IMG_DECLARE(img_mainmenu54); LV_IMG_DECLARE(img_mainmenu55); LV_IMG_DECLARE(img_mainmenu56); LV_IMG_DECLARE(img_mainmenu57); LV_IMG_DECLARE(img_mainmenu58); LV_IMG_DECLARE(img_mainmenu59); LV_IMG_DECLARE(img_mainmenu60); LV_IMG_DECLARE(img_mainmenu61); LV_IMG_DECLARE(img_mainmenu62); LV_IMG_DECLARE(img_mainmenu63); 
 static const lv_img_dsc_t *img_mainmenu[64] = {&img_mainmenu0, &img_mainmenu1, &img_mainmenu2, &img_mainmenu3, &img_mainmenu4, &img_mainmenu5, &img_mainmenu6, &img_mainmenu7, &img_mainmenu8, &img_mainmenu9, &img_mainmenu10, &img_mainmenu11, &img_mainmenu12, &img_mainmenu13, &img_mainmenu14, &img_mainmenu15, &img_mainmenu16, &img_mainmenu17, &img_mainmenu18, &img_mainmenu19, &img_mainmenu20, &img_mainmenu21, &img_mainmenu22, &img_mainmenu23, &img_mainmenu24, &img_mainmenu25, &img_mainmenu26, &img_mainmenu27, &img_mainmenu28, &img_mainmenu29, &img_mainmenu30, &img_mainmenu31, &img_mainmenu32, &img_mainmenu33, &img_mainmenu34, &img_mainmenu35, &img_mainmenu36, &img_mainmenu37, &img_mainmenu38, &img_mainmenu39, &img_mainmenu40, &img_mainmenu41, &img_mainmenu42, &img_mainmenu43, &img_mainmenu44, &img_mainmenu45, &img_mainmenu46, &img_mainmenu47, &img_mainmenu48, &img_mainmenu49, &img_mainmenu50, &img_mainmenu51, &img_mainmenu52, &img_mainmenu53, &img_mainmenu54, &img_mainmenu55, &img_mainmenu56, &img_mainmenu57, &img_mainmenu58, &img_mainmenu59, &img_mainmenu60, &img_mainmenu61, &img_mainmenu62, &img_mainmenu63, };
 
-IRAM_ATTR lv_obj_t *mm_icon;
-IRAM_ATTR lv_obj_t *mm_iconL;
-IRAM_ATTR lv_obj_t *mm_iconR;
-IRAM_ATTR lv_obj_t *mm_icontext;
-lv_style_t mm_icontext_style;
-IRAM_ATTR lv_obj_t *mm_icondesc;
-lv_style_t mm_icondesc_style;
+static IRAM_ATTR lv_obj_t *mm_icon;
+static IRAM_ATTR lv_obj_t *mm_iconL;
+static IRAM_ATTR lv_obj_t *mm_iconR;
+static IRAM_ATTR lv_obj_t *mm_icontext;
+static lv_style_t mm_icontext_style;
+static IRAM_ATTR lv_obj_t *mm_icondesc;
+static lv_style_t mm_icondesc_style;
 
 static IRAM_ATTR lv_obj_t *container;
-lv_style_t containerstyle;
+static lv_style_t containerstyle;
 
 static IRAM_ATTR lv_obj_t *bgtiles[64];
 
@@ -52,9 +52,9 @@ typedef struct {
     const UiScreen_t newscreen;
 } mm_icon_t;
 
-uint8_t mm_curicon = 1;
+static uint8_t mm_curicon = 1;
 
-const mm_icon_t mm_icontable[] = {
+static const mm_icon_t mm_icontable[] = {
     {"Music Player", "View and control the currently playing track.", &img_player, &img_player_half, UISCREEN_NOWPLAYING},
     {"File Browser", "Browse files stored on the SD card.", &img_library, &img_library_half, UISCREEN_FILEBROWSER},
     {"Settings", "Adjust system settings.", &img_settings, &img_settings_half, UISCREEN_OPTIONS_CATS},
@@ -65,10 +65,9 @@ const mm_icon_t mm_icontable[] = {
 };
 #define MM_ICON_COUNT (sizeof(mm_icontable)/sizeof(mm_icon_t))
 
-void mm_updateicons();
+static void mm_updateicons();
 
 void Ui_MainMenu_Setup(lv_obj_t *uiscreen) {
-//ESP_LOGE(TAG, "main setup start");
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     container = lv_cont_create(uiscreen, NULL);
     lv_style_copy(&containerstyle, &lv_style_plain);
@@ -78,7 +77,6 @@ void Ui_MainMenu_Setup(lv_obj_t *uiscreen) {
     lv_obj_set_height(container, 250+1); //covering up the bottom row of bg pixels makes the grid look better
     lv_obj_set_width(container, 240);
     lv_obj_set_pos(container, 0, 34+1);
-    //lv_cont_set_fit(container, false, false);
 
     for (uint8_t i=0;i<64;i++) {
         bgtiles[i] = lv_img_create(container, NULL);
@@ -131,7 +129,6 @@ void Ui_MainMenu_Setup(lv_obj_t *uiscreen) {
     Ui_SoftBar_Update(2, true, "Select", false);
     LcdDma_Mutex_Give();
 
-//ESP_LOGE(TAG, "main setup end");
     mm_updateicons();
 }
 
@@ -142,7 +139,6 @@ void Ui_MainMenu_Destroy() {
 }
 
 void mm_updateicons() {
-//ESP_LOGE(TAG, "main update start");
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     if (mm_curicon == 0) {
         lv_img_set_src(mm_iconL, &img_blank);
@@ -158,7 +154,6 @@ void mm_updateicons() {
         lv_img_set_src(mm_iconR, mm_icontable[mm_curicon+1].img_half);
     }
     LcdDma_Mutex_Give();
-//ESP_LOGE(TAG, "main update end");
 }
 
 void Ui_MainMenu_Key(KeyEvent_t event) {
