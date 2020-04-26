@@ -26,6 +26,8 @@ LV_IMG_DECLARE(img_library_half);
 LV_IMG_DECLARE(img_player_half);
 LV_IMG_DECLARE(img_settings_half);
 LV_IMG_DECLARE(img_about_half);
+LV_IMG_DECLARE(img_spfm);
+LV_IMG_DECLARE(img_spfm_half);
 LV_IMG_DECLARE(img_blank);
 //LV_IMG_DECLARE(img_kunoichilabs_smol);
 IRAM_ATTR lv_obj_t *mm_logo;
@@ -62,8 +64,12 @@ const mm_icon_t mm_icontable[] = {
     {"Music Player", "View and control the currently playing track.", &img_player, &img_player_half, UISCREEN_NOWPLAYING},
     {"File Browser", "Browse files stored on the SD card.", &img_library, &img_library_half, UISCREEN_FILEBROWSER},
     {"Settings", "Adjust system settings.", &img_settings, &img_settings_half, UISCREEN_OPTIONS_CATS},
+    #if 0
+    {"SPFM Mode", "Enter SPFM emulation mode.", &img_spfm, &img_spfm_half, UISCREEN_MAINMENU},
+    #endif
     {"About", "View information, credits, acknowledgements.", &img_about, &img_about_half, UISCREEN_ABOUT},
 };
+#define MM_ICON_COUNT (sizeof(mm_icontable)/sizeof(mm_icon_t))
 
 void mm_updateicons();
 
@@ -194,7 +200,7 @@ void mm_updateicons() {
     lv_img_set_src(mm_icon, mm_icontable[mm_curicon].img);
     lv_label_set_static_text(mm_icontext, mm_icontable[mm_curicon].text);
     lv_label_set_static_text(mm_icondesc, mm_icontable[mm_curicon].desc);
-    if (mm_curicon == 3) {
+    if (mm_curicon == MM_ICON_COUNT-1) {
         lv_img_set_src(mm_iconR, &img_blank);
     } else {
         lv_img_set_src(mm_iconR, mm_icontable[mm_curicon+1].img_half);
@@ -213,7 +219,7 @@ void Ui_MainMenu_Key(KeyEvent_t event) {
                 }
                 break;
             case KEY_RIGHT:
-                if (mm_curicon < 3) {
+                if (mm_curicon < MM_ICON_COUNT-1) {
                     mm_curicon++;
                     mm_updateicons();
                 }
