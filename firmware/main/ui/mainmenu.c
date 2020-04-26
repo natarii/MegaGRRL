@@ -17,7 +17,6 @@
 
 static const char* TAG = "Ui_MainMenu";
 
-LV_IMG_DECLARE(img_megagrrlhdr);
 LV_IMG_DECLARE(img_library);
 LV_IMG_DECLARE(img_player);
 LV_IMG_DECLARE(img_settings);
@@ -29,9 +28,9 @@ LV_IMG_DECLARE(img_about_half);
 LV_IMG_DECLARE(img_spfm);
 LV_IMG_DECLARE(img_spfm_half);
 LV_IMG_DECLARE(img_blank);
-//LV_IMG_DECLARE(img_kunoichilabs_smol);
-IRAM_ATTR lv_obj_t *mm_logo;
-//IRAM_ATTR lv_obj_t *mm_logo_kl;
+LV_IMG_DECLARE(img_mainmenu0); LV_IMG_DECLARE(img_mainmenu1); LV_IMG_DECLARE(img_mainmenu2); LV_IMG_DECLARE(img_mainmenu3); LV_IMG_DECLARE(img_mainmenu4); LV_IMG_DECLARE(img_mainmenu5); LV_IMG_DECLARE(img_mainmenu6); LV_IMG_DECLARE(img_mainmenu7); LV_IMG_DECLARE(img_mainmenu8); LV_IMG_DECLARE(img_mainmenu9); LV_IMG_DECLARE(img_mainmenu10); LV_IMG_DECLARE(img_mainmenu11); LV_IMG_DECLARE(img_mainmenu12); LV_IMG_DECLARE(img_mainmenu13); LV_IMG_DECLARE(img_mainmenu14); LV_IMG_DECLARE(img_mainmenu15); LV_IMG_DECLARE(img_mainmenu16); LV_IMG_DECLARE(img_mainmenu17); LV_IMG_DECLARE(img_mainmenu18); LV_IMG_DECLARE(img_mainmenu19); LV_IMG_DECLARE(img_mainmenu20); LV_IMG_DECLARE(img_mainmenu21); LV_IMG_DECLARE(img_mainmenu22); LV_IMG_DECLARE(img_mainmenu23); LV_IMG_DECLARE(img_mainmenu24); LV_IMG_DECLARE(img_mainmenu25); LV_IMG_DECLARE(img_mainmenu26); LV_IMG_DECLARE(img_mainmenu27); LV_IMG_DECLARE(img_mainmenu28); LV_IMG_DECLARE(img_mainmenu29); LV_IMG_DECLARE(img_mainmenu30); LV_IMG_DECLARE(img_mainmenu31); LV_IMG_DECLARE(img_mainmenu32); LV_IMG_DECLARE(img_mainmenu33); LV_IMG_DECLARE(img_mainmenu34); LV_IMG_DECLARE(img_mainmenu35); LV_IMG_DECLARE(img_mainmenu36); LV_IMG_DECLARE(img_mainmenu37); LV_IMG_DECLARE(img_mainmenu38); LV_IMG_DECLARE(img_mainmenu39); LV_IMG_DECLARE(img_mainmenu40); LV_IMG_DECLARE(img_mainmenu41); LV_IMG_DECLARE(img_mainmenu42); LV_IMG_DECLARE(img_mainmenu43); LV_IMG_DECLARE(img_mainmenu44); LV_IMG_DECLARE(img_mainmenu45); LV_IMG_DECLARE(img_mainmenu46); LV_IMG_DECLARE(img_mainmenu47); LV_IMG_DECLARE(img_mainmenu48); LV_IMG_DECLARE(img_mainmenu49); LV_IMG_DECLARE(img_mainmenu50); LV_IMG_DECLARE(img_mainmenu51); LV_IMG_DECLARE(img_mainmenu52); LV_IMG_DECLARE(img_mainmenu53); LV_IMG_DECLARE(img_mainmenu54); LV_IMG_DECLARE(img_mainmenu55); LV_IMG_DECLARE(img_mainmenu56); LV_IMG_DECLARE(img_mainmenu57); LV_IMG_DECLARE(img_mainmenu58); LV_IMG_DECLARE(img_mainmenu59); LV_IMG_DECLARE(img_mainmenu60); LV_IMG_DECLARE(img_mainmenu61); LV_IMG_DECLARE(img_mainmenu62); LV_IMG_DECLARE(img_mainmenu63); 
+static const lv_img_dsc_t *img_mainmenu[64] = {&img_mainmenu0, &img_mainmenu1, &img_mainmenu2, &img_mainmenu3, &img_mainmenu4, &img_mainmenu5, &img_mainmenu6, &img_mainmenu7, &img_mainmenu8, &img_mainmenu9, &img_mainmenu10, &img_mainmenu11, &img_mainmenu12, &img_mainmenu13, &img_mainmenu14, &img_mainmenu15, &img_mainmenu16, &img_mainmenu17, &img_mainmenu18, &img_mainmenu19, &img_mainmenu20, &img_mainmenu21, &img_mainmenu22, &img_mainmenu23, &img_mainmenu24, &img_mainmenu25, &img_mainmenu26, &img_mainmenu27, &img_mainmenu28, &img_mainmenu29, &img_mainmenu30, &img_mainmenu31, &img_mainmenu32, &img_mainmenu33, &img_mainmenu34, &img_mainmenu35, &img_mainmenu36, &img_mainmenu37, &img_mainmenu38, &img_mainmenu39, &img_mainmenu40, &img_mainmenu41, &img_mainmenu42, &img_mainmenu43, &img_mainmenu44, &img_mainmenu45, &img_mainmenu46, &img_mainmenu47, &img_mainmenu48, &img_mainmenu49, &img_mainmenu50, &img_mainmenu51, &img_mainmenu52, &img_mainmenu53, &img_mainmenu54, &img_mainmenu55, &img_mainmenu56, &img_mainmenu57, &img_mainmenu58, &img_mainmenu59, &img_mainmenu60, &img_mainmenu61, &img_mainmenu62, &img_mainmenu63, };
+
 IRAM_ATTR lv_obj_t *mm_icon;
 IRAM_ATTR lv_obj_t *mm_iconL;
 IRAM_ATTR lv_obj_t *mm_iconR;
@@ -42,13 +41,8 @@ lv_style_t mm_icondesc_style;
 
 static IRAM_ATTR lv_obj_t *container;
 lv_style_t containerstyle;
-lv_style_t linestyle;
-lv_point_t points[2*7];
-IRAM_ATTR lv_obj_t *lines[7];
-lv_point_t pointsL[2*7];
-IRAM_ATTR lv_obj_t *linesL[7];
-lv_point_t pointsX[2*14];
-IRAM_ATTR lv_obj_t *linesX[14];
+
+static IRAM_ATTR lv_obj_t *bgtiles[64];
 
 typedef struct {
     const char *text;
@@ -86,52 +80,10 @@ void Ui_MainMenu_Setup(lv_obj_t *uiscreen) {
     lv_obj_set_pos(container, 0, 34+1);
     //lv_cont_set_fit(container, false, false);
 
-    mm_logo = lv_img_create(container, NULL);
-    lv_img_set_src(mm_logo, &img_megagrrlhdr);
-    lv_obj_set_pos(mm_logo, 0, (50/2)-(24/2)+1);//-6);
-
-    /*mm_logo_kl = lv_img_create(container, NULL);
-    lv_img_set_src(mm_logo_kl, &img_kunoichilabs_smol);
-    lv_obj_set_pos(mm_logo_kl, 77, 31);*/
-
-    lv_style_copy(&linestyle, &lv_style_plain);
-    linestyle.line.color = LV_COLOR_MAKE(0x7f,0,0xa0);
-    linestyle.line.width = 2;
-    linestyle.line.rounded = 0;
-
-    for (uint8_t i=0;i<7;i++) {
-        lines[i] = lv_line_create(container, NULL);
-        linesL[i] = lv_line_create(container, NULL);
-        uint16_t x1 = (i+1)*15;
-        uint16_t x2 = (i+1)*45;
-        points[(i*2)+0].x = x1+120;
-        points[(i*2)+0].y = 54;
-        points[(i*2)+1].x = x2+120;
-        points[(i*2)+1].y = 250;
-        lv_line_set_points(lines[i], &points[i*2], 2);
-        lv_line_set_style(lines[i], LV_LINE_STYLE_MAIN, &linestyle);
-        pointsL[(i*2)+0].x = 120-x1;
-        pointsL[(i*2)+0].y = 54;
-        pointsL[(i*2)+1].x = 120-x2;
-        pointsL[(i*2)+1].y = 250;
-        lv_line_set_points(linesL[i], &pointsL[i*2], 2);
-        lv_line_set_style(linesL[i], LV_LINE_STYLE_MAIN, &linestyle);
-    }
-
-    static IRAM_ATTR lv_obj_t *mline;
-    mline = lv_line_create(container, NULL);
-    static lv_point_t mpoints[2] = {{120, 53},{120, 250}};
-    lv_line_set_points(mline, mpoints, 2);
-    lv_line_set_style(mline, LV_LINE_STYLE_MAIN, &linestyle);
-
-    for (uint8_t i=0;i<14;i++) {
-        linesX[i] = lv_line_create(container, NULL);
-        pointsX[(i*2)+0].x = 0;
-        pointsX[(i*2)+0].y = 53 + (i*14) + pow((double)1.5F, (double)i);
-        pointsX[(i*2)+1].x = 240;
-        pointsX[(i*2)+1].y = 53 + (i*14) + pow((double)1.5F, (double)i);
-        lv_line_set_points(linesX[i], &pointsX[i*2], 2);
-        lv_line_set_style(linesX[i], LV_LINE_STYLE_MAIN, &linestyle);
+    for (uint8_t i=0;i<64;i++) {
+        bgtiles[i] = lv_img_create(container, NULL);
+        lv_obj_set_pos(bgtiles[i], (i%8)*32, (i/8)*32);
+        lv_img_set_src(bgtiles[i], img_mainmenu[i]);
     }
 
     mm_icon = lv_img_create(container, NULL);
