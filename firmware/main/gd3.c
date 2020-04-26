@@ -48,14 +48,27 @@ void Gd3ParseDescriptor(FILE *f, VgmInfoStruct_t *info, Gd3Descriptor_t *desc) {
     }
 }
 
-void Gd3GetStringChars(FILE *f, Gd3Descriptor_t *desc, Gd3String_t stringid, char buf[], uint32_t max) { //populate a char array. sticks the null terminator on the end, max does not include it
+void Gd3GetStringChars(FILE *f, Gd3Descriptor_t *desc, Gd3String_t stringid, char *buf, uint32_t max) { //populate a char array. sticks the null terminator on the end, max does not include it
     ESP_LOGI(TAG, "Getting string %d from gd3", (uint8_t)stringid);
-    fseek(f, desc->strings[stringid].off, SEEK_SET);
     uint16_t chr = 0;
-    uint32_t total = (desc->strings[stringid].len < max)?desc->strings[stringid].len:max;
-    for (uint32_t i=0;i<total;i++) {
-        fread(&chr, sizeof(chr), 1, f);
-        buf[i] = chr & 0xff;
+    fseek(f, desc->strings[stringid].off, SEEK_SET);
+    for (uint32_t i=0;i<desc->strings[stringid].len;i++) {
+        if (max >= 3) { //cheezy
+            fread(&chr, sizeof(chr), 1, f);
+            if (chr < 0x80) {
+                *buf++ = chr;
+                max--;
+            } else if (chr < 0x800) {
+                *buf++ = 192+chr/64;
+                *buf++ = 128+chr%64;
+                max -= 2;
+            } else {
+                *buf++ = 224+chr/4096;
+                *buf++ = 128+chr/64%64;
+                *buf++ = 128+chr%64;
+                max -= 3;
+            }
+        }
     }
-    buf[total] = 0;
+    *buf = 0;
 }
