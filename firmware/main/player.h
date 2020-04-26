@@ -39,6 +39,7 @@ extern VgmInfoStruct_t Player_Info;
 extern volatile uint8_t Player_LoopCount;
 extern volatile uint8_t Player_SetLoopCount;
 extern volatile RepeatMode_t Player_RepeatMode;
+extern volatile bool Player_UnvgzReplaceOriginal;
 
 bool Player_StartTrack(char *FilePath);
 bool Player_StopTrack();

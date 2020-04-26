@@ -166,7 +166,15 @@ bool loadhistory() {
     if (type == DT_DIR) {
         test = opendir(path);
     } else if (type == DT_REG) {
+        //this includes a pretty nasty hack for handling vgzs that got extracted and overwritten
+        //the last dir file is saved before the vgz is extracted, so it will be .vgz in the file but .vgm on disk
+        //if someone has both .vgm and .vgz files with the same name it'll end up with the wrong one
         last = fopen(path, "r");
+        if (!last && (path[pathlen-1] == 'z' || path[pathlen-1] == 'Z')) {
+            ESP_LOGW(TAG, "vgz does not exist, checking for vgm");
+            path[pathlen-1] -= 0x0d;
+            last = fopen(path, "r");
+        }
     } else {
         ESP_LOGE(TAG, "error: unknown type");
         return false;
@@ -306,9 +314,21 @@ bool Ui_FileBrowser_Activate(lv_obj_t *uiscreen) {
 
     if (direntry_invalidated) {
         //if model sort option changes are ever allowed, just move the cache+loop to its own function and reuse it there
-        ESP_LOGI(TAG, "direntry was invalidated, re-caching");
+        ESP_LOGI(TAG, "direntry was invalidated, re-caching. checking if last file still exists...");
+        //another janky hack for vgz->vgm, like when loading history
+        strcpy(temppath, path);
+        strcat(temppath, "/");
+        strcat(temppath, direntry_cache + direntry_offset[diroffset+selectedfile]);
+        FILE *test = fopen(temppath, "r");
+        bool vgztovgm = false;
+        if (!test && (temppath[strlen(temppath)-1] == 'z' || temppath[strlen(temppath)-1] == 'Z')) {
+            ESP_LOGW(TAG, "vgz does not exist, checking for vgm");
+            vgztovgm = true;
+        }
+        if (test) fclose(test);
         ESP_LOGI(TAG, "current path: %s", path);
         strcpy(temppath, direntry_cache + direntry_offset[diroffset+selectedfile]);
+        if (vgztovgm) temppath[strlen(temppath)-1] -= 0x0d;
         ESP_LOGI(TAG, "currently selected: %s", temppath);
         cachedir(path);
         for (uint16_t i=0;i<direntry_count;i++) {

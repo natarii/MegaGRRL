@@ -15,6 +15,7 @@
 #include "rom/miniz.h"
 #include "ui/statusbar.h"
 
+
 static const char* TAG = "Player";
 
 FILE *Player_VgmFile;
@@ -27,6 +28,7 @@ uint32_t notif = 0;
 volatile uint8_t Player_SetLoopCount = 2;
 volatile uint8_t Player_LoopCount = 2;
 volatile RepeatMode_t Player_RepeatMode = REPEAT_ALL;
+volatile bool Player_UnvgzReplaceOriginal = true;
 
 EventGroupHandle_t Player_Status;
 StaticEventGroup_t Player_StatusBuf;
@@ -208,35 +210,17 @@ void Player_Unvgz(char *FilePath, bool ReplaceOriginalFile) {
     FILE *reader;
     FILE *writer;
 
+    char vgmfn[513];
     if (ReplaceOriginalFile) {
-        char vgmfn[513];
         strcpy(vgmfn, FilePath);
-        vgmfn[strlen(vgmfn)-1] = 'm';
+        vgmfn[strlen(vgmfn)-1] -= 0x0d;
         
-        ESP_LOGW(TAG, "Unvgz: Decompressing %s to %s", FilePath, vgmfn);
-
-        //copy vgz to temp
-        uint32_t copysize;
-        reader = fopen(FilePath, "r");
-        writer = fopen("/sd/.mega/unvgz.tmp", "w");
-        do {
-            copysize = fread(Driver_PcmBuf, 1, DACSTREAM_BUF_SIZE*DACSTREAM_PRE_COUNT, reader);
-            fwrite(Driver_PcmBuf, 1, copysize, writer);
-        } while (copysize == DACSTREAM_BUF_SIZE*DACSTREAM_PRE_COUNT);
-        fclose(reader);
-        fclose(writer);
-
-        //rename existing vgz to the new vgm
-        rename(FilePath, vgmfn);
-
-        //open new files
-        reader = fopen("/sd/.mega/unvgz.tmp", "r");
-        writer = fopen(vgmfn, "r+");
+        ESP_LOGW(TAG, "Unvgz: Decompressing %s to %s using temp file", FilePath, vgmfn);
     } else {
         ESP_LOGW(TAG, "Unvgz: Decompressing %s to temp file", FilePath);
-        reader = fopen(FilePath, "r");
-        writer = fopen("/sd/.mega/unvgz.tmp", "w");
     }
+    reader = fopen(FilePath, "r");
+    writer = fopen("/sd/.mega/unvgz.tmp", "w");
     fseek(writer, 0, SEEK_SET);
 
     //get compressed size
@@ -296,6 +280,13 @@ void Player_Unvgz(char *FilePath, bool ReplaceOriginalFile) {
     }
     fclose(reader);
     fclose(writer);
+    //todo: success check!!
+    if (ReplaceOriginalFile) {
+        ESP_LOGW(TAG, "Unvgz: Deleting original file");
+        remove(FilePath);
+        ESP_LOGW(TAG, "Unvgz: Renaming temp file to %s", vgmfn);
+        rename("/sd/.mega/unvgz.tmp", vgmfn);
+    }
 }
 
 bool Player_StartTrack(char *FilePath) {
@@ -322,8 +313,15 @@ bool Player_StartTrack(char *FilePath) {
     if (magic == 0x8b1f) {
         ESP_LOGI(TAG, "Compressed");
         Ui_StatusBar_SetExtract(true);
-        Player_Unvgz(FilePath, false);
-        strcpy(FilePath, "/sd/.mega/unvgz.tmp");
+        if (Player_UnvgzReplaceOriginal) {
+            Player_Unvgz(FilePath, true);
+            if (*(FilePath+(strlen(FilePath)-1)) == 'z' || *(FilePath+(strlen(FilePath)-1)) == 'Z') {
+                *(FilePath+(strlen(FilePath)-1)) -= 0x0d;
+            }
+        } else {
+            Player_Unvgz(FilePath, false);
+            strcpy(FilePath, "/sd/.mega/unvgz.tmp");
+        }
         Ui_StatusBar_SetExtract(false);
     } else if (magic == 0x6756) {
         ESP_LOGI(TAG, "Uncompressed");

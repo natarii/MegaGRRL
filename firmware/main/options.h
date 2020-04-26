@@ -34,9 +34,9 @@ typedef struct {
     void (*cb)();
 } option_t;
 
-#define OPTION_COUNT 11
+#define OPTION_COUNT 12
 
-#define OPTIONS_ACTUAL_VER 0x04
+#define OPTIONS_ACTUAL_VER 0x05
 
 #if defined HWVER_PORTABLE
 #define OPTIONS_VER OPTIONS_ACTUAL_VER

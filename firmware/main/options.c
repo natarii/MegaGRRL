@@ -6,6 +6,7 @@
 #include "loader.h"
 #include "userled.h"
 #include "ui/filebrowser.h"
+#include "player.h"
 
 static const char* TAG = "OptionsMgr";
 
@@ -158,6 +159,15 @@ const option_t Options[OPTION_COUNT] = {
         true,
         opts_invalidatefilebrowser
     },
+    {
+        "Overwrite VGZ files",
+        "When this is enabled, VGZ files will be overwritten with extracted VGM equivalents when first played. This will replace the files on the SD card, but will result in much shorter track load times on future plays.",
+        OPTION_CATEGORY_PLAYBACK,
+        OPTION_TYPE_BOOL,
+        &Player_UnvgzReplaceOriginal,
+        true,
+        NULL
+    }
 /* just getting rid of this for now. portable only
     {
         "Backlight timer",
