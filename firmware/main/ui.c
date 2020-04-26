@@ -73,16 +73,16 @@ bool Ui_Setup() {
     Ui_FileBrowser_Setup();
 
     lv_style_copy(&hlinestyle, &lv_style_plain);
-    hlinestyle.line.color = LV_COLOR_MAKE(127,127,127);
+    hlinestyle.line.color = LV_COLOR_MAKE(255,255,255);
     hlinestyle.line.width = 1;
     hpoints[0].x = 0;
     hpoints[0].y = 34;
     hpoints[1].x = 239;
     hpoints[1].y = 34;
     hpoints[2].x = 0;
-    hpoints[2].y = 320-34;
+    hpoints[2].y = 319-34;
     hpoints[3].x = 239;
-    hpoints[3].y = 320-34;
+    hpoints[3].y = 319-34;
     for (uint8_t i=0;i<2;i++) {
         hlines[i] = lv_line_create(uiscreen, NULL);
         lv_line_set_style(hlines[i], LV_LINE_STYLE_MAIN, &hlinestyle);

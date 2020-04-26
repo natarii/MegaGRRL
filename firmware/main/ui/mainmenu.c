@@ -74,7 +74,7 @@ void Ui_MainMenu_Setup(lv_obj_t *uiscreen) {
     containerstyle.body.main_color = LV_COLOR_MAKE(0,0,0);
     containerstyle.body.grad_color = LV_COLOR_MAKE(0,0,0);
     lv_cont_set_style(container, LV_CONT_STYLE_MAIN, &containerstyle);
-    lv_obj_set_height(container, 250+1); //covering up the bottom row of bg pixels makes the grid look better
+    lv_obj_set_height(container, 250);
     lv_obj_set_width(container, 240);
     lv_obj_set_pos(container, 0, 34+1);
 
