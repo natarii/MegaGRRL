@@ -10,6 +10,7 @@
 #include "../driver.h"
 #include "../queue.h"
 #include "../options.h"
+#include "../loader.h"
 
 #include "softbar.h"
 
@@ -487,8 +488,16 @@ void Ui_NowPlaying_Tick() {
     uint32_t total = Player_Info.TotalSamples;
     uint32_t pos = Driver_Sample;
     if (Driver_MitigateVgmTrim && Driver_FirstWait) pos = 0;
-    uint32_t loopsamples = Player_Info.LoopSamples;
-    uint32_t looppoint = total - loopsamples;
+    uint32_t loopsamples;
+    uint32_t looppoint;
+    if (!Loader_IgnoreZeroSampleLoops && Player_Info.LoopSamples == 0 && Player_Info.LoopOffset > 0) { //fix scrub/time out of bounds on old broken deflemask vgms
+        looppoint = 0;
+        loopsamples = total;
+    } else {
+        loopsamples = Player_Info.LoopSamples;
+        looppoint = total - loopsamples;
+    }
+    
     bool dodraw = false;
     if (Ui_NowPlaying_FirstDraw || Ui_NowPlaying_NewTrack) {
         if (Ui_NowPlaying_DataAvail) {
