@@ -24,10 +24,6 @@ static void opts_mutingupdate() {
     xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_UPDATE_MUTING);
 }
 
-static void opts_fixloopcount() {
-    Player_LoopCount = Player_SetLoopCount;
-}
-
 static void opts_invalidatefilebrowser() {
     
 }
@@ -40,7 +36,7 @@ const option_t Options[OPTION_COUNT] = {
         OPTION_TYPE_LOOPS,
         &Player_SetLoopCount,
         2,
-        opts_fixloopcount
+        NULL
     },
     {
         "Play mode",

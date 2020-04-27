@@ -1,7 +1,6 @@
 #include "queue.h"
 #include <string.h>
 #include "esp_log.h"
-#include "player.h"
 #include "freertos/event_groups.h"
 #include "taskmgr.h"
 
@@ -74,7 +73,6 @@ void QueueSetupEntry(bool ReturnComments) {
                     fclose(QueueM3uFile);
                     return;
                 }
-                Player_LoopCount = Player_SetLoopCount;
             } else if (QueueLine[0] == '#') {
                 if (ReturnComments) {
                     if (c++ == QueuePosition) {

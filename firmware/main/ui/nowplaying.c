@@ -364,10 +364,10 @@ void Ui_NowPlaying_Key(KeyEvent_t event) {
                     } else if (selectedopt == 1) {
                         if (Player_SetLoopCount > 1) {
                             if (Player_SetLoopCount != 255) {
-                                Player_LoopCount = --Player_SetLoopCount;
+                                --Player_SetLoopCount;
                                 OptionsMgr_Touch();
                             } else {
-                                Player_LoopCount = Player_SetLoopCount = 10;
+                                Player_SetLoopCount = 10;
                                 OptionsMgr_Touch();
                             }
                         }
@@ -387,11 +387,11 @@ void Ui_NowPlaying_Key(KeyEvent_t event) {
                         drawopts();
                     } else if (selectedopt == 1) {
                         if (Player_SetLoopCount == 10) {
-                            Player_LoopCount = Player_SetLoopCount = 255;
-                                OptionsMgr_Touch();
+                            Player_SetLoopCount = 255;
+                            OptionsMgr_Touch();
                         } else if (Player_SetLoopCount < 10) {
-                            Player_LoopCount = ++Player_SetLoopCount;
-                                OptionsMgr_Touch();
+                            ++Player_SetLoopCount;
+                            OptionsMgr_Touch();
                         }
                         drawopts();
                     } else if (selectedopt == 2) {

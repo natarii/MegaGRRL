@@ -290,6 +290,8 @@ void Player_Unvgz(char *FilePath, bool ReplaceOriginalFile) {
 }
 
 bool Player_StartTrack(char *FilePath) {
+    Player_LoopCount = Player_SetLoopCount; //take new loop count
+
     ESP_LOGI(TAG, "Checking file type of %s", FilePath);
     FILE *test = fopen(FilePath, "r");
     if (!test) {
