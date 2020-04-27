@@ -20,7 +20,7 @@ FILE *Loader_File;
 FILE *Loader_PcmFile;
 VgmInfoStruct_t *Loader_VgmInfo;
 uint8_t Loader_VgmDataBlockIndex = 0;
-volatile VgmDataBlockStruct_t Loader_VgmDataBlocks[MAX_REALTIME_DATABLOCKS];
+volatile VgmDataBlockStruct_t Loader_VgmDataBlocks[MAX_REALTIME_DATABLOCKS+1];
 bool Loader_RequestedDacStreamFindStart = false;
 uint8_t Loader_VgmBuf[FREAD_LOCAL_BUF];
 uint16_t Loader_VgmBufPos = FREAD_LOCAL_BUF;
@@ -149,7 +149,12 @@ void Loader_Main() {
                             } else {
                                 //here are some hacks to wrap around VgmParseDataBlock not using our local buffer thing
                                 fseek(Loader_File, Loader_VgmFilePos, SEEK_SET); //destroys buf
-                                VgmParseDataBlock(Loader_File, &Loader_VgmDataBlocks[Loader_VgmDataBlockIndex++]);
+                                if (Loader_CurLoop == 0) { //only load datablocks on first loop through
+                                    VgmParseDataBlock(Loader_File, &Loader_VgmDataBlocks[Loader_VgmDataBlockIndex++]);
+                                } else {
+                                    //can't simply skip over the datablock because they're variable-length. use the last entry as a garbage can
+                                    VgmParseDataBlock(Loader_File, &Loader_VgmDataBlocks[MAX_REALTIME_DATABLOCKS]);
+                                }
                                 LOADER_BUF_SEEK_SET(ftell(Loader_File)); //fix buf
 
                                 //handle opna pcm datablocks, since they need to be uploaded

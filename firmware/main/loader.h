@@ -30,7 +30,7 @@ extern EventGroupHandle_t Loader_Status;
 extern EventGroupHandle_t Loader_BufStatus;
 
 extern volatile bool Loader_IgnoreZeroSampleLoops;
-volatile VgmDataBlockStruct_t Loader_VgmDataBlocks[MAX_REALTIME_DATABLOCKS];
+volatile VgmDataBlockStruct_t Loader_VgmDataBlocks[MAX_REALTIME_DATABLOCKS+1];
 
 bool Loader_Setup();
 void Loader_Main();

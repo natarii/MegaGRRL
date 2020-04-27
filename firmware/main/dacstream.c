@@ -22,7 +22,7 @@ volatile uint8_t DacStream_VgmDataBlockIndex = 0;
 FILE *DacStream_FindFile;
 FILE *DacStream_FillFile;
 VgmInfoStruct_t *DacStream_VgmInfo;
-volatile static VgmDataBlockStruct_t DacStream_VgmDataBlocks[MAX_REALTIME_DATABLOCKS];
+volatile static VgmDataBlockStruct_t DacStream_VgmDataBlocks[MAX_REALTIME_DATABLOCKS+1];
 EventGroupHandle_t DacStream_FindStatus;
 StaticEventGroup_t DacStream_FindStatusBuf;
 EventGroupHandle_t DacStream_FillStatus;
@@ -150,7 +150,12 @@ void DacStream_FindTask() {
                     fread(&d,1,1,DacStream_FindFile);
                     if (!VgmCommandIsFixedSize(d)) {
                         if (d == 0x67) { //datablock
-                            VgmParseDataBlock(DacStream_FindFile, &DacStream_VgmDataBlocks[DacStream_VgmDataBlockIndex++]);
+                            if (DacStream_CurLoop == 0) { //only load datablocks on first loop through
+                                VgmParseDataBlock(DacStream_FindFile, &DacStream_VgmDataBlocks[DacStream_VgmDataBlockIndex++]);
+                            } else {
+                                //can't simply skip over the datablock because they're variable-length. use the last entry as a garbage can
+                                VgmParseDataBlock(DacStream_FindFile, &DacStream_VgmDataBlocks[MAX_REALTIME_DATABLOCKS]);
+                            }
                             //todo: bounds check
                         }
                     } else {
