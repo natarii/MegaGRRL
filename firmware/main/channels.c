@@ -4,6 +4,7 @@
 #include "freertos/task.h"
 #include "i2c.h"
 #include "esp_log.h"
+#include "driver.h"
 
 static const char* TAG = "ChannelMgr";
 
@@ -51,19 +52,27 @@ void ChannelMgr_Main() {
             }
 
             ChannelMgr_States[i] &= ~CHSTATE_PARAM;
+
+            uint8_t ch6mask = (ChannelMgr_States[5] & CHSTATE_DAC)?(1<<6):(1<<5);
             
-            switch (ChannelMgr_LedStates[i]) {
-                case LEDSTATE_BRIGHT:
-                LedDrv_States[i] = 255;
-                    break;
-                case LEDSTATE_ON:
-                LedDrv_States[i] = 96;
-                    break;
-                case LEDSTATE_OFF:
+            if (i < 5 && (Driver_FmMask & (1<<i)) == 0) {
                 LedDrv_States[i] = 0;
-                    break;
-                default:
-                    break;
+            } else if (i == 5 && (Driver_FmMask & ch6mask) == 0) {
+                LedDrv_States[5] = 0;
+            } else {
+                switch (ChannelMgr_LedStates[i]) {
+                    case LEDSTATE_BRIGHT:
+                    LedDrv_States[i] = 255;
+                        break;
+                    case LEDSTATE_ON:
+                    LedDrv_States[i] = 96;
+                        break;
+                    case LEDSTATE_OFF:
+                    LedDrv_States[i] = 0;
+                        break;
+                    default:
+                        break;
+                }
             }
 
             ChannelMgr_States_Old[i] = ChannelMgr_States[i];
