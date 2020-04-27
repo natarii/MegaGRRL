@@ -82,15 +82,6 @@ void QueueSetupEntry(bool ReturnComments) {
                         fclose(QueueM3uFile);
                         return;
                     }
-                } else {
-                    //danger danger
-                    char blah[5] = {0,0,0,0,0};
-                    strncpy(blah, &QueueLine[1], 4);
-                    if (strcmp(blah, "loop") == 0) {
-                        Player_LoopCount = atoi(&QueueLine[6]);
-                    } else if (strcmp(blah, "paus") == 0) {
-                        xTaskNotify(Taskmgr_Handles[TASK_PLAYER], PLAYER_NOTIFY_PAUSE, eSetValueWithoutOverwrite);
-                    }
                 }
             }
         }
