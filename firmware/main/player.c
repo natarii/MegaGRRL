@@ -239,7 +239,7 @@ void Player_Unvgz(char *FilePath, bool ReplaceOriginalFile) {
     tinfl_status status;
     for (;;) {
         if (!avail_in) {
-            size_t rd = (in_remaining<16384)?in_remaining:16384; //power of 2 <= DRIVER_QUEUE_SIZE
+            size_t rd = (in_remaining<32767)?in_remaining:32767; //power of 2 <= DRIVER_QUEUE_SIZE
             if (fread(Driver_CommandQueueBuf, 1, rd, reader) != rd) {
                 ESP_LOGE(TAG, "read fail");
             }
