@@ -8,9 +8,8 @@ MegaGRRL is a system comprised of ESP32-powered hardware to interface with origi
 Originally, the MegaGRRL project started as only a portable, handheld player. This was expanded later on to include a desktop hardware version. The firmware in this repository works on both hardware versions with minimal changes. However, the PCB and enclosure files in this repo are for the portable version only, and the files for the desktop version should be obtained from the [MegaGRRL Desktop repository](https://git.agiri.ninja/natalie/MegaGRRL_Desktop).
 
 This project is divided into several subdirectories:
-  * **firmware/** - C code for the ESP32
-  * **pcb/** - PCB and schematic files for EAGLE
-  * **enclosure/** - 3D printing design files for the enclosure
+  * **esp-idf-patches/** - ESP-IDF v3.3 SPI master driver patches, required for build
+  * **firmware/** - Firmware for the ESP32
 
 ## Updating firmware
 To update to the latest firmware after your player is up and running, download the latest .mgu file for your hardware version (desktop or portable) from the [Releases page](https://git.agiri.ninja/natalie/megagrrl/-/releases) and copy it to the SD card. Launch the update from MegaGRRL's file browser.
