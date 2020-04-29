@@ -213,7 +213,10 @@ void Player_Unvgz(char *FilePath, bool ReplaceOriginalFile) {
     char vgmfn[513];
     if (ReplaceOriginalFile) {
         strcpy(vgmfn, FilePath);
-        vgmfn[strlen(vgmfn)-1] -= 0x0d;
+        //actually check if last char is z, in case it's a compressed file with .vgm extension
+        if (vgmfn[strlen(vgmfn)-1] == 'z' || vgmfn[strlen(vgmfn)-1] == 'Z') {
+            vgmfn[strlen(vgmfn)-1] -= 0x0d;
+        }
         
         ESP_LOGW(TAG, "Unvgz: Decompressing %s to %s using temp file", FilePath, vgmfn);
     } else {
