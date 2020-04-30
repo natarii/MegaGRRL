@@ -580,7 +580,16 @@ void Ui_FileBrowser_Key(KeyEvent_t event) {
     bool list = false;
     if (event.State & KEY_EVENT_PRESS) {
         if (event.Key == KEY_UP) {
-            if (selectedfile > 0) {
+            if (selectedfile == 0 && diroffset == 0) {
+                diroffset = direntry_count / 10 * 10;
+                if (direntry_count - diroffset <= 9) {
+                    selectedfile = direntry_count - diroffset - 1;
+                } else {
+                    selectedfile = 9;
+                }
+                ESP_LOGI(TAG, "last pg");
+                sel = list = true;
+            } else if (selectedfile > 0) {
                 selectedfile--;
                 sel = true;
             } else if (diroffset > 0) {
@@ -590,7 +599,11 @@ void Ui_FileBrowser_Key(KeyEvent_t event) {
                 sel = list = true;
             }
         } else if (event.Key == KEY_DOWN) {
-            if (selectedfile < 9) {
+            if (diroffset + selectedfile + 1 >= direntry_count) {
+                diroffset = selectedfile = 0;
+                ESP_LOGI(TAG, "first pg");
+                sel = list = true;
+            } else if (selectedfile < 9) {
                 if (diroffset + selectedfile + 1 /*+1, would normally do direntry_count-1, but avoids potentially underflowing direntry_count*/ < direntry_count) {
                     selectedfile++;
                     sel = true;
