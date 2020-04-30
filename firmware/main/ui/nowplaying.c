@@ -18,59 +18,62 @@ static const char* TAG = "Ui_NowPlaying";
 
 
 
-bool Ui_NowPlaying_DataAvail = false;
-bool Ui_NowPlaying_NewTrack = false;
-bool Ui_NowPlaying_FirstDraw = true;
-bool Ui_NowPlaying_HadData = false;
+volatile bool Ui_NowPlaying_DataAvail = false;
+volatile bool Ui_NowPlaying_DriverRunning = false;
 
 static IRAM_ATTR lv_obj_t *container;
-lv_style_t containerstyle;
-lv_style_t labelstyle;
-lv_style_t textstyle;
-lv_style_t labelstyle_sm;
-lv_style_t textstyle_sm;
-IRAM_ATTR lv_obj_t *label_title;
-IRAM_ATTR lv_obj_t *label_author;
-IRAM_ATTR lv_obj_t *label_game;
-IRAM_ATTR lv_obj_t *label_time;
-IRAM_ATTR lv_obj_t *label_loop;
-IRAM_ATTR lv_obj_t *label_playlist;
-IRAM_ATTR lv_obj_t *text_title;
-IRAM_ATTR lv_obj_t *text_author;
-IRAM_ATTR lv_obj_t *text_game;
-IRAM_ATTR lv_obj_t *text_time;
-IRAM_ATTR lv_obj_t *text_loop;
-IRAM_ATTR lv_obj_t *text_playlist;
-IRAM_ATTR lv_obj_t *bar_track;
-IRAM_ATTR lv_obj_t *bar_trackloop;
-IRAM_ATTR lv_obj_t *bar_scrub;
-lv_style_t style_bar_track;
-lv_style_t style_bar_trackloop;
-lv_style_t style_bar_scrub;
-IRAM_ATTR lv_obj_t *bar_div;
-lv_style_t divstyle;
-IRAM_ATTR lv_obj_t *dpad[4];
-lv_style_t style_dpad;
-IRAM_ATTR lv_obj_t *dpadtext[4];
-lv_style_t coverstyle;
-IRAM_ATTR lv_obj_t *cover;
-IRAM_ATTR lv_obj_t *label_opt_loops;
-IRAM_ATTR lv_obj_t *text_opt_loops;
-IRAM_ATTR lv_obj_t *label_opt_playmode;
-IRAM_ATTR lv_obj_t *text_opt_playmode;
-IRAM_ATTR lv_obj_t *text_opt_more;
-IRAM_ATTR lv_obj_t *text_opt_muting;
-IRAM_ATTR lv_obj_t *broken_vgm_time_warning;
-uint8_t selectedopt = 0;
-bool optionsopen = false;
-lv_style_t textstyle_sm_sel;
-char loopcountbuf[3] = {0,0,0};
-const char *loading = "Nothing playing...";
-const char *broken_vgm_time_warning_text = " Playback time unavailable  due to broken VGM file";
+static lv_style_t containerstyle;
+static lv_style_t labelstyle;
+static lv_style_t textstyle;
+static lv_style_t labelstyle_sm;
+static lv_style_t textstyle_sm;
+static IRAM_ATTR lv_obj_t *label_title;
+static IRAM_ATTR lv_obj_t *label_author;
+static IRAM_ATTR lv_obj_t *label_game;
+static IRAM_ATTR lv_obj_t *label_time;
+static IRAM_ATTR lv_obj_t *label_loop;
+static IRAM_ATTR lv_obj_t *label_playlist;
+static IRAM_ATTR lv_obj_t *text_title;
+static IRAM_ATTR lv_obj_t *text_author;
+static IRAM_ATTR lv_obj_t *text_game;
+static IRAM_ATTR lv_obj_t *text_time;
+static IRAM_ATTR lv_obj_t *text_loop;
+static IRAM_ATTR lv_obj_t *text_playlist;
+static IRAM_ATTR lv_obj_t *bar_track;
+static IRAM_ATTR lv_obj_t *bar_trackloop;
+static IRAM_ATTR lv_obj_t *bar_scrub;
+static lv_style_t style_bar_track;
+static lv_style_t style_bar_trackloop;
+static lv_style_t style_bar_scrub;
+static IRAM_ATTR lv_obj_t *bar_div;
+static lv_style_t divstyle;
+static IRAM_ATTR lv_obj_t *dpad[4];
+static lv_style_t style_dpad;
+static IRAM_ATTR lv_obj_t *dpadtext[4];
+static lv_style_t coverstyle;
+static IRAM_ATTR lv_obj_t *cover;
+static IRAM_ATTR lv_obj_t *label_opt_loops;
+static IRAM_ATTR lv_obj_t *text_opt_loops;
+static IRAM_ATTR lv_obj_t *label_opt_playmode;
+static IRAM_ATTR lv_obj_t *text_opt_playmode;
+static IRAM_ATTR lv_obj_t *text_opt_more;
+static IRAM_ATTR lv_obj_t *text_opt_muting;
+static IRAM_ATTR lv_obj_t *broken_vgm_time_warning;
+static uint8_t selectedopt = 0;
+static bool optionsopen = false;
+static lv_style_t textstyle_sm_sel;
+static char loopcountbuf[3] = {0,0,0};
+static const char *loading = "Nothing playing...";
+static const char *broken_vgm_time_warning_text = " Playback time unavailable  due to broken VGM file";
 
-uint32_t map(uint32_t x, uint32_t in_min, uint32_t in_max, uint32_t out_min, uint32_t out_max) {
+static char loopbuf[11]; //size?
+
+static uint32_t map(uint32_t x, uint32_t in_min, uint32_t in_max, uint32_t out_min, uint32_t out_max) {
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
+
+static void newtrack();
+static void do_tick();
 
 void Ui_NowPlaying_Destroy() {
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
@@ -169,7 +172,9 @@ bool Ui_NowPlaying_Setup(lv_obj_t *uiscreen) {
     text_loop = lv_label_create(container, NULL);
     lv_label_set_style(text_loop, LV_LABEL_STYLE_MAIN, &textstyle_sm);
     lv_obj_set_pos(text_loop, 125, 220);
-    lv_label_set_text(text_loop, "1 / 1");
+    sprintf(loopbuf, "1 / %d", Player_SetLoopCount);
+    lv_label_set_static_text(text_loop, loopbuf);
+
 
 
 
@@ -307,11 +312,219 @@ bool Ui_NowPlaying_Setup(lv_obj_t *uiscreen) {
     Ui_SoftBar_Update(0, true, LV_SYMBOL_HOME "Home", false);
     LcdDma_Mutex_Give();
 
-
-    Ui_NowPlaying_FirstDraw = true;
     xEventGroupClearBits(Player_Status, PLAYER_STATUS_RAN_OUT);
 
+    if (Ui_NowPlaying_DriverRunning) {
+        newtrack();
+        do_tick();
+    }
+
     return true;
+}
+
+static char npnone[] = "(none)";
+static IRAM_ATTR uint32_t nptimer = 0;
+static char timebuf[16];
+static char plsbuf[14]; //size?
+static uint8_t loopcount;
+static IRAM_ATTR uint32_t loopsamples;
+static IRAM_ATTR uint32_t totalsamples;
+static IRAM_ATTR uint32_t looppoint;
+static IRAM_ATTR uint32_t totalwithloops;
+static IRAM_ATTR uint32_t totalmins;
+static IRAM_ATTR uint32_t totalsecs;
+static IRAM_ATTR uint32_t elapsedmins;
+static IRAM_ATTR uint32_t elapsedsecs;
+
+static void newtrack() { //gd3, pls position, loop count/samples
+    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    //title
+    if (strlen(Player_Gd3_Title) == 0) { //no title in gd3
+        uint16_t nameoff = 0;
+        for (uint16_t i=0;i<strlen(QueuePlayingFilename);i++) {
+            if (QueuePlayingFilename[i] == '/') {
+                nameoff = i+1;
+            }
+        }
+        lv_label_set_static_text(text_title, &QueuePlayingFilename[nameoff]);
+    } else {
+        lv_label_set_static_text(text_title, Player_Gd3_Title);
+    }
+    lv_label_set_long_mode(text_title, LV_LABEL_LONG_SROLL);
+    lv_obj_set_width(text_title, 230);
+
+    //author
+    if (strlen(Player_Gd3_Author)) {
+        lv_label_set_style(text_author, LV_LABEL_STYLE_MAIN, &textstyle);
+        lv_label_set_static_text(text_author, &Player_Gd3_Author[0]);
+    } else {
+        lv_label_set_style(text_author, LV_LABEL_STYLE_MAIN, &labelstyle);
+        lv_label_set_static_text(text_author, npnone);
+    }
+    lv_label_set_long_mode(text_author, LV_LABEL_LONG_SROLL);
+    lv_obj_set_width(text_author, 230);
+
+    //game
+    if (strlen(Player_Gd3_Game)) {
+        lv_label_set_style(text_game, LV_LABEL_STYLE_MAIN, &textstyle);
+        lv_label_set_static_text(text_game, &Player_Gd3_Game[0]);
+    } else {
+        lv_label_set_style(text_game, LV_LABEL_STYLE_MAIN, &labelstyle);
+        lv_label_set_static_text(text_game, npnone);
+    }
+    lv_label_set_long_mode(text_game, LV_LABEL_LONG_SROLL);
+    lv_obj_set_width(text_game, 230);
+
+    //playlist position
+    sprintf(plsbuf, "%d / %d", QueuePosition+1, QueueLength);
+    lv_label_set_static_text(text_playlist, plsbuf);
+
+    //loop stuff
+    totalsamples = Player_Info.TotalSamples;
+    ESP_LOGI(TAG, "total samples %d", totalsamples);
+    if (!Loader_IgnoreZeroSampleLoops && Player_Info.LoopSamples == 0 && Player_Info.LoopOffset) {
+        ESP_LOGW(TAG, "broken looping vgm without IgnoreZeroSampleLoops");
+        looppoint = 0;
+        loopsamples = totalsamples;
+    } else {
+        ESP_LOGI(TAG, "vgm doesn't have broken loop");
+        loopsamples = Player_Info.LoopSamples;
+        looppoint = totalsamples - loopsamples;
+    }
+    ESP_LOGI(TAG, "loop point at %d, loop length %d samples", looppoint, loopsamples);
+
+    //reset stuff
+    lv_obj_set_pos(bar_scrub, 10, 128);
+
+    if (Ui_NowPlaying_DriverRunning) {
+        elapsedmins = Driver_Sample/44100/60;
+        elapsedsecs = (Driver_Sample/44100)%60;
+    } else {
+        elapsedmins = elapsedsecs = 0;
+    }
+    if (Player_LoopCount == 255) {
+        sprintf(timebuf, "%02d:%02d / inf.", elapsedmins, elapsedsecs);
+    } else {
+        totalwithloops = (looppoint + (loopsamples * Player_LoopCount))/44100;
+        totalmins = totalwithloops/60;
+        totalsecs = totalwithloops%60;
+        loopcount = (Player_Info.LoopOffset && loopsamples)?Player_LoopCount:1;
+        sprintf(timebuf, "%02d:%02d / %02d:%02d", elapsedmins, elapsedsecs, totalmins, totalsecs);
+    }
+    lv_label_set_static_text(text_time, timebuf);
+
+    //scrub
+    if (totalsamples) {
+        uint32_t tracklength = map(looppoint/100, 0, totalsamples/100, 0, 220);
+        uint32_t looplength = map(loopsamples/100, 0, totalsamples/100, 0, 220);
+        lv_obj_set_size(bar_track, tracklength, 10);
+        lv_obj_set_size(bar_trackloop, looplength, 10);
+        lv_obj_set_pos(bar_trackloop, 10+tracklength, 128);
+    } else {
+        lv_obj_set_size(bar_track, 220, 10);
+        lv_obj_set_size(bar_trackloop, 0, 10);
+        lv_label_set_static_text(broken_vgm_time_warning, broken_vgm_time_warning_text); //do this now, rather than once at init, to reset scroll
+    }
+    lv_obj_set_hidden(broken_vgm_time_warning, totalsamples>0);
+
+    //initial dpad status - especially important if going mainmenu->nowplaying
+    if (xEventGroupGetBits(Player_Status) & (PLAYER_STATUS_PAUSED|PLAYER_STATUS_NOT_RUNNING)) {
+        lv_label_set_text(dpadtext[0], LV_SYMBOL_PLAY);
+        lv_obj_set_pos(dpadtext[0], 9, 5);
+    } else {
+        lv_label_set_text(dpadtext[0], LV_SYMBOL_PAUSE);
+        lv_obj_set_pos(dpadtext[0], 7, 5);
+    }
+
+    //loop
+    if (Player_Info.LoopOffset && loopsamples) {
+        if (Player_LoopCount < 255) {
+            sprintf(loopbuf, "1 / %d", loopcount);
+        } else {
+            strcpy(loopbuf, "1 / inf.");
+        }
+    } else {
+        strcpy(loopbuf, "1 / 1");
+    }
+    lv_label_set_static_text(text_loop, loopbuf);
+
+    LcdDma_Mutex_Give();
+}
+
+static IRAM_ATTR uint32_t lastelapsedsecs = 0xffffffff;
+static IRAM_ATTR uint32_t lastelapsedmins = 0xffffffff;
+static uint8_t lastbarx = 0xff;
+static EventBits_t laststatus = 0;
+static void do_tick() {
+    elapsedmins = Driver_Sample/44100/60;
+    elapsedsecs = (Driver_Sample/44100)%60;
+    if (lastelapsedmins != elapsedmins || lastelapsedsecs != elapsedsecs) {
+        if (Player_LoopCount == 255) {
+            sprintf(timebuf, "%02d:%02d / inf.", elapsedmins, elapsedsecs);
+        } else {
+            sprintf(timebuf, "%02d:%02d / %02d:%02d", elapsedmins, elapsedsecs, totalmins, totalsecs);
+        }
+    }
+    uint32_t pos = Driver_Sample;
+    if (loopsamples && pos > looppoint) {
+        pos = looppoint + ((pos-looppoint)%loopsamples);
+    }
+    uint8_t barx;
+    if (totalsamples) {
+        barx = 10+map(pos/100, 0, totalsamples/100, 0, 220-2);
+    } else {
+        barx = 10;
+    }
+    EventBits_t bits = xEventGroupGetBits(Player_Status);
+    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    if (bits != laststatus) {
+        if (bits & (PLAYER_STATUS_PAUSED|PLAYER_STATUS_NOT_RUNNING)) {
+            lv_label_set_text(dpadtext[0], LV_SYMBOL_PLAY);
+            lv_obj_set_pos(dpadtext[0], 9, 5);
+        } else {
+            lv_label_set_text(dpadtext[0], LV_SYMBOL_PAUSE);
+            lv_obj_set_pos(dpadtext[0], 7, 5);
+        }
+    }
+    if (barx != lastbarx) lv_obj_set_pos(bar_scrub, barx, 128);
+    if (lastelapsedmins != elapsedmins || lastelapsedsecs != elapsedsecs) { //time keeps on slippin' into the future
+        lv_label_set_static_text(text_time, timebuf);
+        if (Player_Info.LoopOffset && loopsamples) {
+            uint8_t curloop;
+            if (Driver_Sample <= looppoint) {
+                curloop = 1;
+            } else {
+                curloop = ((Driver_Sample - looppoint) / loopsamples) + 1;
+            }
+            if (Player_LoopCount < 255) {
+                sprintf(loopbuf, "%d / %d", (curloop<loopcount)?curloop:loopcount, loopcount);
+            } else {
+                sprintf(loopbuf, "%d / inf.", curloop);
+            }
+        } else {
+            strcpy(loopbuf, "1 / 1");
+        }
+        lv_label_set_static_text(text_loop, loopbuf);
+    }
+    LcdDma_Mutex_Give();
+    lastelapsedmins = elapsedmins;
+    lastelapsedsecs = elapsedsecs;
+    lastbarx = barx;
+    laststatus = bits;
+}
+
+void Ui_NowPlaying_Tick() {
+    //there are races with these vars, but they should be extremely unlikely
+    if (Ui_NowPlaying_DataAvail) {
+        Ui_NowPlaying_DataAvail = false;
+        newtrack();
+    }
+    if (esp_timer_get_time() - nptimer >= 100000) {
+        if (Ui_NowPlaying_DriverRunning) {
+            do_tick();
+        }
+        nptimer = esp_timer_get_time();
+    }
 }
 
 void drawopts() {
@@ -431,17 +644,6 @@ void Ui_NowPlaying_Key(KeyEvent_t event) {
                     ESP_LOGI(TAG, "reset vars");
                     QueueLength = 0;
                     QueuePosition = 0;
-                    ESP_LOGI(TAG, "clear ui");
-                    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
-                    /*lv_label_set_static_text(text_title, loading);
-                    lv_label_set_static_text(text_author, loading);
-                    lv_label_set_static_text(text_game, loading);
-                    lv_label_set_text(text_playlist, "0 / 0");
-                    lv_label_set_text(text_time, "00:00 / 00:00");
-                    lv_label_set_text(text_loop, "1 / 1");*/
-                    Ui_NowPlaying_FirstDraw = Ui_NowPlaying_NewTrack = false;
-                    LcdDma_Mutex_Give();
-                    ESP_LOGI(TAG, "yeet");
                     Ui_Screen = UISCREEN_MAINMENU;
                 } else {
                     if (selectedopt < 3) {
@@ -463,165 +665,5 @@ void Ui_NowPlaying_Key(KeyEvent_t event) {
             default:
                 break;
         }
-    }
-}
-
-char npnone[] = "(none)";
-uint32_t nptimer = 0;
-char timebuf[16];
-char loopbuf[11]; //size?
-char plsbuf[14]; //size?
-void Ui_NowPlaying_Tick() {
-    if (xEventGroupGetBits(Player_Status) & PLAYER_STATUS_RAN_OUT) {
-        ESP_LOGW(TAG, "player run out detected!!");
-        ESP_LOGW(TAG, "request stop");
-        xTaskNotify(Taskmgr_Handles[TASK_PLAYER], PLAYER_NOTIFY_STOP_RUNNING, eSetValueWithoutOverwrite);
-        ESP_LOGW(TAG, "wait stop");
-        xEventGroupWaitBits(Player_Status, PLAYER_STATUS_NOT_RUNNING, false, true, pdMS_TO_TICKS(3000));
-        QueueLength = 0;
-        QueuePosition = 0;
-        Ui_NowPlaying_FirstDraw = Ui_NowPlaying_NewTrack = false;
-        ESP_LOGW(TAG, "return to mainmenu");
-        Ui_Screen = UISCREEN_MAINMENU;
-        return;
-    }
-    uint32_t total = Player_Info.TotalSamples;
-    uint32_t pos = Driver_Sample;
-    if (Driver_MitigateVgmTrim && Driver_FirstWait) pos = 0;
-    uint32_t loopsamples;
-    uint32_t looppoint;
-    if (!Loader_IgnoreZeroSampleLoops && Player_Info.LoopSamples == 0 && Player_Info.LoopOffset > 0) { //fix scrub/time out of bounds on old broken deflemask vgms
-        looppoint = 0;
-        loopsamples = total;
-    } else {
-        loopsamples = Player_Info.LoopSamples;
-        looppoint = total - loopsamples;
-    }
-    
-    bool dodraw = false;
-    if (Ui_NowPlaying_FirstDraw || Ui_NowPlaying_NewTrack) {
-        if (Ui_NowPlaying_DataAvail) {
-            dodraw = true;
-            Ui_NowPlaying_FirstDraw = Ui_NowPlaying_NewTrack = false;
-        }
-    }
-    //if (!(xEventGroupGetBits(Driver_CommandEvents) & DRIVER_EVENT_RUNNING)) dodraw = false;   //todo fixme
-    if (dodraw) {
-        ESP_LOGD(TAG, "total %d pos %d loopS %d loopP %d", total, pos, loopsamples, looppoint);
-        
-        LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
-        lv_obj_set_pos(bar_scrub, 10, 128);
-        if (strlen(Player_Gd3_Title) == 0) {
-            uint16_t nameoff = 0;
-            for (uint16_t i=0;i<strlen(QueuePlayingFilename);i++) {
-                if (QueuePlayingFilename[i] == '/') {
-                    nameoff = i+1;
-                }
-            }
-            strcpy(Player_Gd3_Title, &QueuePlayingFilename[nameoff]); //vile. disgusting. awful.
-        }
-        lv_label_set_static_text(text_title, &Player_Gd3_Title[0]);
-        lv_label_set_long_mode(text_title, LV_LABEL_LONG_SROLL);
-        lv_obj_set_width(text_title, 230);
-        
-        if (strlen(Player_Gd3_Author)) {
-            lv_label_set_style(text_author, LV_LABEL_STYLE_MAIN, &textstyle);
-            lv_label_set_static_text(text_author, &Player_Gd3_Author[0]);
-        } else {
-            lv_label_set_style(text_author, LV_LABEL_STYLE_MAIN, &labelstyle);
-            lv_label_set_static_text(text_author, npnone);
-        }
-        lv_label_set_long_mode(text_author, LV_LABEL_LONG_SROLL);
-        lv_obj_set_width(text_author, 230);
-
-        if (strlen(Player_Gd3_Game)) {
-            lv_label_set_style(text_game, LV_LABEL_STYLE_MAIN, &textstyle);
-            lv_label_set_static_text(text_game, &Player_Gd3_Game[0]);
-        } else {
-            lv_label_set_style(text_game, LV_LABEL_STYLE_MAIN, &labelstyle);
-            lv_label_set_static_text(text_game, npnone);
-        }
-        lv_label_set_long_mode(text_game, LV_LABEL_LONG_SROLL);
-        lv_obj_set_width(text_game, 230);
-
-
-        sprintf(plsbuf, "%d / %d", QueuePosition+1, QueueLength);
-        lv_label_set_static_text(text_playlist, plsbuf);
-
-        if (total) {
-            uint32_t tracklength = map(looppoint/100, 0, total/100, 0, 220);
-            uint32_t looplength = map(loopsamples/100, 0, total/100, 0, 220);
-            lv_obj_set_size(bar_track, tracklength, 10);
-            lv_obj_set_size(bar_trackloop, looplength, 10);
-            lv_obj_set_pos(bar_trackloop, 10+tracklength, 128);
-        } else {
-            lv_obj_set_size(bar_track, 220, 10);
-            lv_obj_set_size(bar_trackloop, 0, 10);
-            lv_label_set_static_text(broken_vgm_time_warning, broken_vgm_time_warning_text); //do this now, rather than once at init, to reset scroll
-        }
-        lv_obj_set_hidden(broken_vgm_time_warning, total>0);
-
-        lv_label_set_text(dpadtext[0], LV_SYMBOL_PAUSE);
-        lv_obj_set_pos(dpadtext[0], 7, 5);
-
-        LcdDma_Mutex_Give();
-    }
-
-    if (esp_timer_get_time() - nptimer >= 250000) {
-        bool inloop = false;
-        LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
-        //these are getting drawn all the time for no reason, we should watch for states to actually change...
-        if (xEventGroupGetBits(Player_Status) & (PLAYER_STATUS_PAUSED|PLAYER_STATUS_NOT_RUNNING)) {
-            lv_label_set_text(dpadtext[0], LV_SYMBOL_PLAY);
-            lv_obj_set_pos(dpadtext[0], 9, 5);
-        } else {
-            lv_label_set_text(dpadtext[0], LV_SYMBOL_PAUSE);
-            lv_obj_set_pos(dpadtext[0], 7, 5);
-        }
-
-        if (xEventGroupGetBits(Player_Status) & PLAYER_STATUS_RUNNING) {
-            if (total) {
-                if (loopsamples && pos > looppoint) {
-                    inloop = true;
-                    pos = looppoint + ((pos-looppoint)%loopsamples);
-                }
-                lv_obj_set_pos(bar_scrub, 10+map(pos/100, 0, total/100, 0, 220), 128);
-            }
-            uint32_t totalwithloops = (looppoint + (loopsamples * Player_LoopCount))/44100;
-            uint8_t totalmins = totalwithloops/60;
-            uint8_t totalsecs = totalwithloops%60;
-            uint8_t elapsedmins = Driver_Sample/44100/60;
-            uint8_t elapsedsecs = (Driver_Sample/44100)%60;
-            if (Driver_MitigateVgmTrim && Driver_FirstWait) {
-                elapsedmins = 0;
-                elapsedsecs = 0;
-            }
-            if (Player_LoopCount < 255 || (Player_LoopCount < 255 && !(Player_Info.LoopOffset >= 0 && loopsamples && Driver_Sample > looppoint))) {
-                sprintf(timebuf, "%02d:%02d / %02d:%02d", elapsedmins, elapsedsecs, totalmins, totalsecs);
-            } else {
-                sprintf(timebuf, "%02d:%02d / inf.", elapsedmins, elapsedsecs);
-            }
-            lv_label_set_static_text(text_time, timebuf);
-
-            uint8_t curloop = 1;
-            if (Player_Info.LoopOffset >= 0 && loopsamples/* && Driver_Sample > looppoint*/) {
-                if (Driver_Sample <= looppoint) {
-                    curloop = 1;
-                } else {
-                    curloop = ((Driver_Sample - looppoint) / loopsamples) + 1;
-                }
-                if (Player_LoopCount < 255) {
-                    uint8_t loopcnt = (Player_Info.LoopOffset >= 0 && loopsamples)?Player_LoopCount:1;
-                    sprintf(loopbuf, "%d / %d", (curloop<loopcnt)?curloop:loopcnt, loopcnt);
-                } else {
-                    sprintf(loopbuf, "%d / inf.", curloop);
-                }
-            } else {
-                sprintf(loopbuf, "1 / 1");
-            }
-            lv_label_set_static_text(text_loop, loopbuf);
-        }
-        nptimer = esp_timer_get_time();
-        LcdDma_Mutex_Give();
     }
 }

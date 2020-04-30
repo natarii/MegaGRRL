@@ -5,8 +5,8 @@
 #include "lvgl.h"
 #include "../key.h"
 
-extern bool Ui_NowPlaying_DataAvail;
-extern bool Ui_NowPlaying_NewTrack;
+extern volatile bool Ui_NowPlaying_DataAvail;
+extern volatile bool Ui_NowPlaying_DriverRunning;
 
 void Ui_NowPlaying_Setup(lv_obj_t *uiscreen);
 void Ui_NowPlaying_Key(KeyEvent_t event);

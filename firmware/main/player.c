@@ -357,7 +357,6 @@ bool Player_StartTrack(char *FilePath) {
     }
 
     Ui_NowPlaying_DataAvail = true;
-    Ui_NowPlaying_NewTrack = true;
 
     /* todo here:
     * set driver clock rate for wait scaling
@@ -523,6 +522,8 @@ bool Player_StartTrack(char *FilePath) {
         return false;
     }
 
+    Ui_NowPlaying_DriverRunning = true;
+
     ESP_LOGI(TAG, "Driver started !!");
 
     return true;
@@ -536,6 +537,8 @@ bool Player_StopTrack() {
 
     ESP_LOGI(TAG, "Waiting for driver to stop...");
     while (xEventGroupGetBits(Driver_CommandEvents) & DRIVER_EVENT_RUNNING) vTaskDelay(pdMS_TO_TICKS(10));
+
+    Ui_NowPlaying_DriverRunning = false;
 
     ESP_LOGI(TAG, "Signalling driver reset");
     xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_RESET_REQUEST);
