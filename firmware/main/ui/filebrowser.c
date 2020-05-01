@@ -219,24 +219,22 @@ void Ui_FileBrowser_Setup() {
     }
 }
 
-uint32_t filebrowser_map(uint32_t x, uint32_t in_min, uint32_t in_max, uint32_t out_min, uint32_t out_max) {
+static int32_t map(int32_t x, int32_t in_min, int32_t in_max, int32_t out_min, int32_t out_max) {
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
 void updatescrollbar() {
-    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     uint32_t toffset = diroffset + selectedfile;
-    //direntry_count;
     uint32_t df = direntry_count;
     if (df > 100) df = 100;
-    uint32_t height = filebrowser_map(df, 0, 100, 0, 215);
-    height = 250-height;
+    if (df == 0) df = 1;
+    uint32_t height = map(df, 1, 100, 250, 35);
     uint32_t heightleft = 250-height;
-    if (height != 250) {
-        uint32_t y = filebrowser_map(toffset, 0, direntry_count, 0, heightleft);
-        lv_obj_set_pos(scrollbar, 235, y);
-    } else {
-        lv_obj_set_pos(scrollbar, 235, 0); //this is like dead code it never actually runs
+    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    if (heightleft) {
+        lv_obj_set_pos(scrollbar, 235, map(toffset, 0, direntry_count-1, 0, heightleft));
+    } else { //heightleft = 0, 1 file in dir
+        lv_obj_set_pos(scrollbar, 235, 0);
     }
     lv_obj_set_height(scrollbar, height);
     LcdDma_Mutex_Give();
