@@ -422,6 +422,9 @@ void redrawlistsel(bool list, bool sel) {
         }
         u++;
     }
+    if (sel && !direntry_count) { //nonexistent file selected
+        Ui_SoftBar_Update(2, false, LV_SYMBOL_CLOSE" N/A", false);
+    }
     if (list && u < 10) {
         for (uint8_t i=u;i<10;i++) {
             lv_label_set_static_text(labels[i], "");
