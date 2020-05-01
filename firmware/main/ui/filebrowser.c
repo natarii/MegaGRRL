@@ -640,7 +640,9 @@ void Ui_FileBrowser_Key(KeyEvent_t event) {
             }
         } else if (event.Key == KEY_C) {
             KeyMgr_Consume(KEY_C);
-            openselection();
+            if (direntry_count) {
+                openselection();
+            }
         } else if (event.Key == KEY_B) {
             KeyMgr_Consume(KEY_B);
             if (strcmp(path, startpath) != 0) backdir();
