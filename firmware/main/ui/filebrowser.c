@@ -293,7 +293,7 @@ bool Ui_FileBrowser_Activate(lv_obj_t *uiscreen) {
         lv_label_set_text(labels[i], "");
         lv_label_set_long_mode(labels[i], (i==selectedfile)?LV_LABEL_LONG_SROLL:LV_LABEL_LONG_DOT);
         lv_label_set_anim_speed(labels[i], 50);
-        lv_obj_set_width(labels[i], 235-31);
+        lv_obj_set_width(labels[i], 205);
         icons[i] = lv_label_create(files[i], NULL);
         lv_obj_set_pos(icons[i], 4, 2);
         lv_label_set_text(icons[i], "");
@@ -433,10 +433,8 @@ void redrawlistsel(bool list, bool sel) {
     if (sel) {
         lv_cont_set_style(files[selectedfile_last], LV_CONT_STYLE_MAIN, &filestyle);
         lv_label_set_long_mode(labels[selectedfile_last], LV_LABEL_LONG_DOT);
-        lv_obj_set_width(labels[selectedfile_last], 240-26-2);
         lv_cont_set_style(files[selectedfile], LV_CONT_STYLE_MAIN, &filestyle_sel);
         lv_label_set_long_mode(labels[selectedfile], LV_LABEL_LONG_SROLL);
-        lv_obj_set_width(labels[selectedfile], 240-26-2);
         selectedfile_last = selectedfile;
     }
     LcdDma_Mutex_Give();
