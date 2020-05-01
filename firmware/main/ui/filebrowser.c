@@ -580,13 +580,15 @@ void Ui_FileBrowser_Key(KeyEvent_t event) {
         if (event.Key == KEY_UP) {
             if (selectedfile == 0 && diroffset == 0) {
                 diroffset = direntry_count / 10 * 10;
-                if (direntry_count - diroffset <= 9) {
-                    selectedfile = direntry_count - diroffset - 1;
-                } else {
-                    selectedfile = 9;
+                if (direntry_count) {
+                    if (direntry_count - diroffset <= 9) {
+                        selectedfile = direntry_count - diroffset - 1;
+                    } else {
+                        selectedfile = 9;
+                    }
+                    ESP_LOGI(TAG, "last pg");
+                    sel = list = true;
                 }
-                ESP_LOGI(TAG, "last pg");
-                sel = list = true;
             } else if (selectedfile > 0) {
                 selectedfile--;
                 sel = true;
