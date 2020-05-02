@@ -259,7 +259,7 @@ bool Ui_NowPlaying_Setup(lv_obj_t *uiscreen) {
     text_opt_more = lv_label_create(container, NULL);
     lv_label_set_style(text_opt_more, LV_LABEL_STYLE_MAIN, &textstyle_sm_sel);
     lv_obj_set_pos(text_opt_more, 125, 232);
-    lv_label_set_text(text_opt_more, "More Options "LV_SYMBOL_RIGHT);
+    lv_label_set_text(text_opt_more, "More Settings "LV_SYMBOL_RIGHT);
 
     lv_obj_set_hidden(cover, true);
     lv_obj_set_hidden(label_opt_playmode, true);
@@ -307,7 +307,7 @@ bool Ui_NowPlaying_Setup(lv_obj_t *uiscreen) {
 
 
 
-    Ui_SoftBar_Update(2, true, "Options", false);
+    Ui_SoftBar_Update(2, true, "Settings", false);
     Ui_SoftBar_Update(1, true, "Browser", false);
     Ui_SoftBar_Update(0, true, LV_SYMBOL_HOME "Home", false);
     LcdDma_Mutex_Give();
@@ -655,7 +655,7 @@ void Ui_NowPlaying_Key(KeyEvent_t event) {
             case KEY_C:
                 optionsopen = !optionsopen;
                 if (optionsopen) Ui_SoftBar_Update(2, true, LV_SYMBOL_OK" Done", true);
-                else Ui_SoftBar_Update(2, true, "Options", true);
+                else Ui_SoftBar_Update(2, true, "Settings", true);
                 drawopts();
                 break;
             case KEY_A:
