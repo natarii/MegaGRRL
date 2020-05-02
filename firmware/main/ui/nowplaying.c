@@ -50,8 +50,6 @@ static lv_style_t divstyle;
 static IRAM_ATTR lv_obj_t *dpad[4];
 static lv_style_t style_dpad;
 static IRAM_ATTR lv_obj_t *dpadtext[4];
-static lv_style_t coverstyle;
-static IRAM_ATTR lv_obj_t *cover;
 static IRAM_ATTR lv_obj_t *label_opt_loops;
 static IRAM_ATTR lv_obj_t *text_opt_loops;
 static IRAM_ATTR lv_obj_t *label_opt_playmode;
@@ -222,12 +220,6 @@ bool Ui_NowPlaying_Setup(lv_obj_t *uiscreen) {
     lv_obj_set_size(bar_div, 1, 250-(128+10));
 
     //options
-    lv_style_copy(&coverstyle, &containerstyle);
-    cover = lv_obj_create(container, NULL);
-    lv_obj_set_style(cover, &coverstyle);
-    lv_obj_set_pos(cover, 121, 128+10);
-    lv_obj_set_size(cover, 120, 128+10);
-
     lv_style_copy(&textstyle_sm_sel, &textstyle_sm);
     textstyle_sm_sel.text.color = LV_COLOR_MAKE(255,255,0);
 
@@ -261,7 +253,6 @@ bool Ui_NowPlaying_Setup(lv_obj_t *uiscreen) {
     lv_obj_set_pos(text_opt_more, 125, 232);
     lv_label_set_text(text_opt_more, "More Settings "LV_SYMBOL_RIGHT);
 
-    lv_obj_set_hidden(cover, true);
     lv_obj_set_hidden(label_opt_playmode, true);
     lv_obj_set_hidden(text_opt_playmode, true);
     lv_obj_set_hidden(label_opt_loops, true);
@@ -529,13 +520,18 @@ void Ui_NowPlaying_Tick() {
 
 void drawopts() {
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
-    lv_obj_set_hidden(cover, !optionsopen);
     lv_obj_set_hidden(label_opt_playmode, !optionsopen);
     lv_obj_set_hidden(text_opt_playmode, !optionsopen);
     lv_obj_set_hidden(label_opt_loops, !optionsopen);
     lv_obj_set_hidden(text_opt_loops, !optionsopen);
     lv_obj_set_hidden(text_opt_more, !optionsopen);
     lv_obj_set_hidden(text_opt_muting, !optionsopen);
+    lv_obj_set_hidden(label_playlist, optionsopen);
+    lv_obj_set_hidden(label_time, optionsopen);
+    lv_obj_set_hidden(label_loop, optionsopen);
+    lv_obj_set_hidden(text_playlist, optionsopen);
+    lv_obj_set_hidden(text_time, optionsopen);
+    lv_obj_set_hidden(text_loop, optionsopen);
     lv_obj_set_style(text_opt_playmode, selectedopt==0?&textstyle_sm_sel:&textstyle_sm);
     lv_obj_set_style(text_opt_loops, selectedopt==1?&textstyle_sm_sel:&textstyle_sm);
     lv_obj_set_style(text_opt_muting, selectedopt==2?&textstyle_sm_sel:&textstyle_sm);
