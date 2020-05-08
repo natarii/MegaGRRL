@@ -210,12 +210,12 @@ bool loadhistory() {
 }
 
 void Ui_FileBrowser_Setup() {
-    selectedfile_last = selectedfile;
-
     if (loadhistory()) {
+        selectedfile_last = selectedfile;
         //nothing more to do
     } else {
         strcpy(path, startpath);
+        selectedfile_last = 0;
     }
 }
 
