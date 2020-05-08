@@ -447,8 +447,13 @@ static IRAM_ATTR uint32_t lastelapsedmins = 0xffffffff;
 static uint8_t lastbarx = 0xff;
 static EventBits_t laststatus = 0;
 static void do_tick() {
-    elapsedmins = Driver_Sample/44100/60;
-    elapsedsecs = (Driver_Sample/44100)%60;
+    if (Driver_FirstWait) {
+        elapsedmins = 0;
+        elapsedsecs = 0;
+    } else {
+        elapsedmins = Driver_Sample/44100/60;
+        elapsedsecs = (Driver_Sample/44100)%60;
+    }
     if (lastelapsedmins != elapsedmins || lastelapsedsecs != elapsedsecs) {
         if (Player_LoopCount == 255) {
             sprintf(timebuf, "%02d:%02d / inf.", elapsedmins, elapsedsecs);
@@ -461,7 +466,7 @@ static void do_tick() {
         pos = looppoint + ((pos-looppoint)%loopsamples);
     }
     uint8_t barx;
-    if (totalsamples) {
+    if (totalsamples && !Driver_FirstWait) {
         barx = 10+map(pos/100, 0, totalsamples/100, 0, 220-2);
     } else {
         barx = 10;
