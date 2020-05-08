@@ -125,7 +125,7 @@ void Player_Main() {
             } else if (notif == PLAYER_NOTIFY_PREV) {
                 ESP_LOGI(TAG, "control: prev requested");
                 xEventGroupClearBits(Player_Status, PLAYER_STATUS_PAUSED);
-                if (Driver_Sample < 3*44100) { //actually change track
+                if (Driver_FirstWait || (Driver_Sample < 3*44100)) { //actually change track
                     ESP_LOGI(TAG, "within 3 second window");
                     if (Player_PrevTrk(true)) {
                         ESP_LOGI(TAG, "prev track proceeding");
