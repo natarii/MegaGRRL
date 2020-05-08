@@ -46,7 +46,7 @@ const StatusbarIconDef_t icondefs[] = {
     {LV_SYMBOL_PAUSE, 0, 0},
     {LV_SYMBOL_STOP, 0, 0},
     {LV_SYMBOL_WARNING, -2, 0},
-    {"MO", 0, 0},
+    {"MO", -3, 0},
     {"ST", 0, 0},
     {LV_SYMBOL_VOLUME_MAX, 5, 0},
     {LV_SYMBOL_UPLOAD, 0, 0},
