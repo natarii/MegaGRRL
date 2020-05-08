@@ -471,6 +471,9 @@ static void do_tick() {
     } else {
         barx = 10;
     }
+    if (xEventGroupGetBits(Driver_CommandEvents) & DRIVER_EVENT_FINISHED) {
+        barx = 10+(220-2);
+    }
     EventBits_t bits = xEventGroupGetBits(Player_Status);
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     if (bits != laststatus) {
