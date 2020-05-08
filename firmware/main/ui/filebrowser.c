@@ -48,7 +48,7 @@ struct dirent *ent;
 static char direntry_cache[FILEBROWSER_CACHE_SIZE];
 static IRAM_ATTR uint32_t direntry_offset[FILEBROWSER_CACHE_MAXENTRIES];
 static uint16_t direntry_count = 0;
-static bool direntry_invalidated = false;
+static volatile bool direntry_invalidated = false;
 
 void openselection();
 void redrawselection();
@@ -64,6 +64,10 @@ char sysvolinfo[] = "System Volume Information";
 volatile SortDirection_t Ui_FileBrowser_SortDir = SORT_ASCENDING;
 volatile bool Ui_FileBrowser_Sort = true;
 volatile bool Ui_FileBrowser_DirsBeforeFiles = true;
+
+void Ui_FileBrowser_InvalidateDirEntry() {
+    direntry_invalidated = true;
+}
 
 static int comp(const uint32_t *offset1, const uint32_t *offset2) {
     char *s1 = direntry_cache + *offset1;
@@ -311,6 +315,7 @@ bool Ui_FileBrowser_Activate(lv_obj_t *uiscreen) {
     LcdDma_Mutex_Give();
 
     if (direntry_invalidated) {
+        direntry_invalidated = false;
         //if model sort option changes are ever allowed, just move the cache+loop to its own function and reuse it there
         ESP_LOGI(TAG, "direntry was invalidated, re-caching. checking if last file still exists...");
         //another janky hack for vgz->vgm, like when loading history
@@ -346,7 +351,6 @@ bool Ui_FileBrowser_Activate(lv_obj_t *uiscreen) {
 }
 
 void Ui_FileBrowser_Destroy() {
-    direntry_invalidated = true;
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_obj_del(container);
     LcdDma_Mutex_Give();

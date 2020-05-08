@@ -24,10 +24,6 @@ static void opts_mutingupdate() {
     xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_UPDATE_MUTING);
 }
 
-static void opts_invalidatefilebrowser() {
-    
-}
-
 const option_t Options[OPTION_COUNT] = {
     {
         "Loop count",
@@ -36,6 +32,7 @@ const option_t Options[OPTION_COUNT] = {
         OPTION_TYPE_LOOPS,
         &Player_SetLoopCount,
         2,
+        NULL,
         NULL
     },
     {
@@ -45,6 +42,7 @@ const option_t Options[OPTION_COUNT] = {
         OPTION_TYPE_PLAYMODE,
         &Player_RepeatMode,
         REPEAT_ALL,
+        NULL,
         NULL
     },/*
     {
@@ -63,6 +61,7 @@ const option_t Options[OPTION_COUNT] = {
         OPTION_TYPE_BOOL,
         &Loader_IgnoreZeroSampleLoops,
         true,
+        NULL,
         NULL
     },/*
     {
@@ -90,6 +89,7 @@ const option_t Options[OPTION_COUNT] = {
         OPTION_TYPE_STEREOMONO,
         &Driver_ForceMono,
         false,
+        opts_mutingupdate,
         opts_mutingupdate
     },
     {
@@ -99,6 +99,7 @@ const option_t Options[OPTION_COUNT] = {
         OPTION_TYPE_NUMERIC,
         &LedDrv_Brightness, //
         0x40,
+        LedDrv_UpdateBrightness,
         LedDrv_UpdateBrightness
     },
     {
@@ -108,6 +109,7 @@ const option_t Options[OPTION_COUNT] = {
         OPTION_TYPE_USERLED,
         &UserLedMgr_Source[0],
         USERLED_SRC_PLAYPAUSE,
+        NULL,
         NULL
     },
     {
@@ -117,6 +119,7 @@ const option_t Options[OPTION_COUNT] = {
         OPTION_TYPE_USERLED,
         &UserLedMgr_Source[1],
         USERLED_SRC_DISK_ALL,
+        NULL,
         NULL
     },
     {
@@ -126,6 +129,7 @@ const option_t Options[OPTION_COUNT] = {
         OPTION_TYPE_USERLED,
         &UserLedMgr_Source[2],
         USERLED_SRC_NONE,
+        NULL,
         NULL
     },
     {
@@ -135,7 +139,8 @@ const option_t Options[OPTION_COUNT] = {
         OPTION_TYPE_BOOL,
         &Ui_FileBrowser_Sort,
         true,
-        opts_invalidatefilebrowser
+        Ui_FileBrowser_InvalidateDirEntry,
+        NULL
     },
     {
         "Alphabetical sort direction",
@@ -144,7 +149,8 @@ const option_t Options[OPTION_COUNT] = {
         OPTION_TYPE_SORTDIR,
         &Ui_FileBrowser_SortDir,
         SORT_ASCENDING,
-        opts_invalidatefilebrowser
+        Ui_FileBrowser_InvalidateDirEntry,
+        NULL
     },
     {
         "Sort dirs before files",
@@ -153,7 +159,8 @@ const option_t Options[OPTION_COUNT] = {
         OPTION_TYPE_BOOL,
         &Ui_FileBrowser_DirsBeforeFiles,
         true,
-        opts_invalidatefilebrowser
+        Ui_FileBrowser_InvalidateDirEntry,
+        NULL
     },
     {
         "Overwrite VGZ files",
@@ -162,6 +169,7 @@ const option_t Options[OPTION_COUNT] = {
         OPTION_TYPE_BOOL,
         &Player_UnvgzReplaceOriginal,
         true,
+        NULL,
         NULL
     }
 /* just getting rid of this for now. portable only
@@ -222,7 +230,7 @@ void OptionsMgr_Setup() {
     for (uint8_t i=0;i<(sizeof(Options)/sizeof(option_t));i++) {
         if (Options[i].var == NULL) continue;
         *(volatile uint8_t*)Options[i].var = (uint8_t)Options[i].defaultval;
-        if (Options[i].cb != NULL) Options[i].cb();
+        if (Options[i].cb_initial != NULL) Options[i].cb_initial();
     }
 
     /*//write out new options file

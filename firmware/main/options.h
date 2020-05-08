@@ -32,6 +32,7 @@ typedef struct {
     volatile void *var;
     uint8_t defaultval;
     void (*cb)();
+    void (*cb_initial)();
 } option_t;
 
 #define OPTION_COUNT 12
