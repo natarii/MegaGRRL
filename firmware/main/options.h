@@ -24,6 +24,7 @@ typedef enum {
 } optioncategory_t;
 
 typedef struct {
+    uint16_t uid;
     const char *name;
     const char *description;
     optioncategory_t category;
@@ -37,15 +38,7 @@ typedef struct {
 
 #define OPTION_COUNT 12
 
-#define OPTIONS_ACTUAL_VER 0x05
-
-#if defined HWVER_PORTABLE
-#define OPTIONS_VER OPTIONS_ACTUAL_VER
-#elif defined HWVER_DESKTOP
-#define OPTIONS_VER (0x80 | OPTIONS_ACTUAL_VER)
-#else
-#define OPTIONS_VER OPTIONS_ACTUAL_VER
-#endif
+#define OPTIONS_VER 0xA0
 
 extern const option_t Options[];
 extern const char *OptionCatNames[];
