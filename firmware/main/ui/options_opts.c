@@ -10,78 +10,90 @@
 #include "../player.h" //for repeat mode defs
 #include "../userled.h" //for user led source defs
 #include "filebrowser.h" //for sort dir defs
+#include <string.h>
 
 static IRAM_ATTR lv_obj_t *container;
-lv_style_t containerstyle;
+static lv_style_t containerstyle;
 
-uint8_t Options_OptId = 0;
-uint8_t Options_Sel = 0;
-uint8_t Options_Off = 0;
+static uint8_t Options_OptId = 0;
+static uint8_t Options_Sel = 0;
+static uint8_t Options_Off = 0;
 
-IRAM_ATTR lv_obj_t *optionoptlines[5];
-IRAM_ATTR lv_obj_t *optionoptlabels[5];
-lv_style_t optionoptstyle_normal;
-lv_style_t optionoptstyle_sel;
-lv_style_t optiondescstyle;
+static IRAM_ATTR lv_obj_t *optionoptlines[5];
+static IRAM_ATTR lv_obj_t *optionoptlabels[5];
+static lv_style_t optionoptstyle_normal;
+static lv_style_t optionoptstyle_sel;
+static lv_style_t optiondescstyle;
+static lv_style_t optionvalstyle;
 
 //IRAM_ATTR lv_obj_t *optiontitle;
-IRAM_ATTR lv_obj_t *optiondesc;
-IRAM_ATTR lv_obj_t *optionvalue;
-IRAM_ATTR lv_obj_t *optiondefault;
+static IRAM_ATTR lv_obj_t *optiondesc;
+static IRAM_ATTR lv_obj_t *optionvalue;
+static IRAM_ATTR lv_obj_t *optiondefault;
+static IRAM_ATTR lv_obj_t *optionvalue_val;
+static IRAM_ATTR lv_obj_t *optiondefault_val;
 
 static bool editing = false;
 static uint8_t oldval = 0;
 
-static char *currentvalue = "Current: ";
-static char *defaultvalue = "Default: ";
+static const char *currentvalue = "Current:";
+static const char *defaultvalue = "Default:";
 static char currentvalue_buf[32] = "";
 static char defaultvalue_buf[32] = "";
 
+static lv_style_t headerstyle;
+static IRAM_ATTR lv_obj_t *header;
+static char headertext[64] = "Settings "LV_SYMBOL_RIGHT" ";
+static uint8_t pages = 0;
 
+static lv_style_t linestyle;
+static IRAM_ATTR lv_obj_t *listdivs[2];
+
+static const char *help1 = LV_SYMBOL_UP" "LV_SYMBOL_DOWN" to select setting";
+static const char *help2 = LV_SYMBOL_LEFT" "LV_SYMBOL_RIGHT" to adjust value";
+static IRAM_ATTR lv_obj_t *help;
+static lv_style_t helpstyle;
 
 void redrawopts();
 void redrawopt();
 static void displayvalue(char *buf, bool def) {
     if (!def && Options[Options_OptId].var == NULL) return;
     uint8_t val = def?Options[Options_OptId].defaultval:*(uint8_t*)Options[Options_OptId].var;
-    char lbuf[16];
     switch (Options[Options_OptId].type) {
         case OPTION_TYPE_NUMERIC:
-            sprintf(&lbuf, "%d", val);
-            strcat(buf, &lbuf);
+            sprintf(buf, "%d", val);
             break;
         case OPTION_TYPE_LOOPS:
             if (val == 255) {
-                strcat(buf, "Infinite");
+                strcpy(buf, "Infinite");
             } else {
-                sprintf(&lbuf, "%d", val);
-                strcat(buf, &lbuf);
+                sprintf(buf, "%d", val);
             }
             break;
         case OPTION_TYPE_BOOL:
             if (val) {
-                strcat(buf, "True");
+                strcpy(buf, "True");
             } else {
-                strcat(buf, "False");
+                strcpy(buf, "False");
             }
             break;
         case OPTION_TYPE_STEREOMONO:
             if (val) {
-                strcat(buf, "Force Mono");
+                strcpy(buf, "Force Mono");
             } else {
-                strcat(buf, "Stereo");
+                strcpy(buf, "Stereo");
             }
             break;
         case OPTION_TYPE_PLAYMODE:
             switch ((RepeatMode_t)val) {
                 case REPEAT_NONE:
-                    strcat(buf, "Repeat None");
+                    strcpy(buf, "Repeat None");
                     break;
                 case REPEAT_ONE:
-                    strcat(buf, "Repeat One");
+                    strcpy(buf, "Repeat One");
                     break;
                 case REPEAT_ALL:
-                    strcat(buf, "Repeat All");
+                    strcpy(buf, "Repeat All");
                     break;
                 default:
                     break;
@@ -90,28 +102,28 @@ static void displayvalue(char *buf, bool def) {
         case OPTION_TYPE_USERLED:
             switch ((UserLedSource_t)val) {
                 case USERLED_SRC_NONE:
-                    strcat(buf, "Disabled");
+                    strcpy(buf, "Disabled");
                     break;
                 case USERLED_SRC_PLAYPAUSE:
-                    strcat(buf, "Play/Pause");
+                    strcpy(buf, "Play/Pause");
                     break;
                 case USERLED_SRC_DISK_ALL:
-                    strcat(buf, "SD Read");
+                    strcpy(buf, "SD Read");
                     break;
                 case USERLED_SRC_DISK_VGM:
-                    strcat(buf, "SD Read (VGM)");
+                    strcpy(buf, "SD Read (VGM)");
                     break;
                 case USERLED_SRC_DISK_DSALL:
-                    strcat(buf, "SD Read (DACStream)");
+                    strcpy(buf, "SD Read (DS)");
                     break;
                 case USERLED_SRC_DISK_DSFILL:
-                    strcat(buf, "SD Read (DS Fill)");
+                    strcpy(buf, "SD Read (DS Fill)");
                     break;
                 case USERLED_SRC_DISK_DSFIND:
-                    strcat(buf, "SD Read (DS Find)");
+                    strcpy(buf, "SD Read (DS Find)");
                     break;
                 case USERLED_SRC_DRIVERCPU:
-                    strcat(buf, "Driver CPU");
+                    strcpy(buf, "Driver CPU");
                     break;
                 default:
                     break;
@@ -120,10 +132,10 @@ static void displayvalue(char *buf, bool def) {
         case OPTION_TYPE_SORTDIR:
             switch ((SortDirection_t)val) {
                 case SORT_ASCENDING:
-                    strcat(buf, "Ascending");
+                    strcpy(buf, "Ascending");
                     break;
                 case SORT_DESCENDING:
-                    strcat(buf, "Descending");
+                    strcpy(buf, "Descending");
                     break;
                 default:
                     break;
@@ -214,17 +226,52 @@ void Ui_Options_Opts_Setup(lv_obj_t *uiscreen) {
     optionoptstyle_normal.body.grad_color = LV_COLOR_MAKE(0,0,0);
     optionoptstyle_normal.text.color = LV_COLOR_MAKE(220,220,220);
 
+    lv_style_copy(&optionvalstyle, &lv_style_plain);
+    optionvalstyle.text.font = &lv_font_dejavu_14_2bpp;
+    optionvalstyle.body.main_color = LV_COLOR_MAKE(0,0,0);
+    optionvalstyle.body.grad_color = LV_COLOR_MAKE(0,0,0);
+    optionvalstyle.text.color = LV_COLOR_MAKE(220,220,220);
+
     lv_style_copy(&optionoptstyle_sel, &optionoptstyle_normal);
     optionoptstyle_sel.body.main_color = LV_COLOR_MAKE(0,0,100);
     optionoptstyle_sel.body.grad_color = LV_COLOR_MAKE(0,0,100);
     optionoptstyle_sel.body.radius = 8;
+
+    int16_t y = 4;
+
+    lv_style_copy(&headerstyle, &lv_style_plain);
+    headerstyle.text.font = &lv_font_dejavu_14_2bpp;
+    headerstyle.text.color = LV_COLOR_MAKE(127,127,127);
+    header = lv_label_create(container, NULL);
+    lv_obj_set_pos(header, 4, y);
+    y += 20;
+    lv_label_set_style(header, LV_LABEL_STYLE_MAIN, &headerstyle);
+    uint8_t items = 0;
+    for (uint8_t i=0;i<OPTION_COUNT;i++) {
+        if (Options[i].category != Options_Cat) continue;
+        items++;
+    }
+    pages = (items/5) + ((items%5)?1:0);
+    sprintf(&headertext[13], "%s (Pg. 1/%d)", OptionCatNames[Options_Cat], pages);
+    lv_label_set_static_text(header, headertext);
+
+    lv_style_copy(&linestyle, &lv_style_plain);
+    linestyle.line.color = LV_COLOR_MAKE(255,255,255);
+    linestyle.line.width = 1;
+    listdivs[0] = lv_line_create(container, NULL);
+    lv_line_set_style(listdivs[0], LV_LINE_STYLE_MAIN, &linestyle);
+    static const lv_point_t divpoints[2] = {{0,0},{240,0}};
+    lv_line_set_points(listdivs[0], divpoints, 2);
+    lv_obj_set_pos(listdivs[0], 0, y);
+    y += 1;
 
     for (uint8_t i=0;i<5;i++) {
         optionoptlines[i] = lv_cont_create(container, NULL);
         lv_obj_set_style(optionoptlines[i], &optionoptstyle_sel);
         lv_obj_set_height(optionoptlines[i], 25);
         lv_obj_set_width(optionoptlines[i],240);
-        lv_obj_set_pos(optionoptlines[i], 0, 25*i);
+        lv_obj_set_pos(optionoptlines[i], 0, y);
+        y += 25;
 
         optionoptlabels[i] = lv_label_create(optionoptlines[i], NULL);
         lv_obj_set_pos(optionoptlabels[i], 2, 2);
@@ -233,30 +280,60 @@ void Ui_Options_Opts_Setup(lv_obj_t *uiscreen) {
         lv_obj_set_width(optionoptlabels[i], 240);
     }
 
+    listdivs[1] = lv_line_create(container, NULL);
+    lv_line_set_style(listdivs[1], LV_LINE_STYLE_MAIN, &linestyle);
+    lv_line_set_points(listdivs[1], divpoints, 2);
+    lv_obj_set_pos(listdivs[1], 0, y);
+    y += 1;
+
     lv_style_copy(&optiondescstyle, &lv_style_plain);
     optiondescstyle.text.font = &lv_font_dejavu_18;
     optiondescstyle.text.color = LV_COLOR_MAKE(127,127,127);
 
     optiondesc = lv_label_create(container, NULL);
     lv_obj_set_style(optiondesc, &optiondescstyle);
-    lv_obj_set_pos(optiondesc, 10, 135);
+    y += 2; //
+    lv_obj_set_pos(optiondesc, 10, y);
+    y += 20;
     lv_label_set_long_mode(optiondesc, LV_LABEL_LONG_SROLL);
     lv_obj_set_width(optiondesc, 220);
     lv_label_set_anim_speed(optiondesc, 75);
 
-    optionvalue = lv_label_create(container, NULL);
-    lv_obj_set_style(optionvalue, &optionoptstyle_normal);
-    lv_obj_set_pos(optionvalue, 10, 175);
-
     optiondefault = lv_label_create(container, NULL);
     lv_obj_set_style(optiondefault, &optiondescstyle);
-    lv_obj_set_pos(optiondefault, 10, 155);
+    lv_obj_set_pos(optiondefault, 10, y);
+    lv_label_set_static_text(optiondefault, defaultvalue);
+    optiondefault_val = lv_label_create(container, NULL);
+    lv_obj_set_style(optiondefault_val, &optionvalstyle);
+    lv_obj_set_pos(optiondefault_val, 90, y+4);
+    y += 20;
+
+    optionvalue = lv_label_create(container, NULL);
+    lv_obj_set_style(optionvalue, &optionoptstyle_normal);
+    lv_obj_set_pos(optionvalue, 10, y);
+    lv_label_set_static_text(optionvalue, currentvalue);
+    optionvalue_val = lv_label_create(container, NULL);
+    lv_obj_set_style(optionvalue_val, &optionvalstyle);
+    lv_obj_set_pos(optionvalue_val, 90, y+4);
+    y += 20;
+
+
+    lv_style_copy(&helpstyle, &lv_style_plain);
+    helpstyle.text.font = &lv_font_dejavu_14_2bpp;
+    helpstyle.text.color = LV_COLOR_MAKE(255,255,0);
+    help = lv_label_create(container, NULL);
+    lv_label_set_long_mode(help, LV_LABEL_LONG_BREAK);
+    lv_obj_set_width(help, 240);
+    lv_label_set_align(help, LV_LABEL_ALIGN_CENTER);
+    lv_label_set_style(help, LV_LABEL_STYLE_MAIN, &helpstyle);
+    lv_label_set_static_text(help, help1);
+    lv_obj_set_pos(help, 0, 227);
+
+
 
     Ui_SoftBar_Update(0, true, LV_SYMBOL_HOME"Home", false);
     Ui_SoftBar_Update(1, true, LV_SYMBOL_LEFT" Back", false);
     Ui_SoftBar_Update(2, true, LV_SYMBOL_EDIT"Edit", false);
-
-    LcdDma_Mutex_Give();
 
     Options_OptId = 0;
     Options_Sel = 0;
@@ -265,14 +342,18 @@ void Ui_Options_Opts_Setup(lv_obj_t *uiscreen) {
 
     redrawopts();
     redrawopt();
+
+    LcdDma_Mutex_Give();
+
 }
 
 void Ui_Options_Opts_Destroy() {
+    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_obj_del(container);
+    LcdDma_Mutex_Give();
 }
 
 void redrawopts() {
-    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     uint8_t idx = 0;
     uint8_t skip = 0;
     uint8_t off = (Options_Sel/5)*5;
@@ -302,23 +383,21 @@ void redrawopts() {
         lv_label_set_static_text(optionoptlabels[idx], "");
     }
 
-    strcpy(&defaultvalue_buf, defaultvalue);
-    displayvalue(&defaultvalue_buf, true);
-    lv_label_set_static_text(optiondefault, &defaultvalue_buf);
+    sprintf(&headertext[13], "%s (Pg. %d/%d)", OptionCatNames[Options_Cat], (Options_Sel/5)+1, pages);
+    lv_label_set_static_text(header, headertext);
 
-    LcdDma_Mutex_Give();
+    displayvalue(&defaultvalue_buf, true);
+    lv_label_set_static_text(optiondefault_val, &defaultvalue_buf);
 }
 
 void redrawopt() {
-    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
-    strcpy(&currentvalue_buf, currentvalue);
     displayvalue(&currentvalue_buf, false);
-    lv_label_set_static_text(optionvalue, &currentvalue_buf);
-    LcdDma_Mutex_Give();
+    lv_label_set_static_text(optionvalue_val, &currentvalue_buf);
 }
 
 void Ui_Options_Opts_Key(KeyEvent_t event) {
     if (event.State & KEY_EVENT_PRESS) {
+        LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         if (event.Key == KEY_UP && !editing) {
             if (Options_Sel) {
                 Options_Sel--;
@@ -347,19 +426,22 @@ void Ui_Options_Opts_Key(KeyEvent_t event) {
                 if (Options[Options_OptId].cb != NULL) Options[Options_OptId].cb();
                 editing = false;
                 redrawopt();
-                Ui_SoftBar_Update(2, true, LV_SYMBOL_EDIT" Edit", true);
-                Ui_SoftBar_Update(1, true, LV_SYMBOL_LEFT" Back", true);
+                Ui_SoftBar_Update(2, true, LV_SYMBOL_EDIT" Edit", false);
+                Ui_SoftBar_Update(1, true, LV_SYMBOL_LEFT" Back", false);
+                lv_label_set_static_text(help, help1);
             } else {
                 Ui_Screen = UISCREEN_OPTIONS_CATS;
             }
         } else if (event.Key == KEY_C) {
             if (!editing) {
-                Ui_SoftBar_Update(2, true, LV_SYMBOL_SAVE" Save", true);
-                Ui_SoftBar_Update(1, true, LV_SYMBOL_CLOSE"Cancel", true);
+                Ui_SoftBar_Update(2, true, LV_SYMBOL_SAVE" Save", false);
+                Ui_SoftBar_Update(1, true, LV_SYMBOL_CLOSE"Cancel", false);
                 oldval = *(uint8_t*)Options[Options_OptId].var;
+                lv_label_set_static_text(help, help2);
             } else {
-                Ui_SoftBar_Update(2, true, LV_SYMBOL_EDIT" Edit", true);
-                Ui_SoftBar_Update(1, true, LV_SYMBOL_LEFT" Back", true);
+                Ui_SoftBar_Update(2, true, LV_SYMBOL_EDIT" Edit", false);
+                Ui_SoftBar_Update(1, true, LV_SYMBOL_LEFT" Back", false);
+                lv_label_set_static_text(help, help1);
                 OptionsMgr_Touch();
             }
             editing = !editing;
@@ -373,5 +455,6 @@ void Ui_Options_Opts_Key(KeyEvent_t event) {
             redrawopt();
             if (Options[Options_OptId].cb != NULL) Options[Options_OptId].cb();
         }
+        LcdDma_Mutex_Give();
     }
 }

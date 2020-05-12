@@ -8,14 +8,16 @@
 #include "softbar.h"
 
 static IRAM_ATTR lv_obj_t *container;
-lv_style_t containerstyle;
+static lv_style_t containerstyle;
 
 uint8_t Options_Cat = 0;
 
-IRAM_ATTR lv_obj_t *optioncatlines[OPTION_CATEGORY_COUNT];
-IRAM_ATTR lv_obj_t *optioncatlabels[OPTION_CATEGORY_COUNT];
-lv_style_t optioncatstyle_normal;
-lv_style_t optioncatstyle_sel;
+static IRAM_ATTR lv_obj_t *optioncatlines[OPTION_CATEGORY_COUNT];
+static IRAM_ATTR lv_obj_t *optioncatlabels[OPTION_CATEGORY_COUNT];
+static lv_style_t optioncatstyle_normal;
+static lv_style_t optioncatstyle_sel;
+static lv_style_t headerstyle;
+static IRAM_ATTR lv_obj_t *header;
 
 static UiScreen_t lastscreen = UISCREEN_MAINMENU;
 
@@ -47,12 +49,24 @@ void Ui_Options_Cats_Setup(lv_obj_t *uiscreen) {
     optioncatstyle_sel.body.grad_color = LV_COLOR_MAKE(0,0,100);
     optioncatstyle_sel.body.radius = 8;
 
+    int16_t y = 4;
+
+    lv_style_copy(&headerstyle, &lv_style_plain);
+    headerstyle.text.font = &lv_font_dejavu_14_2bpp;
+    headerstyle.text.color = LV_COLOR_MAKE(127,127,127);
+    header = lv_label_create(container, NULL);
+    lv_obj_set_pos(header, 4, y);
+    y += 20;
+    lv_label_set_style(header, LV_LABEL_STYLE_MAIN, &headerstyle);
+    lv_label_set_static_text(header, "Settings...");
+
     for (uint8_t i=0;i<OPTION_CATEGORY_COUNT;i++) {
         optioncatlines[i] = lv_cont_create(container, NULL);
         lv_obj_set_style(optioncatlines[i], &optioncatstyle_sel);
         lv_obj_set_height(optioncatlines[i], 25);
         lv_obj_set_width(optioncatlines[i],240);
-        lv_obj_set_pos(optioncatlines[i], 0, 25*i);
+        lv_obj_set_pos(optioncatlines[i], 0, y);
+        y += 25;
 
         optioncatlabels[i] = lv_label_create(optioncatlines[i], NULL);
         lv_obj_set_pos(optioncatlabels[i], 2, 2);
@@ -73,7 +87,9 @@ void Ui_Options_Cats_Setup(lv_obj_t *uiscreen) {
 }
 
 void Ui_Options_Cats_Destroy() {
+    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_obj_del(container);
+    LcdDma_Mutex_Give();
 }
 
 void redrawoptcats() {

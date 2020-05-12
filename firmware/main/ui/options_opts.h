@@ -4,8 +4,6 @@
 #include "lvgl.h"
 #include "../key.h"
 
-extern uint8_t Options_OptId;
-
 void Ui_Options_Opts_Setup(lv_obj_t *uiscreen);
 void Ui_Options_Opts_Destroy();
 void Ui_Options_Opts_Key(KeyEvent_t event);
