@@ -150,6 +150,8 @@ void Ui_Main() {
             }
         }
         if (Ui_Screen != Ui_Screen_Last) {
+            ESP_LOGI(TAG, "screen %d -> %d", Ui_Screen_Last, Ui_Screen);
+            ESP_LOGI(TAG, "destroying old");
             switch (Ui_Screen_Last) {
                 case UISCREEN_INIT:
                     break;
@@ -183,6 +185,7 @@ void Ui_Main() {
                 default:
                     break;
             }
+            ESP_LOGI(TAG, "creating new");
             switch (Ui_Screen) {
                 case UISCREEN_FILEBROWSER:
                     Ui_FileBrowser_Activate(uiscreen);
