@@ -39,6 +39,8 @@ char Player_Gd3_Author[PLAYER_GD3_FIELD_SIZES+1];
 
 bool stopped = true;
 
+const static char* unvgztmp = "/sd/.mega/unvgz.tmp";
+
 bool Player_NextTrk(bool UserSpecified) { //returns true if there is now a track playing
     Player_StopTrack();
     if (!UserSpecified && Player_RepeatMode == REPEAT_ONE) {
@@ -223,7 +225,7 @@ void Player_Unvgz(char *FilePath, bool ReplaceOriginalFile) {
         ESP_LOGW(TAG, "Unvgz: Decompressing %s to temp file", FilePath);
     }
     reader = fopen(FilePath, "r");
-    writer = fopen("/sd/.mega/unvgz.tmp", "w");
+    writer = fopen(unvgztmp, "w");
     fseek(writer, 0, SEEK_SET);
 
     //get compressed size
@@ -288,12 +290,13 @@ void Player_Unvgz(char *FilePath, bool ReplaceOriginalFile) {
         ESP_LOGW(TAG, "Unvgz: Deleting original file");
         remove(FilePath);
         ESP_LOGW(TAG, "Unvgz: Renaming temp file to %s", vgmfn);
-        rename("/sd/.mega/unvgz.tmp", vgmfn);
+        rename(unvgztmp, vgmfn);
     }
 }
 
 bool Player_StartTrack(char *FilePath) {
     Player_LoopCount = Player_SetLoopCount; //take new loop count
+    char *OpenFilePath = FilePath;
 
     ESP_LOGI(TAG, "Checking file type of %s", FilePath);
     FILE *test = fopen(FilePath, "r");
@@ -325,7 +328,7 @@ bool Player_StartTrack(char *FilePath) {
             }
         } else {
             Player_Unvgz(FilePath, false);
-            strcpy(FilePath, "/sd/.mega/unvgz.tmp");
+            OpenFilePath = unvgztmp;
         }
         Ui_StatusBar_SetExtract(false);
     } else if (magic == 0x6756) {
@@ -335,11 +338,11 @@ bool Player_StartTrack(char *FilePath) {
         return false;
     }
     ESP_LOGI(TAG, "parsing header");
-    Player_VgmFile = fopen(FilePath, "r");
-    Player_PcmFile = fopen(FilePath, "r");
-    Player_DsFindFile = fopen(FilePath, "r");
-    Player_DsFillFile = fopen(FilePath, "r");
-    Driver_Opna_PcmUploadFile = fopen(FilePath, "r");
+    Player_VgmFile = fopen(OpenFilePath, "r");
+    Player_PcmFile = fopen(OpenFilePath, "r");
+    Player_DsFindFile = fopen(OpenFilePath, "r");
+    Player_DsFillFile = fopen(OpenFilePath, "r");
+    Driver_Opna_PcmUploadFile = fopen(OpenFilePath, "r");
     fseek(Player_VgmFile, 0, SEEK_SET);
     fseek(Player_DsFindFile, 0, SEEK_SET);
     VgmParseHeader(Player_VgmFile, &Player_Info);

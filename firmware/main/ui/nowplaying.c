@@ -337,7 +337,7 @@ static void newtrack() { //gd3, pls position, loop count/samples
                 nameoff = i+1;
             }
         }
-        lv_label_set_static_text(text_title, &QueuePlayingFilename[nameoff]);
+        lv_label_set_text(text_title, &QueuePlayingFilename[nameoff]); //not using this as static, because we get a flash of the next track name when seeking from non-gd3 to with-gd3
     } else {
         lv_label_set_static_text(text_title, Player_Gd3_Title);
     }
