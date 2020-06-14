@@ -446,6 +446,9 @@ void app_main(void)
         crash_sd(card_setup_ret);
     }
 
+    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    lv_ta_add_text(textarea, "Checking for core...\n");
+    LcdDma_Mutex_Give();
     checkcore();
     MAIN_PROGRESS_UPDATE;
 
