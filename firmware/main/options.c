@@ -252,7 +252,7 @@ void OptionsMgr_Setup() {
             fclose(f);
             ESP_LOGI(TAG, "finished loading options file");
         } else {
-            ESP_LOGW(TAG, "options file bad ver");
+            ESP_LOGW(TAG, "options file bad ver (0x%02x != 0x%02x)", tmp, OPTIONS_VER);
         }
     } else {
         ESP_LOGI(TAG, "no options file exists");
