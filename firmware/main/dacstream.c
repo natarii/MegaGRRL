@@ -285,7 +285,7 @@ void DacStream_FillTask_DoPre(uint8_t idx) {
                     fread(&DacStream_FillBuf[0], 1, FREAD_LOCAL_BUF, DacStream_FillFile); //todo: fix read past eof
                     dsbufused = 0;
                 }
-                xQueueSend(DacStreamEntries[idx].Queue, &DacStream_FillBuf[dsbufused], 0);
+                xQueueSendToBackFromISR(DacStreamEntries[idx].Queue, &DacStream_FillBuf[dsbufused], 0);
                 dsbufused++;
                 DacStreamEntries[idx].ReadOffset++;
                 a--;
