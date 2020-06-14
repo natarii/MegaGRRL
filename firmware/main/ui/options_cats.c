@@ -8,7 +8,6 @@
 #include "softbar.h"
 
 static IRAM_ATTR lv_obj_t *container;
-static lv_style_t containerstyle;
 
 uint8_t Options_Cat = 0;
 
@@ -29,10 +28,7 @@ void Ui_Options_Cats_Setup(lv_obj_t *uiscreen) {
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
 
     container = lv_cont_create(uiscreen, NULL);
-    lv_style_copy(&containerstyle, &lv_style_plain);
-    containerstyle.body.main_color = LV_COLOR_MAKE(0, 0, 0);
-    containerstyle.body.grad_color = LV_COLOR_MAKE(0,0,0);
-    lv_cont_set_style(container, LV_CONT_STYLE_MAIN, &containerstyle);
+    lv_cont_set_style(container, LV_CONT_STYLE_MAIN, &lv_style_transp);
     lv_obj_set_height(container, 250);
     lv_obj_set_width(container, 240);
     lv_obj_set_pos(container, 0, 34+1);
@@ -48,6 +44,8 @@ void Ui_Options_Cats_Setup(lv_obj_t *uiscreen) {
     optioncatstyle_sel.body.main_color = LV_COLOR_MAKE(0,0,100);
     optioncatstyle_sel.body.grad_color = LV_COLOR_MAKE(0,0,100);
     optioncatstyle_sel.body.radius = 8;
+
+    optioncatstyle_normal.body.opa = 0; //must be after the copies
 
     int16_t y = 4;
 

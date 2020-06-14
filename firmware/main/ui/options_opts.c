@@ -13,7 +13,6 @@
 #include <string.h>
 
 static IRAM_ATTR lv_obj_t *container;
-static lv_style_t containerstyle;
 
 static uint8_t Options_OptId = 0;
 static uint8_t Options_Sel = 0;
@@ -211,10 +210,7 @@ void Ui_Options_Opts_Setup(lv_obj_t *uiscreen) {
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
 
     container = lv_cont_create(uiscreen, NULL);
-    lv_style_copy(&containerstyle, &lv_style_plain);
-    containerstyle.body.main_color = LV_COLOR_MAKE(0, 0, 0);
-    containerstyle.body.grad_color = LV_COLOR_MAKE(0,0,0);
-    lv_cont_set_style(container, LV_CONT_STYLE_MAIN, &containerstyle);
+    lv_cont_set_style(container, LV_CONT_STYLE_MAIN, &lv_style_transp);
     lv_obj_set_height(container, 250);
     lv_obj_set_width(container, 240);
     lv_obj_set_pos(container, 0, 34+1);
@@ -228,14 +224,15 @@ void Ui_Options_Opts_Setup(lv_obj_t *uiscreen) {
 
     lv_style_copy(&optionvalstyle, &lv_style_plain);
     optionvalstyle.text.font = &lv_font_dejavu_14_2bpp;
-    optionvalstyle.body.main_color = LV_COLOR_MAKE(0,0,0);
-    optionvalstyle.body.grad_color = LV_COLOR_MAKE(0,0,0);
+    optionvalstyle.body.opa = 0;
     optionvalstyle.text.color = LV_COLOR_MAKE(220,220,220);
 
     lv_style_copy(&optionoptstyle_sel, &optionoptstyle_normal);
     optionoptstyle_sel.body.main_color = LV_COLOR_MAKE(0,0,100);
     optionoptstyle_sel.body.grad_color = LV_COLOR_MAKE(0,0,100);
     optionoptstyle_sel.body.radius = 8;
+
+    optionoptstyle_normal.body.opa = 0; //must be after the copies
 
     int16_t y = 4;
 

@@ -22,7 +22,6 @@ volatile bool Ui_NowPlaying_DataAvail = false;
 volatile bool Ui_NowPlaying_DriverRunning = false;
 
 static IRAM_ATTR lv_obj_t *container;
-static lv_style_t containerstyle;
 static lv_style_t labelstyle;
 static lv_style_t textstyle;
 static lv_style_t labelstyle_sm;
@@ -84,10 +83,6 @@ bool Ui_NowPlaying_Setup(lv_obj_t *uiscreen) {
 
     container = lv_cont_create(uiscreen, NULL);
 
-    lv_style_copy(&containerstyle, &lv_style_plain);
-    containerstyle.body.main_color = LV_COLOR_MAKE(0,0,0);
-    containerstyle.body.grad_color = LV_COLOR_MAKE(0,0,0);
-
     lv_style_copy(&labelstyle, &lv_style_plain);
     labelstyle.text.color = LV_COLOR_MAKE(100, 100, 230); //127,127,127);
     labelstyle.text.font = &lv_font_dejavu_18;
@@ -101,7 +96,7 @@ bool Ui_NowPlaying_Setup(lv_obj_t *uiscreen) {
     lv_style_copy(&textstyle_sm, &textstyle);
     textstyle_sm.text.font = &lv_font_dejavu_14_2bpp;
 
-    lv_cont_set_style(container, LV_CONT_STYLE_MAIN, &containerstyle);
+    lv_cont_set_style(container, LV_CONT_STYLE_MAIN, &lv_style_transp);
     lv_obj_set_height(container, 250);
     lv_obj_set_width(container, 240);
     lv_obj_set_pos(container, 0, 34+1);

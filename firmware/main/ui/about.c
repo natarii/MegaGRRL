@@ -61,7 +61,6 @@ int32_t about_map(int32_t x, int32_t in_min, int32_t in_max, int32_t out_min, in
 }
 
 static IRAM_ATTR lv_obj_t *container;
-lv_style_t containerstyle;
 IRAM_ATTR lv_obj_t *about_ta;
 lv_style_t about_ta_style;
 uint32_t about_time = 0;
@@ -74,11 +73,8 @@ void Ui_About_Setup(lv_obj_t *uiscreen) {
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
 
     container = lv_cont_create(uiscreen, NULL);
-    lv_style_copy(&containerstyle, &lv_style_plain);
-    containerstyle.body.main_color = LV_COLOR_MAKE(0x74>>1,0xd7>>1,0xec>>1);
-    containerstyle.body.grad_color = LV_COLOR_MAKE(0xff>>1,0xaf>>1,0xc7>>1);
 
-    lv_cont_set_style(container, LV_CONT_STYLE_MAIN, &containerstyle);
+    lv_cont_set_style(container, LV_CONT_STYLE_MAIN, &lv_style_transp);
     lv_obj_set_height(container, 250);
     lv_obj_set_width(container, 240);
     lv_obj_set_pos(container, 0, 34+1);

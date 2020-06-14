@@ -20,7 +20,6 @@ static const char* TAG = "Ui_FileBrowser";
 
 
 static IRAM_ATTR lv_obj_t *container;
-lv_style_t containerstyle;
 lv_style_t filestyle;
 lv_style_t filestyle_sel;
 lv_style_t filelabelstyle_dir;
@@ -250,10 +249,7 @@ bool Ui_FileBrowser_Activate(lv_obj_t *uiscreen) {
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
 
     container = lv_cont_create(uiscreen, NULL);
-    
-    lv_style_copy(&containerstyle, &lv_style_plain);
-    containerstyle.body.main_color = LV_COLOR_MAKE(0,0,0); //255,255,255);
-    containerstyle.body.grad_color = LV_COLOR_MAKE(0,0,0); //255,255,255);
+
     lv_style_copy(&filestyle, &lv_style_plain);
     filestyle.body.main_color = LV_COLOR_MAKE(0,0,0); //255,255,255);
     filestyle.body.grad_color = LV_COLOR_MAKE(0,0,0); //255,255,255);
@@ -275,10 +271,11 @@ bool Ui_FileBrowser_Activate(lv_obj_t *uiscreen) {
     lv_style_copy(&scrollbarstyle, &lv_style_plain);
     scrollbarstyle.body.main_color = LV_COLOR_MAKE(127,127,127);
     scrollbarstyle.body.grad_color = LV_COLOR_MAKE(127,127,127);
+    filestyle.body.opa = 0; //must be after all the copies
 
 
 
-    lv_cont_set_style(container, LV_CONT_STYLE_MAIN, &containerstyle);
+    lv_cont_set_style(container, LV_CONT_STYLE_MAIN, &lv_style_transp);
     lv_obj_set_height(container, 25*10);
     lv_obj_set_width(container, 240);
     lv_obj_set_pos(container, 0, 34+1);
