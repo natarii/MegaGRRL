@@ -13,6 +13,8 @@ typedef struct PORTAQueueItem {
 
 extern QueueHandle_t IoExp_PORTAQueue;
 
+extern volatile uint8_t IoExp_PowerOnKeys;
+
 bool IoExp_Setup();
 void IoExp_Main();
 bool IoExp_WriteLed(uint8_t LedNo, bool LedStatus);

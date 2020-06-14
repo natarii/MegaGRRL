@@ -14,6 +14,7 @@ static const char* TAG = "IoExpander";
 #elif defined HWVER_DESKTOP
 #define OLATB_DEFAULT 0
 #endif
+volatile uint8_t IoExp_PowerOnKeys = 0;
 volatile uint8_t IoExp_OLATB = OLATB_DEFAULT;
 static const uint8_t MCP23017_Config[] = {
     0x0a,0b01100010,    /* banking off, since that's the default and we don't know if this is POR or just esp reset
@@ -125,6 +126,8 @@ bool IoExp_Setup() {
     }
 
     vTaskDelay(pdMS_TO_TICKS(100)); //settle
+
+    IoExp_PowerOnKeys = IoExp_ReadRegister(0x12); //GPIOA
 
     ESP_LOGI(TAG, "OK !!");
     return true;
