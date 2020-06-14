@@ -405,7 +405,7 @@ void Driver_FmOutopna(uint8_t Port, uint8_t Register, uint8_t Value) {
                     break;
             }
             if (st) {
-                ChannelMgr_States[ch] |= CHSTATE_KON;
+                ChannelMgr_States[ch] |= CHSTATE_KON | CHSTATE_KON_PS;
             } else {
                 ChannelMgr_States[ch] &= ~CHSTATE_KON;
             }
@@ -426,11 +426,11 @@ void Driver_FmOutopna(uint8_t Port, uint8_t Register, uint8_t Value) {
                 if ((Value & (1<<i)) || Driver_Opna_SsgLevel[i] == 0) {
                     ChannelMgr_States[6+i] &= ~CHSTATE_KON;
                 } else {
-                    ChannelMgr_States[6+i] |= CHSTATE_KON;
+                    ChannelMgr_States[6+i] |= CHSTATE_KON | CHSTATE_KON_PS;
                 }
             }
             if ((Value & 0b00111000) != 0b00111000) { //glom all the noise together
-                ChannelMgr_States[6+3] |= CHSTATE_KON;
+                ChannelMgr_States[6+3] |= CHSTATE_KON | CHSTATE_KON_PS;
             } else {
                 ChannelMgr_States[6+3] &= ~CHSTATE_KON;
             }
@@ -439,7 +439,7 @@ void Driver_FmOutopna(uint8_t Port, uint8_t Register, uint8_t Value) {
             if ((Driver_Opna_SsgConfig & (1<<ch)) || Driver_Opna_SsgLevel[ch] == 0) { //basically the same logic as in tone enable.
                 ChannelMgr_States[6+ch] &= ~CHSTATE_KON;
             } else {
-                ChannelMgr_States[6+ch] |= CHSTATE_KON;
+                ChannelMgr_States[6+ch] |= CHSTATE_KON | CHSTATE_KON_PS;
             }
             ChannelMgr_States[6+ch] |= CHSTATE_PARAM;
             ChannelMgr_States[6+3] |= CHSTATE_PARAM; //implicit noise update too, todo only do this if noise is enabled on that ch
@@ -542,7 +542,7 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
                 break;
         }
         if (st) {
-            ChannelMgr_States[ch] |= CHSTATE_KON;
+            ChannelMgr_States[ch] |= CHSTATE_KON | CHSTATE_KON_PS;
         } else {
             ChannelMgr_States[ch] &= ~CHSTATE_KON;
         }
@@ -1119,7 +1119,7 @@ void Driver_Main() {
                         fread(&b, 1, 1, Driver_Opna_PcmUploadFile);
                         Driver_Opna_UploadByte(b);
                         for (uint8_t j=0;j<=map(i,0,pcmsize,0,6);j++) {
-                            ChannelMgr_States[j] |= CHSTATE_PARAM | CHSTATE_KON;
+                            ChannelMgr_States[j] |= CHSTATE_PARAM | CHSTATE_KON | CHSTATE_KON_PS;
                         }
                     }
                     for (uint8_t j=0;j<6;j++) {

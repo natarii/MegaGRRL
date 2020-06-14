@@ -31,27 +31,35 @@ bool ChannelMgr_Setup() {
 void ChannelMgr_Main() {
     while (1) {
         for (uint8_t i=0;i<6+4;i++) { //fm, psg
+            uint8_t chstate = ChannelMgr_States[i];
+
+            //pulse stretch short KONs
+            if (chstate & CHSTATE_KON_PS) {
+                chstate |= CHSTATE_KON;
+                ChannelMgr_States[i] &= ~CHSTATE_KON_PS; //write this back to the array
+            }
+
             if (ChannelMgr_LedStates[i] == LEDSTATE_BRIGHT && xthal_get_ccount() - ChannelMgr_BrTime[i] >= 50*240000) {
                 ChannelMgr_LedStates[i] = LEDSTATE_ON;
             }
-            if ((ChannelMgr_States_Old[i] & CHSTATE_KON) == 0 && (ChannelMgr_States[i] & CHSTATE_KON)) { //kon rising edge
+            if ((ChannelMgr_States_Old[i] & CHSTATE_KON) == 0 && (chstate & CHSTATE_KON)) { //kon rising edge
                 ChannelMgr_BrTime[i] = xthal_get_ccount();
                 ChannelMgr_LedStates[i] = LEDSTATE_BRIGHT;
-            } else if ((ChannelMgr_States[i] & CHSTATE_PARAM) && (ChannelMgr_States[i] & CHSTATE_KON)) { //param rising edge
+            } else if ((chstate & CHSTATE_PARAM) && (chstate & CHSTATE_KON)) { //param rising edge
                 ChannelMgr_BrTime[i] = xthal_get_ccount();
                 ChannelMgr_LedStates[i] = LEDSTATE_BRIGHT;
-            } else if ((ChannelMgr_States[i] & CHSTATE_KON) == 0) {
+            } else if ((chstate & CHSTATE_KON) == 0) {
                 ChannelMgr_LedStates[i] = LEDSTATE_OFF;
             }
 
             //dac override
             if (i == 5) {
-                if (ChannelMgr_States[5] & CHSTATE_DAC) {
+                if (chstate & CHSTATE_DAC) {
                     ChannelMgr_LedStates[5] = LEDSTATE_ON;
                 }
             }
 
-            ChannelMgr_States[i] &= ~CHSTATE_PARAM;
+            ChannelMgr_States[i] &= ~CHSTATE_PARAM; //write back
 
             uint8_t ch6mask = (ChannelMgr_States[5] & CHSTATE_DAC)?(1<<6):(1<<5);
             

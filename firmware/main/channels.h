@@ -8,6 +8,7 @@ enum ChannelStates {
     CHSTATE_KON = 0x01,
     CHSTATE_PARAM = 0x02,
     CHSTATE_DAC = 0x04,
+    CHSTATE_KON_PS = 0x08,
 };
 
 typedef enum {
