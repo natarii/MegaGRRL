@@ -91,6 +91,8 @@ uint8_t progressval = 0;
 #define MAIN_PROGRESS_UPDATE LcdDma_Mutex_Take(pdMS_TO_TICKS(1000)); lv_obj_set_width(progress, main_map(++progressval,0,MAIN_PROGRESS_MAX,0,50)); LcdDma_Mutex_Give(); vTaskDelay(2);
 lv_obj_t * textarea;
 lv_style_t textarea_style;
+static IRAM_ATTR lv_obj_t *mainbg;
+static lv_style_t mainbg_style;
 
 #ifdef FWUPDATE
 uint8_t buf[10240];
@@ -141,7 +143,7 @@ void crash_sd(uint8_t reason) {
     //rlabel_style.text.font = &lv_font_monospace_8;
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_obj_set_hidden(progress, true);
-    rlabel = lv_label_create(lv_layer_top(), NULL);
+    rlabel = lv_label_create(mainbg, NULL);
     lv_label_set_long_mode(rlabel, LV_LABEL_LONG_SROLL);
     lv_obj_set_width(rlabel, 240);
     lv_label_set_align(rlabel, LV_LABEL_ALIGN_CENTER);
@@ -325,7 +327,15 @@ void app_main(void)
 
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
 
-    frame = lv_img_create(lv_layer_top(), NULL);
+    lv_style_copy(&mainbg_style, &lv_style_plain);
+    mainbg_style.body.main_color = LV_COLOR_MAKE(0,0,0);
+    mainbg_style.body.grad_color = LV_COLOR_MAKE(0,0,0);
+    mainbg = lv_obj_create(lv_layer_top(), NULL);
+    lv_obj_set_style(mainbg, &mainbg_style);
+    lv_obj_set_pos(mainbg, 0, 0);
+    lv_obj_set_size(mainbg, 240, 320);
+
+    frame = lv_img_create(mainbg, NULL);
     #ifdef HWVER_PORTABLE
     lv_img_set_src(frame, &img_frame);
     lv_obj_set_pos(frame, 95, 126);
@@ -334,7 +344,7 @@ void app_main(void)
     lv_obj_set_pos(frame, 86, 126);
     #endif
 
-    lcd = lv_img_create(lv_layer_top(), NULL);
+    lcd = lv_img_create(mainbg, NULL);
     lv_img_set_src(lcd, &img_blank);
     #ifdef HWVER_PORTABLE
     lv_obj_set_pos(lcd, 95+21, 126+8);
@@ -343,18 +353,15 @@ void app_main(void)
     #endif
 
     static lv_obj_t *kl;
-    kl = lv_img_create(lv_layer_top(), NULL);
+    kl = lv_img_create(mainbg, NULL);
     lv_img_set_src(kl, &img_kunoichilabs_smol);
     lv_obj_set_pos(kl, 120 - (157/2), 250);
-
-    lv_obj_set_opa_scale_enable(frame, true);
-    lv_obj_set_opa_scale_enable(lcd, true);
 
     lv_style_copy(&progressstyle, &lv_style_plain);
     progressstyle.body.main_color = LV_COLOR_MAKE(255,255,255);
     progressstyle.body.grad_color = LV_COLOR_MAKE(255,255,255);
 
-    progress = lv_obj_create(lv_layer_top(), NULL);
+    progress = lv_obj_create(mainbg, NULL);
     lv_obj_set_height(progress, 10);
     lv_obj_set_width(progress, 0);
     lv_obj_set_pos(progress, 95, 126+67+10);
@@ -366,7 +373,7 @@ void app_main(void)
     textarea_style.body.grad_color = LV_COLOR_MAKE(0xff,0xaf,0xc7);
     //textarea_style.text.font = &lv_font_monospace_8;
 
-    textarea = lv_ta_create(lv_layer_top(), NULL);
+    textarea = lv_ta_create(mainbg, NULL);
     lv_obj_set_size(textarea, 240, 320);
     lv_obj_set_pos(textarea, 0, 0);
     lv_ta_set_style(textarea, LV_TA_STYLE_BG, &textarea_style);
@@ -642,7 +649,7 @@ void app_main(void)
         lv_style_copy(&mmlabel_style, &lv_style_plain);
         mmlabel_style.text.color = LV_COLOR_MAKE(255,255,255);
         mmlabel_style.text.font = &lv_font_dejavu_18;
-        mmlabel = lv_label_create(lv_layer_top(), NULL);
+        mmlabel = lv_label_create(mainbg, NULL);
         lv_label_set_long_mode(mmlabel, LV_LABEL_LONG_SROLL);
         lv_obj_set_width(mmlabel, 240);
         lv_obj_set_height(mmlabel, 30);
@@ -687,14 +694,12 @@ void app_main(void)
     ESP_LOGI(TAG, "Starting tasks !!");
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_ta_add_text(textarea, "Starting tasks!");
-    lv_obj_del(textarea);
-    lv_obj_del(frame);
-    lv_obj_del(lcd);
-    lv_obj_del(progress);
-    lv_obj_del(kl);
-    if (Driver_DetectedMod != MEGAMOD_NONE) lv_obj_del(mmlabel);
     LcdDma_Mutex_Give();
     Taskmgr_CreateTasks();
+
+    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    lv_obj_del(mainbg);
+    LcdDma_Mutex_Give();
 
     #endif
 }
