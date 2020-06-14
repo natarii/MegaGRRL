@@ -186,6 +186,17 @@ const option_t Options[OPTION_COUNT] = {
         NULL,
         NULL
     },
+    {
+        0x000c,
+        "Narrow font",
+        "Use a narrow font in the file browser.",
+        OPTION_CATEGORY_FILEBROWSER,
+        OPTION_TYPE_BOOL,
+        &Ui_FileBrowser_Narrow,
+        false,
+        NULL,
+        NULL
+    },
 /* just getting rid of this for now. portable only
     {
         "Backlight timer",

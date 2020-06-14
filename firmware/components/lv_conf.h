@@ -324,7 +324,8 @@ typedef void * lv_indev_drv_user_data_t;            /*Type of user data in the i
 #define LV_FONT_CUSTOM_DECLARE  LV_FONT_DECLARE(lv_font_dejavu_18) \
                                 LV_FONT_DECLARE(lv_font_dejavu_30) \
                                 LV_FONT_DECLARE(lv_font_dejavu_14_2bpp) \
-                                LV_FONT_DECLARE(lv_font_dejavu_10)
+                                LV_FONT_DECLARE(lv_font_dejavu_10) \
+                                LV_FONT_DECLARE(lv_font_dejavuC_18)
 
 /*Always set a default font from the built-in fonts*/
 #define LV_FONT_DEFAULT        &lv_font_unscii_8

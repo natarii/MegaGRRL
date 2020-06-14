@@ -64,6 +64,7 @@ char sysvolinfo[] = "System Volume Information";
 volatile SortDirection_t Ui_FileBrowser_SortDir = SORT_ASCENDING;
 volatile bool Ui_FileBrowser_Sort = true;
 volatile bool Ui_FileBrowser_DirsBeforeFiles = true;
+volatile bool Ui_FileBrowser_Narrow = false;
 
 void Ui_FileBrowser_InvalidateDirEntry() {
     direntry_invalidated = true;
@@ -256,7 +257,7 @@ bool Ui_FileBrowser_Activate(lv_obj_t *uiscreen) {
     lv_style_copy(&filestyle, &lv_style_plain);
     filestyle.body.main_color = LV_COLOR_MAKE(0,0,0); //255,255,255);
     filestyle.body.grad_color = LV_COLOR_MAKE(0,0,0); //255,255,255);
-    filestyle.text.font = &lv_font_dejavu_18;
+    filestyle.text.font = Ui_FileBrowser_Narrow?&lv_font_dejavuC_18:&lv_font_dejavu_18;
     filestyle.text.color = LV_COLOR_MAKE(220,220,220);
     lv_style_copy(&filelabelstyle_dir, &filestyle);
     lv_style_copy(&filelabelstyle_aud, &filestyle);

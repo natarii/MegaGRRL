@@ -14,6 +14,7 @@ typedef enum {
 extern volatile SortDirection_t Ui_FileBrowser_SortDir;
 extern volatile bool Ui_FileBrowser_Sort;
 extern volatile bool Ui_FileBrowser_DirsBeforeFiles;
+extern volatile bool Ui_FileBrowser_Narrow;
 
 void Ui_FileBrowser_Setup();
 bool Ui_FileBrowser_Activate(lv_obj_t *uiscreen);
