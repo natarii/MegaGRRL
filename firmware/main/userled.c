@@ -92,13 +92,6 @@ void UserLedMgr_Main() {
                     break;
             }
         }
-
-        if (!I2cMgr_Seize(false, pdMS_TO_TICKS(1000))) {
-            ESP_LOGE(TAG, "Couldn't seize bus !!");
-            return false;
-        }
-        LedDrv_Update();
-        I2cMgr_Release(false);
     }
 }
 

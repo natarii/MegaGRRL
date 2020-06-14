@@ -91,6 +91,6 @@ void ChannelMgr_Main() {
         }
         LedDrv_Update();
         I2cMgr_Release(false);
-        vTaskDelay(pdMS_TO_TICKS(10));
+        vTaskDelay(pdMS_TO_TICKS(15));
     }
 }
