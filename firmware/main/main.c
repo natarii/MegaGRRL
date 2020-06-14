@@ -51,6 +51,7 @@
 #include "hal.h"
 #include "leddrv.h"
 #include "hspi.h"
+#include "ver.h"
 #ifndef FWUPDATE
 #include "battery.h"
 #include "key.h"
@@ -379,13 +380,22 @@ void app_main(void)
     lv_ta_set_style(textarea, LV_TA_STYLE_BG, &textarea_style);
     lv_ta_set_cursor_type(textarea, LV_CURSOR_NONE);
     lv_ta_set_cursor_pos(textarea, 0);
-    lv_obj_set_hidden(textarea, true);
+    if ((IoExp_PowerOnKeys & (1<<KEY_B)) == 0) lv_obj_set_hidden(textarea, true);
 
     #ifdef FWUPDATE
     lv_ta_set_text(textarea, "MegaGRRL\nby kunoichi labs\n\nFirmware Updater\n\n");
     #else
     lv_ta_set_text(textarea, "MegaGRRL\nby kunoichi labs\n\nBoot\n");
     #endif
+
+    #if defined HWVER_PORTABLE
+    lv_ta_add_text(textarea, "Hw VER: Portable");
+    #elif defined HWVER_DESKTOP
+    lv_ta_add_text(textarea, "Hw VER: Desktop");
+    #endif
+    lv_ta_add_text(textarea, "\nFw VER: ");
+    lv_ta_add_text(textarea, FWVER);
+    lv_ta_add_text(textarea, "\n");
 
     LcdDma_Mutex_Give();
 
@@ -696,6 +706,8 @@ void app_main(void)
     lv_ta_add_text(textarea, "Starting tasks!");
     LcdDma_Mutex_Give();
     Taskmgr_CreateTasks();
+    
+    if ((IoExp_PowerOnKeys & (1<<KEY_B))) vTaskDelay(pdMS_TO_TICKS(5000));
 
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_obj_del(mainbg);
