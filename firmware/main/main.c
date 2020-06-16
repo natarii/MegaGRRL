@@ -52,9 +52,9 @@
 #include "leddrv.h"
 #include "hspi.h"
 #include "ver.h"
+#include "key.h"
 #ifndef FWUPDATE
 #include "battery.h"
-#include "key.h"
 #include "dacstream.h"
 #include "loader.h"
 #include "queue.h"
