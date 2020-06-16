@@ -11,6 +11,7 @@
 #include "../queue.h"
 #include "../options.h"
 #include "../loader.h"
+#include "../pitch.h"
 
 #include "softbar.h"
 
@@ -49,8 +50,11 @@ static lv_style_t divstyle;
 static IRAM_ATTR lv_obj_t *dpad[4];
 static lv_style_t style_dpad;
 static IRAM_ATTR lv_obj_t *dpadtext[4];
+//this is really a mess and should be redone, but for now...
 static IRAM_ATTR lv_obj_t *label_opt_loops;
 static IRAM_ATTR lv_obj_t *text_opt_loops;
+static IRAM_ATTR lv_obj_t *label_opt_pitch;
+static IRAM_ATTR lv_obj_t *text_opt_pitch;
 static IRAM_ATTR lv_obj_t *label_opt_playmode;
 static IRAM_ATTR lv_obj_t *text_opt_playmode;
 static IRAM_ATTR lv_obj_t *text_opt_more;
@@ -60,6 +64,7 @@ static uint8_t selectedopt = 0;
 static bool optionsopen = false;
 static lv_style_t textstyle_sm_sel;
 static char loopcountbuf[3] = {0,0,0};
+static char pitchbuf[10] = "";
 static const char *loading = "Nothing playing...";
 static const char *broken_vgm_time_warning_text = " Playback time unavailable  due to broken VGM file";
 
@@ -218,40 +223,64 @@ bool Ui_NowPlaying_Setup(lv_obj_t *uiscreen) {
     lv_style_copy(&textstyle_sm_sel, &textstyle_sm);
     textstyle_sm_sel.text.color = LV_COLOR_MAKE(255,255,0);
 
+    int16_t yd = 12;
+    int16_t y = 137;
     label_opt_playmode = lv_label_create(container, NULL);
     lv_label_set_style(label_opt_playmode, LV_LABEL_STYLE_MAIN, &labelstyle_sm);
-    lv_obj_set_pos(label_opt_playmode, 125, 145);
+    lv_obj_set_pos(label_opt_playmode, 125, y);
+    y += yd;
     lv_label_set_static_text(label_opt_playmode, "Play Mode");
 
     text_opt_playmode = lv_label_create(container, NULL);
     lv_label_set_style(text_opt_playmode, LV_LABEL_STYLE_MAIN, &textstyle_sm);
-    lv_obj_set_pos(text_opt_playmode, 125, 160);
+    lv_obj_set_pos(text_opt_playmode, 125, y);
+    y += yd+1;
     lv_label_set_text(text_opt_playmode, "Repeat All");
 
     label_opt_loops = lv_label_create(container, NULL);
     lv_label_set_style(label_opt_loops, LV_LABEL_STYLE_MAIN, &labelstyle_sm);
-    lv_obj_set_pos(label_opt_loops, 125, 175);
+    lv_obj_set_pos(label_opt_loops, 125, y);
+    y += yd;
     lv_label_set_text(label_opt_loops, "Loop Count");
 
     text_opt_loops = lv_label_create(container, NULL);
     lv_label_set_style(text_opt_loops, LV_LABEL_STYLE_MAIN, &textstyle_sm_sel);
-    lv_obj_set_pos(text_opt_loops, 125, 190);
+    lv_obj_set_pos(text_opt_loops, 125, y);
+    y += yd+1;
     lv_label_set_text(text_opt_loops, "2");
 
+    label_opt_pitch = lv_label_create(container, NULL);
+    lv_label_set_style(label_opt_pitch, LV_LABEL_STYLE_MAIN, &labelstyle_sm);
+    lv_obj_set_pos(label_opt_pitch, 125, y);
+    y += yd;
+    lv_label_set_text(label_opt_pitch, "Pitch");
+
+    text_opt_pitch = lv_label_create(container, NULL);
+    lv_label_set_style(text_opt_pitch, LV_LABEL_STYLE_MAIN, &textstyle_sm_sel);
+    lv_obj_set_pos(text_opt_pitch, 125, y);
+    y += yd;
+    lv_label_set_text(text_opt_pitch, "0%");
+
+
+    yd = 15;
+    y = 219;
     text_opt_muting = lv_label_create(container, NULL);
     lv_label_set_style(text_opt_muting, LV_LABEL_STYLE_MAIN, &textstyle_sm_sel);
-    lv_obj_set_pos(text_opt_muting, 125, 217);
+    lv_obj_set_pos(text_opt_muting, 125, y);
+    y += yd;
     lv_label_set_text(text_opt_muting, "Ch. Muting "LV_SYMBOL_RIGHT);
 
     text_opt_more = lv_label_create(container, NULL);
     lv_label_set_style(text_opt_more, LV_LABEL_STYLE_MAIN, &textstyle_sm_sel);
-    lv_obj_set_pos(text_opt_more, 125, 232);
+    lv_obj_set_pos(text_opt_more, 125, y);
     lv_label_set_text(text_opt_more, "More Settings "LV_SYMBOL_RIGHT);
 
     lv_obj_set_hidden(label_opt_playmode, true);
     lv_obj_set_hidden(text_opt_playmode, true);
     lv_obj_set_hidden(label_opt_loops, true);
     lv_obj_set_hidden(text_opt_loops, true);
+    lv_obj_set_hidden(label_opt_pitch, true);
+    lv_obj_set_hidden(text_opt_pitch, true);
     lv_obj_set_hidden(text_opt_more, true);
     lv_obj_set_hidden(text_opt_muting, true);
 
@@ -527,6 +556,8 @@ void drawopts() {
     lv_obj_set_hidden(text_opt_playmode, !optionsopen);
     lv_obj_set_hidden(label_opt_loops, !optionsopen);
     lv_obj_set_hidden(text_opt_loops, !optionsopen);
+    lv_obj_set_hidden(label_opt_pitch, !optionsopen);
+    lv_obj_set_hidden(text_opt_pitch, !optionsopen);
     lv_obj_set_hidden(text_opt_more, !optionsopen);
     lv_obj_set_hidden(text_opt_muting, !optionsopen);
     lv_obj_set_hidden(label_playlist, optionsopen);
@@ -537,8 +568,9 @@ void drawopts() {
     lv_obj_set_hidden(text_loop, optionsopen);
     lv_obj_set_style(text_opt_playmode, selectedopt==0?&textstyle_sm_sel:&textstyle_sm);
     lv_obj_set_style(text_opt_loops, selectedopt==1?&textstyle_sm_sel:&textstyle_sm);
-    lv_obj_set_style(text_opt_muting, selectedopt==2?&textstyle_sm_sel:&textstyle_sm);
-    lv_obj_set_style(text_opt_more, selectedopt==3?&textstyle_sm_sel:&textstyle_sm);
+    lv_obj_set_style(text_opt_pitch, selectedopt==2?&textstyle_sm_sel:&textstyle_sm);
+    lv_obj_set_style(text_opt_muting, selectedopt==3?&textstyle_sm_sel:&textstyle_sm);
+    lv_obj_set_style(text_opt_more, selectedopt==4?&textstyle_sm_sel:&textstyle_sm);
     switch (Player_RepeatMode) {
         case REPEAT_NONE:
             lv_label_set_text(text_opt_playmode, "Repeat None");
@@ -558,6 +590,10 @@ void drawopts() {
     } else {
         lv_label_set_text(text_opt_loops, "inf.");
     }
+    if (Pitch_Get() < 0) *pitchbuf = '-';
+    else *pitchbuf = '+';
+    sprintf(pitchbuf+1, "%.1f%%", (float)abs(Pitch_Get())/10.0f);
+    lv_label_set_text(text_opt_pitch, pitchbuf);
     LcdDma_Mutex_Give();
 }
 
@@ -585,6 +621,9 @@ void Ui_NowPlaying_Key(KeyEvent_t event) {
                             }
                         }
                         drawopts();
+                    } else if (selectedopt == 2) {
+                        Pitch_Adjust(Pitch_Get()-((event.State&KEY_EVENT_HELD)?10:1));
+                        drawopts();
                     }
                 }
                 break;
@@ -608,8 +647,11 @@ void Ui_NowPlaying_Key(KeyEvent_t event) {
                         }
                         drawopts();
                     } else if (selectedopt == 2) {
-                        Ui_Screen = UISCREEN_MUTING;
+                        Pitch_Adjust(Pitch_Get()+((event.State&KEY_EVENT_HELD)?10:1));
+                        drawopts();
                     } else if (selectedopt == 3) {
+                        Ui_Screen = UISCREEN_MUTING;
+                    } else if (selectedopt == 4) {
                         Ui_Screen = UISCREEN_OPTIONS_CATS;
                     }
                 }
@@ -645,7 +687,7 @@ void Ui_NowPlaying_Key(KeyEvent_t event) {
                     QueuePosition = 0;
                     Ui_Screen = UISCREEN_MAINMENU;
                 } else {
-                    if (selectedopt < 3) {
+                    if (selectedopt < 4) {
                         selectedopt++;
                         drawopts();
                     }

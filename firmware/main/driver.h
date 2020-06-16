@@ -58,6 +58,7 @@ extern volatile bool Driver_ForceMono;
 extern volatile uint32_t Driver_Opna_PcmUploadId;
 extern volatile bool Driver_Opna_PcmUpload;
 extern FILE *Driver_Opna_PcmUploadFile;
+extern volatile int16_t Driver_SpeedMult;
 
 extern uint32_t Driver_Sample;
 extern uint32_t Driver_NextSample;

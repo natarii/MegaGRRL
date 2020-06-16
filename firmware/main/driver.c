@@ -122,6 +122,7 @@ bool Driver_PsgNoiseSourceCh3 = false;
 volatile uint32_t Driver_Opna_PcmUploadId = 0;
 volatile bool Driver_Opna_PcmUpload = false;
 FILE *Driver_Opna_PcmUploadFile = NULL;
+volatile int16_t Driver_SpeedMult = 0;
 
 #define min(a,b) ((a) < (b) ? (a) : (b)) //sigh.
 
@@ -1017,7 +1018,10 @@ void Driver_Main() {
             commandeventbits &= ~DRIVER_EVENT_RESUME_REQUEST;
             commandeventbits |= DRIVER_EVENT_RUNNING;
         } else if (commandeventbits & DRIVER_EVENT_RUNNING) {
-            Driver_Cycle += (Driver_Cc - Driver_LastCc);
+            uint64_t diff = (Driver_Cc - Driver_LastCc);
+            diff *= (1000LL + Driver_SpeedMult);
+            diff /= 1000;
+            Driver_Cycle += diff;
             Driver_LastCc = Driver_Cc;
             Driver_Sample = Driver_Cycle / DRIVER_CYCLES_PER_SAMPLE;
             
@@ -1071,7 +1075,10 @@ void Driver_Main() {
                 //decide whether those are worth implementing
                 Driver_BusyStart = xthal_get_ccount();
                 if (uxQueueMessagesWaiting(DacStreamEntries[DacStreamId].Queue)) {
-                    if (xthal_get_ccount() - DacStreamSampleTime >= (DRIVER_CLOCK_RATE/DacStreamSampleRate)) {
+                    uint64_t delta = (DRIVER_CLOCK_RATE/DacStreamSampleRate);
+                    delta *= (1000LL + -Driver_SpeedMult);
+                    delta /= 1000;
+                    if (xthal_get_ccount() - DacStreamSampleTime >= delta) {
                         uint8_t sample;
                         xQueueReceiveFromISR(DacStreamEntries[DacStreamId].Queue, &sample, 0);
                         if (Driver_DetectedMod == MEGAMOD_OPNA) {
@@ -1079,7 +1086,7 @@ void Driver_Main() {
                         } else {
                             Driver_FmOut(DacStreamPort, DacStreamCommand, sample);
                         }
-                        DacStreamSampleTime += (DRIVER_CLOCK_RATE/DacStreamSampleRate);
+                        DacStreamSampleTime += delta;
                         DacStreamSamplesPlayed++;
                         if (DacStreamSamplesPlayed == DacStreamDataLength && (DacStreamLengthMode == 0 || DacStreamLengthMode == 1 || DacStreamLengthMode == 3)) {
                             DacStreamActive = false;

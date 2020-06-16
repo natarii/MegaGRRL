@@ -19,6 +19,7 @@ typedef enum {
     OPTION_CATEGORY_FILEBROWSER,
     OPTION_CATEGORY_LEDS,
     OPTION_CATEGORY_PLAYBACK,
+    OPTION_CATEGORY_ADVANCED,
     //OPTION_CATEGORY_SCREEN, //disabling for now, portable only
     OPTION_CATEGORY_COUNT
 } optioncategory_t;
@@ -36,7 +37,7 @@ typedef struct {
     void (*cb_initial)();
 } option_t;
 
-#define OPTION_COUNT 13
+#define OPTION_COUNT 14
 
 #define OPTIONS_VER 0xA0
 

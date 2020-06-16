@@ -7,6 +7,9 @@
 #define CLK_FM  0
 #define CLK_PSG 1
 
+extern volatile bool Clk_Unlock;
+
 void Clk_Set(uint8_t ch, uint32_t freq);
+void Clk_AdjustMult(uint8_t ch, int16_t mult);
 
 #endif

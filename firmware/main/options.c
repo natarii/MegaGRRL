@@ -7,6 +7,8 @@
 #include "userled.h"
 #include "ui/filebrowser.h"
 #include "player.h"
+#include "clk.h"
+#include "pitch.h"
 
 static const char* TAG = "OptionsMgr";
 
@@ -17,11 +19,16 @@ const char *OptionCatNames[OPTION_CATEGORY_COUNT] = {
     "File Browser",
     "LEDs",
     "Playback",
+    "Advanced"
     //"Screen", portable only, so getting rid of it for now
 };
 
 static void opts_mutingupdate() {
     xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_UPDATE_MUTING);
+}
+
+static void opts_pitchupdate() {
+    Pitch_Adjust(Pitch_Get()); //this will snap down to the max locked clock if they switch from unlocked -> locked
 }
 
 static bool loaded[OPTION_COUNT];
@@ -195,6 +202,17 @@ const option_t Options[OPTION_COUNT] = {
         &Ui_FileBrowser_Narrow,
         false,
         NULL,
+        NULL
+    },
+    {
+        0x000d,
+        "Unlock pitch",
+        "Allow additional pitch adjustment. Warning: Sound chips will be overclocked.",
+        OPTION_CATEGORY_ADVANCED,
+        OPTION_TYPE_BOOL,
+        &Clk_Unlock,
+        false,
+        opts_pitchupdate,
         NULL
     },
 /* just getting rid of this for now. portable only
