@@ -47,8 +47,6 @@ static uint32_t map(uint32_t x, uint32_t in_min, uint32_t in_max, uint32_t out_m
 static void draw() {
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
 
-    lv_label_set_static_text(tasklabel, &tasklabel_buf[0]);
-
     sprintf(heapbuf, "#00007f FreeHeap# %5d #00007f ctg# %5d #00007f min# %5d", xPortGetFreeHeapSize(), heap_caps_get_largest_free_block(MALLOC_CAP_8BIT), xPortGetMinimumEverFreeHeapSize());
     lv_label_set_static_text(heaplabel, heapbuf);
 
@@ -91,6 +89,8 @@ static void drawtasks() {
         tasklastruntime[i] = taskstatus[i].ulRunTimeCounter;
     }
     tasklasttrt = trt;
+
+    lv_label_set_static_text(tasklabel, &tasklabel_buf[0]);
     LcdDma_Mutex_Give();
 }
 
