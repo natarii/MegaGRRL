@@ -1080,7 +1080,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
                 ESP_LOGI(TAG, "no loop point");
                 Stop();
             }
-            if (Player_LoopCount != 255 && ++Driver_CurLoop == Player_LoopCount) {
+            if (Player_LoopCount != 255 && ++Driver_CurLoop >= Player_LoopCount) {
                 if (Driver_FadeEnabled) {
                     ESP_LOGD(TAG, "looped enough, starting fadeout");
                     StartFade();
