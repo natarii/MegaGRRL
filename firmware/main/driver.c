@@ -13,6 +13,7 @@
 #include "hal.h"
 #include "driver/gpio.h"
 #include "loader.h"
+#include "player.h"
 
 static const char* TAG = "Driver";
 
@@ -123,6 +124,17 @@ volatile uint32_t Driver_Opna_PcmUploadId = 0;
 volatile bool Driver_Opna_PcmUpload = false;
 FILE *Driver_Opna_PcmUploadFile = NULL;
 volatile int16_t Driver_SpeedMult = 0;
+
+static uint8_t TLs[4*6];
+static const uint8_t OperatorMap[4] = {0,2,1,3};
+static IRAM_ATTR uint32_t FadePos = 0;
+static IRAM_ATTR uint32_t FadeStart = 0;
+static IRAM_ATTR uint32_t FadeTimer = 0;
+static bool FadeActive = false;
+volatile bool Driver_FadeEnabled = true;
+volatile uint8_t Driver_FadeLength = 3;
+
+static uint8_t Driver_CurLoop = 0;
 
 #define min(a,b) ((a) < (b) ? (a) : (b)) //sigh.
 
@@ -488,6 +500,18 @@ void Driver_Opna_UploadByte(uint8_t pair) {
 }
 
 void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
+    if (Register == 0x2a && FadeActive) { //scale dac value if fading
+        int32_t sgn = Value;
+        sgn -= 0x7f;
+        sgn *= 1000;
+        int32_t sf = map(FadePos, 0, 44100*Driver_FadeLength, 0, 120);
+        sf *= sf;
+        sf += 1000;
+        sgn /= sf;
+        sgn += 0x7f;
+        Value = sgn;
+    }
+
     if (Port == 0) {
         Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_A1; //clear A1
     } else if (Port == 1) {
@@ -515,7 +539,7 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
     //todo: clean this up, there's so much code duplication.
     if (Register >= 0xb0 && Register <= 0xb2) {
         uint8_t ch = (Port?3:0)+(Register-0xb0);
-        Driver_FmAlgo[ch] = Value & 0b111;
+        //Driver_FmAlgo[ch] = Value & 0b111; //now handled before we get here
         ChannelMgr_States[ch] |= CHSTATE_PARAM;
     } else if (Port == 0 && Register == 0x28) { //KON
         uint8_t ch = Value & 0b111;
@@ -581,6 +605,96 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
     } else if (Register == 0x2b) { //dac enable
         if (Value & 0x80) ChannelMgr_States[5] |= CHSTATE_DAC;
         else ChannelMgr_States[5] &= ~CHSTATE_DAC;
+    }
+}
+
+static uint8_t FadeTL(uint8_t tl) {
+    uint32_t ltl = tl;
+    ltl = tl & 0b01111111;
+    ltl += map(FadePos, 0, 44100*Driver_FadeLength, 0, 0x30);
+    if (ltl > 0x7f) ltl = 0x7f;
+    return ltl;
+}
+
+static uint8_t FilterTLWrite(uint8_t bank, uint8_t cmd1, uint8_t cmd2) {
+    uint8_t op = OperatorMap[(cmd1-0x40)/4];
+    uint8_t ch = (3*bank) + ((cmd1-0x40)-(OperatorMap[op]*4));
+    if (op > 3 || ch > 5) ESP_LOGE(TAG, "BUG: FilterTLWrite(%d,0x%02x,0x%02x) op %d ch %d", bank, cmd1, cmd2, op, ch);
+    uint8_t idx = (ch*4)+op;
+    uint8_t algo = Driver_FmAlgo[ch];
+    ESP_LOGD(TAG, "vgm write ch %d op %d tl %d REG 0x%02x BANK %d", ch, op, cmd2, cmd1, bank);
+    TLs[idx] = cmd2 & 0b01111111;
+    if (FadeActive) {
+        bool scale = true;
+        if (op == 0 && algo <= 6) scale = false;
+        if (op == 1 && algo <= 3) scale = false;
+        if (op == 2 && algo <= 4) scale = false;
+        if (scale) cmd2 = FadeTL(cmd2);
+    }
+
+    return cmd2;
+}
+
+static uint8_t FadePsgAtten(uint8_t atten) {
+    uint32_t latten = atten;
+    latten = atten & 0b1111;
+    latten += map(FadePos, 0, 44100*Driver_FadeLength, 0, 0xf);
+    if (latten > 0xf) latten = 0xf;
+    return (atten & 0b11110000) | latten;
+}
+
+static uint8_t FilterPsgAttenWrite(uint8_t cmd1) {
+    uint8_t ch = (cmd1>>5) & 0b11;
+    Driver_PsgAttenuation[ch] = cmd1;
+    if (FadeActive) {
+        cmd1 = FadePsgAtten(cmd1);
+    }
+    return cmd1;
+}
+
+static void HandleAlgoWrite(uint8_t bank, uint8_t cmd1, uint8_t cmd2) {
+    uint8_t ch = (3*bank) + (cmd1-0xb0);
+    if (ch > 5) ESP_LOGE(TAG, "BUG: HandleAlgoWrite(%d,0x%02x,0x%02x) ch %d", bank, cmd1, cmd2, ch);
+    uint8_t oldalgo = Driver_FmAlgo[ch];
+    uint8_t newalgo = cmd2 & 0b111;
+    if (oldalgo != newalgo) {
+        ESP_LOGD(TAG, "algo change %d -> %d", oldalgo, newalgo);
+        //rewrite TLs for all ops on this ch
+        for (uint8_t op=0;op<4;op++) {
+            uint8_t savedtl = TLs[(ch*4)+op];
+            if (FadeActive) {
+                //if tl needs to be modified for this op with the new algorithm, modify it. otherwise just write the backup
+                bool scale = true;
+                if (op == 0 && newalgo <= 6) scale = false;
+                if (op == 1 && newalgo <= 3) scale = false;
+                if (op == 2 && newalgo <= 4) scale = false;
+                if (scale) savedtl = FadeTL(savedtl);
+            }
+            ESP_LOGD(TAG, "fix write ch %d op %d tl %d REG 0x%02x BANK %d", ch, op, savedtl,  0x40+(ch%3)+(4*OperatorMap[op]), ch/3);
+            Driver_FmOut(ch/3, 0x40+(ch%3)+(4*OperatorMap[op]), savedtl);
+        }
+        Driver_FmAlgo[ch] = newalgo;
+    }
+}
+
+static void FadeTick() {
+    for (uint8_t ch=0;ch<6;ch++) {
+        for (uint8_t op=0;op<4;op++) {
+            uint8_t savedtl = TLs[(ch*4)+op];
+            uint8_t algo = Driver_FmAlgo[ch];
+            bool scale = true;
+            if (op == 0 && algo <= 6) scale = false;
+            if (op == 1 && algo <= 3) scale = false;
+            if (op == 2 && algo <= 4) scale = false;
+            if (scale) {
+                savedtl = FadeTL(savedtl);
+                Driver_FmOut(ch/3, 0x40+(ch%3)+(4*OperatorMap[op]), savedtl);
+            }
+        }
+    }
+
+    for (uint8_t ch=0;ch<4;ch++) {
+        Driver_PsgOut(FilterPsgAttenWrite(Driver_PsgAttenuation[ch]));
     }
 }
 
@@ -689,6 +803,25 @@ uint8_t Driver_SeqToSlot(uint32_t seq) {
     return 0xff;
 }
 
+static void Stop() {
+    ESP_LOGI(TAG, "Stopping the world...");
+    Driver_ResetChips();
+    xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_RUNNING);
+    xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_FINISHED);
+}
+
+static void StartFade() {
+    ESP_LOGD(TAG, "Starting fadeout...");
+    if (FadeActive) { //this catches cases where there are short loops and loop count is changed during the fade period
+        ESP_LOGW(TAG, "Started fading, but already fading");
+        return;
+    }
+    FadeActive = true;
+    FadePos = 0; //should be redundant
+    FadeStart = Driver_Sample;
+    FadeTimer = Driver_Sample;
+}
+
 uint8_t Driver_PsgFreqLow = 0; //used for sega psg fix
 uint16_t opnastart = 0;
 uint16_t opnastart_hacked = 0;
@@ -727,7 +860,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
             } else { //attenuation or noise ch control write
                 if ((cmd[1] & 0b10010000) == 0b10010000) { //attenuation
                     uint8_t ch = (cmd[1]>>5)&0b00000011;
-                    Driver_PsgAttenuation[ch] = cmd[1];
+                    cmd[1] = FilterPsgAttenWrite(cmd[1]);
                     if (Driver_MitigateVgmTrim && Driver_FirstWait) cmd[1] |= 0b00001111; //if we haven't reached the first wait, force full attenuation
                     if ((Driver_PsgMask & (1<<ch)) == 0) {
                         cmd[1] |= 0b00001111;
@@ -840,6 +973,14 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
             ESP_LOGD(TAG, "dac mode change %02x", Driver_DacEn);
             Driver_UpdateCh6Muting();
         }
+        if ((cmd[1] >= 0x40 && cmd[1] <= 0x42) || (cmd[1] >= 0x48 && cmd[1] <= 0x4a) || (cmd[1] >= 0x44 && cmd[1] <= 0x46) || (cmd[1] >= 0x4c && cmd[1] <= 0x4e)) { //TL
+            ESP_LOGD(TAG, "tl write bank0");
+            cmd[2] = FilterTLWrite(0, cmd[1], cmd[2]);
+        }
+        if (cmd[1] >= 0xb0 && cmd[1] <= 0xb2) { //algorithm
+            ESP_LOGD(TAG, "algo write bank0");
+            HandleAlgoWrite(0, cmd[1], cmd[2]);
+        }
         Driver_FmOut(0, cmd[1], cmd[2]);
     } else if (cmd[0] == 0x53) { //YM2612 port 1
         if (cmd[1] >= 0xb4 && cmd[1] <= 0xb6) { //pan, FMS, AMS
@@ -855,6 +996,14 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
             }
             if (Driver_MitigateVgmTrim && Driver_FirstWait) cmd[2] &= 0b00111111; //if we haven't reached the first wait, disable both L and R. do this after the muting logic
             if (Driver_ForceMono && (cmd[2] & 0b11000000)) cmd[2] |= 0b11000000;
+        }
+        if ((cmd[1] >= 0x40 && cmd[1] <= 0x42) || (cmd[1] >= 0x48 && cmd[1] <= 0x4a) || (cmd[1] >= 0x44 && cmd[1] <= 0x46) || (cmd[1] >= 0x4c && cmd[1] <= 0x4e)) { //TL
+            ESP_LOGD(TAG, "tl write bank1");
+            cmd[2] = FilterTLWrite(1, cmd[1], cmd[2]);
+        }
+        if (cmd[1] >= 0xb0 && cmd[1] <= 0xb2) { //algorithm
+            ESP_LOGD(TAG, "algo write bank1");
+            HandleAlgoWrite(1, cmd[1], cmd[2]);
         }
         Driver_FmOut(1, cmd[1], cmd[2]);
     } else if (cmd[0] == 0x61) { //16bit wait
@@ -922,11 +1071,29 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
         ESP_LOGW(TAG, "Game Gear PSG stereo not implemented !!");
     } else if (cmd[0] == 0xb2) {
         if (cmd[1] & 0b11000000) ESP_LOGW(TAG, "Unsupported 32x pwm reg write %d !!", cmd[1]>>4);
-    } else if (cmd[0] == 0x66) { //end of music
-        xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_RUNNING);
-        xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_FINISHED);
-        Driver_ResetChips();
-        ESP_LOGI(TAG, "reached end of music");
+    } else if (cmd[0] == 0x66) { //end of music (loop point)
+        ESP_LOGD(TAG, "reached end of music / loop point");
+        if (FadeActive) {
+            ESP_LOGD(TAG, "in fadeout period, not doing anything");
+        } else {
+            if (Loader_VgmInfo->LoopOffset == 0 || (Loader_IgnoreZeroSampleLoops && Loader_VgmInfo->LoopSamples == 0)) { //there is no loop point at all
+                ESP_LOGI(TAG, "no loop point");
+                Stop();
+            }
+            if (Player_LoopCount != 255 && ++Driver_CurLoop == Player_LoopCount) {
+                if (Driver_FadeEnabled) {
+                    ESP_LOGD(TAG, "looped enough, starting fadeout");
+                    StartFade();
+                } else {
+                    ESP_LOGI(TAG, "Fading not enabled, just stopping");
+                    Stop();
+                }
+            }
+            if (!Loader_IgnoreZeroSampleLoops || Loader_VgmInfo->LoopSamples > 0) {
+                ESP_LOGD(TAG, "looping");
+                if (Loader_VgmInfo->LoopSamples == 0) ESP_LOGW(TAG, "looping despite LoopSamples == 0 !!");
+            }
+        }
     } else {
         ESP_LOGE(TAG, "driver unknown command %02x !!", cmd[0]);
         return false;
@@ -951,7 +1118,11 @@ void Driver_Main() {
             Driver_NextSample = 0;
             DacStreamActive = false;
             DacStreamSeq = 0;
+            FadeActive = false;
+            FadePos = 0;
+            Driver_CurLoop = 0;
             memset(&Driver_FmAlgo[0], 0, sizeof(Driver_FmAlgo));
+            memset(&TLs[0], 0, sizeof(TLs));
             Driver_DacEn = 0;
             Driver_PsgLastChannel = 0; //psg can't really be reset, so technically this is kinda wrong? but it's consistent.
             Driver_FirstWait = true;
@@ -1024,6 +1195,17 @@ void Driver_Main() {
             Driver_Cycle += diff;
             Driver_LastCc = Driver_Cc;
             Driver_Sample = Driver_Cycle / DRIVER_CYCLES_PER_SAMPLE;
+            if (FadeActive) {
+                FadePos = Driver_Sample - FadeStart;
+                if (Driver_Sample - FadeTimer >= 4410) {
+                    FadeTick();
+                    FadeTimer = Driver_Sample;
+                }
+                if (FadePos > 44100*Driver_FadeLength) {
+                    ESP_LOGI(TAG, "Fade ended");
+                    Stop();
+                }
+            }
             
             //vgm stuff
             if (Driver_Sample >= Driver_NextSample) { //time to move on to the next sample

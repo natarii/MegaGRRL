@@ -201,18 +201,12 @@ void Loader_Main() {
                                 Loader_EndReached = true;
                                 break;
                             }
-                            if (Player_LoopCount != 255 && ++Loader_CurLoop == Player_LoopCount) {
-                                ESP_LOGI(TAG, "looped enough, stopping");
-                                xQueueSendToBackFromISR(Driver_CommandQueue, &d, 0); //let driver figure out it's the end
-                                Loader_EndReached = true;
-                                break;
-                            }
-                            if (!Loader_IgnoreZeroSampleLoops || Loader_VgmInfo->LoopSamples > 0) {
-                                ESP_LOGI(TAG, "looping");
-                                if (Loader_VgmInfo->LoopSamples == 0) ESP_LOGW(TAG, "looping despite LoopSamples == 0 !!");
-                                LOADER_BUF_SEEK_SET(Loader_VgmInfo->LoopOffset);
-                                continue; //dont let driver get 0x66
-                            }
+                            ESP_LOGI(TAG, "looping");
+                            if (Loader_VgmInfo->LoopSamples == 0) ESP_LOGW(TAG, "looping despite LoopSamples == 0 !!");
+                            Loader_CurLoop++; //still need to keep track of this so dacstream loads aren't duplicated
+                            xQueueSendToBackFromISR(Driver_CommandQueue, &d, 0); //let driver figure out it's the end
+                            LOADER_BUF_SEEK_SET(Loader_VgmInfo->LoopOffset);
+                            continue;
                         } else if (d >= 0x90 && d <= 0x95) { //dacstream command
                             if (!Loader_RequestedDacStreamFindStart) {
                                 DacStream_BeginFinding(&Loader_VgmDataBlocks, Loader_VgmDataBlockIndex, Loader_VgmFilePos-1);

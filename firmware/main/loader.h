@@ -31,6 +31,7 @@ extern EventGroupHandle_t Loader_BufStatus;
 
 extern volatile bool Loader_IgnoreZeroSampleLoops;
 volatile VgmDataBlockStruct_t Loader_VgmDataBlocks[MAX_REALTIME_DATABLOCKS+1];
+extern VgmInfoStruct_t *Loader_VgmInfo; //TODO: why does everyone keep their own copy of this? player can just share its one
 
 bool Loader_Setup();
 void Loader_Main();

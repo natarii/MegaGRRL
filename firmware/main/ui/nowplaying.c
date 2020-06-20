@@ -170,7 +170,7 @@ bool Ui_NowPlaying_Setup(lv_obj_t *uiscreen) {
     text_loop = lv_label_create(container, NULL);
     lv_label_set_style(text_loop, LV_LABEL_STYLE_MAIN, &textstyle_sm);
     lv_obj_set_pos(text_loop, 125, 220);
-    sprintf(loopbuf, "1 / %d", Player_SetLoopCount);
+    sprintf(loopbuf, "1 / %d", Player_LoopCount);
     lv_label_set_static_text(text_loop, loopbuf);
 
 
@@ -471,6 +471,12 @@ static IRAM_ATTR uint32_t lastelapsedmins = 0xffffffff;
 static uint8_t lastbarx = 0xff;
 static EventBits_t laststatus = 0;
 static void do_tick() {
+    //recalc these every tick now, since loopcount can change under our feet
+    totalwithloops = (looppoint + (loopsamples * Player_LoopCount))/44100;
+    totalmins = totalwithloops/60;
+    totalsecs = totalwithloops%60;
+    loopcount = (Player_Info.LoopOffset && loopsamples)?Player_LoopCount:1;
+
     if (Driver_FirstWait) {
         elapsedmins = 0;
         elapsedsecs = 0;
@@ -584,8 +590,8 @@ void drawopts() {
         default:
             break;
     }
-    if (Player_SetLoopCount != 255) {
-        sprintf(loopcountbuf, "%d", Player_SetLoopCount);
+    if (Player_LoopCount != 255) {
+        sprintf(loopcountbuf, "%d", Player_LoopCount);
         lv_label_set_text(text_opt_loops, loopcountbuf);
     } else {
         lv_label_set_text(text_opt_loops, "inf.");
@@ -611,12 +617,12 @@ void Ui_NowPlaying_Key(KeyEvent_t event) {
                         }
                         drawopts();
                     } else if (selectedopt == 1) {
-                        if (Player_SetLoopCount > 1) {
-                            if (Player_SetLoopCount != 255) {
-                                --Player_SetLoopCount;
+                        if (Player_LoopCount > 1) {
+                            if (Player_LoopCount != 255) {
+                                --Player_LoopCount;
                                 OptionsMgr_Touch();
                             } else {
-                                Player_SetLoopCount = 10;
+                                Player_LoopCount = 10;
                                 OptionsMgr_Touch();
                             }
                         }
@@ -638,11 +644,11 @@ void Ui_NowPlaying_Key(KeyEvent_t event) {
                         }
                         drawopts();
                     } else if (selectedopt == 1) {
-                        if (Player_SetLoopCount == 10) {
-                            Player_SetLoopCount = 255;
+                        if (Player_LoopCount == 10) {
+                            Player_LoopCount = 255;
                             OptionsMgr_Touch();
-                        } else if (Player_SetLoopCount < 10) {
-                            ++Player_SetLoopCount;
+                        } else if (Player_LoopCount < 10) {
+                            ++Player_LoopCount;
                             OptionsMgr_Touch();
                         }
                         drawopts();
@@ -695,8 +701,15 @@ void Ui_NowPlaying_Key(KeyEvent_t event) {
                 break;
             case KEY_C:
                 optionsopen = !optionsopen;
-                if (optionsopen) Ui_SoftBar_Update(2, true, LV_SYMBOL_OK" Done", true);
-                else Ui_SoftBar_Update(2, true, "Settings", true);
+                if (optionsopen) {
+                    Ui_SoftBar_Update(2, true, LV_SYMBOL_OK" Done", true);
+                } else {
+                    Ui_SoftBar_Update(2, true, "Settings", true);
+                    //force redraw of time and stuff, if loop count changed
+                    lastelapsedmins = 0;
+                    lastelapsedsecs = 0;
+                    do_tick();
+                }
                 drawopts();
                 break;
             case KEY_A:

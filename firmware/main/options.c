@@ -40,7 +40,7 @@ const option_t Options[OPTION_COUNT] = {
         "Number of times the looping section of the track should be played.",
         OPTION_CATEGORY_PLAYBACK,
         OPTION_TYPE_LOOPS,
-        &Player_SetLoopCount,
+        &Player_LoopCount,
         2,
         NULL,
         NULL
@@ -115,6 +115,28 @@ const option_t Options[OPTION_COUNT] = {
         0x40,
         LedDrv_UpdateBrightness,
         LedDrv_UpdateBrightness
+    },
+    {
+        0x000e,
+        "Fade out",
+        "Enables and disables fading out at the end of each track",
+        OPTION_CATEGORY_PLAYBACK,
+        OPTION_TYPE_BOOL,
+        &Driver_FadeEnabled,
+        true,
+        NULL,
+        NULL
+    },
+    {
+        0x000f,
+        "Fade length",
+        "Sets length of fade out, in seconds",
+        OPTION_CATEGORY_PLAYBACK,
+        OPTION_TYPE_NUMERIC,
+        &Driver_FadeLength,
+        3,
+        NULL,
+        NULL
     },
     {
         0x0005,

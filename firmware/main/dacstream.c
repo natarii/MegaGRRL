@@ -220,34 +220,10 @@ void DacStream_FindTask() {
                                     DacStream_FindRunning = false;
                                     break;
                                 }
-                                if (Player_LoopCount != 255 && ++DacStream_CurLoop == Player_LoopCount) {
-                                    ESP_LOGI(TAG, "looped enough, stopping");
-                                    DacStream_FindRunning = false;
-                                    break;
-                                }
-                                if (!Loader_IgnoreZeroSampleLoops || DacStream_VgmInfo->LoopSamples > 0) {
-                                    ESP_LOGI(TAG, "looping");
-                                    if (DacStream_VgmInfo->LoopSamples == 0) ESP_LOGW(TAG, "looping despite LoopSamples == 0 !!");
-                                    fseek(DacStream_FindFile, DacStream_VgmInfo->LoopOffset, SEEK_SET);
-                                    continue;
-                                }
-
-
-
-                                if (DacStream_VgmInfo->LoopOffset == 0 || (Loader_IgnoreZeroSampleLoops && DacStream_VgmInfo->LoopSamples == 0)) { //no loop point. see "Warning! Ignored Zero-Sample-Loop!" in vgmplay
-                                    ESP_LOGI(TAG, "no loop point");
-                                    DacStream_FindRunning = false;
-                                    break;
-                                }
-                                if (Player_LoopCount != 255 && ++DacStream_CurLoop == Player_LoopCount) {
-                                    ESP_LOGI(TAG, "stopping");
-                                    DacStream_FindRunning = false;
-                                    break;
-                                } else {
-                                    ESP_LOGI(TAG, "looping");
-                                    fseek(DacStream_FindFile, DacStream_VgmInfo->LoopOffset, SEEK_SET);
-                                    continue;
-                                }
+                                ESP_LOGI(TAG, "looping");
+                                DacStream_CurLoop++; //still need to keep track of this so dacstream loads aren't duplicated
+                                fseek(DacStream_FindFile, DacStream_VgmInfo->LoopOffset, SEEK_SET);
+                                continue;
                             } else { //none were found, so just die
                                 ESP_LOGI(TAG, "Find task reached end of music without finding any starts");
                                 DacStream_FindRunning = false;

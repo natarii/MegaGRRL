@@ -25,7 +25,6 @@ FILE *Player_DsFillFile;
 VgmInfoStruct_t Player_Info;
 uint32_t notif = 0;
 
-volatile uint8_t Player_SetLoopCount = 2;
 volatile uint8_t Player_LoopCount = 2;
 volatile RepeatMode_t Player_RepeatMode = REPEAT_ALL;
 volatile bool Player_UnvgzReplaceOriginal = true;
@@ -295,7 +294,6 @@ void Player_Unvgz(char *FilePath, bool ReplaceOriginalFile) {
 }
 
 bool Player_StartTrack(char *FilePath) {
-    Player_LoopCount = Player_SetLoopCount; //take new loop count
     char *OpenFilePath = FilePath;
 
     ESP_LOGI(TAG, "Checking file type of %s", FilePath);
