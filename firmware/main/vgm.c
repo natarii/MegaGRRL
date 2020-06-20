@@ -4,43 +4,29 @@
 
 static const char* TAG = "Vgm";
 
+static const uint8_t CommandLengthLUT[256] = {
+  /*0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f*/
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //0x00
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //0x10
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //0x20
+    2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, //0x30
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, //0x40
+    2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, //0x50
+    0, 3, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, //0x60
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, //0x70
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, //0x80
+    5, 5, 6,11, 2, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //0x90
+    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, //0xa0
+    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, //0xb0
+    4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, //0xc0
+    4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, //0xd0
+    5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //0xe0
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //0xf0
+};
+
 uint8_t VgmCommandLength(uint8_t Command) { //including the command itself. only for fixed size commands
-  //TODO: should this just be a LUT?
-  if (Command == 0x30 || Command == 0x3f || Command == 0x4f || Command == 0x50) { //PSG stuff
-    return 2;
-  } else if ((Command >= 0x51 && Command <= 0x5f) || (Command >= 0xa5 && Command <= 0xaf)) { //YM series
-    return 3;
-  } else if (Command == 0x61) { //16bit wait
-    return 3;
-  } else if (Command == 0x62 || Command == 0x63) { //50hz and 60hz waits
-    return 1;
-  } else if (Command == 0x66) { //end of sound data
-    return 1;
-  } else if (Command >= 0x70 && Command <= 0x7f) { //4bit wait
-    return 1;
-  } else if (Command >= 0x80 && Command <= 0x8f) { //YM2612 PORT0 PCM WRITE
-    return 1;
-  } else if (Command == 0x90) { //dac stream control setup
-    return 5;
-  } else if (Command == 0x91) { //dac stream control set data
-    return 5;
-  } else if (Command == 0x92) { //dac stream control set frequency
-    return 6;
-  } else if (Command == 0x93) { //dac stream control start stream
-    return 11;
-  } else if (Command == 0x94) { //dac stream control stop
-    return 2;
-  } else if (Command == 0x95) { //dac stream control start stream (fast call)
-    return 5;
-  } else if (Command >= 0xa0 && Command <= 0xbf) { //misc 16bit chips
-    return 3;
-  } else if (Command >= 0xc0 && Command <= 0xd6) { //misc 24bit chips
-    return 4;
-  } else if (Command == 0xe0) { //PCM data type 0 seek
-    return 5;
-  } else if (Command == 0xe1) { //c352 register write
-    return 5;
-  }
+  uint8_t val = CommandLengthLUT[Command];
+  if (val) return val;
   ESP_LOGW(TAG, "Vgm_CommandLength got bad command 0x%02x !!", Command);
   return 0xff;
 }
