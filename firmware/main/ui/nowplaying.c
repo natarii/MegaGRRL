@@ -622,7 +622,7 @@ void Ui_NowPlaying_Key(KeyEvent_t event) {
                         }
                         drawopts();
                     } else if (selectedopt == 2) {
-                        Pitch_Adjust(Pitch_Get()-((event.State&KEY_EVENT_HELD)?10:1));
+                        Pitch_Adjust(Pitch_Get()-((event.State&KEY_EVENT_REPEAT)?10:1));
                         drawopts();
                     }
                 }
@@ -647,7 +647,7 @@ void Ui_NowPlaying_Key(KeyEvent_t event) {
                         }
                         drawopts();
                     } else if (selectedopt == 2) {
-                        Pitch_Adjust(Pitch_Get()+((event.State&KEY_EVENT_HELD)?10:1));
+                        Pitch_Adjust(Pitch_Get()+((event.State&KEY_EVENT_REPEAT)?10:1));
                         drawopts();
                     } else if (selectedopt == 3) {
                         Ui_Screen = UISCREEN_MUTING;
