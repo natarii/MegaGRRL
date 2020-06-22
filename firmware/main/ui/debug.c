@@ -35,6 +35,7 @@ static uint32_t tasklastruntime[TASK_COUNT+6];
 static uint32_t tasklasttrt = 0;
 static char heapbuf[100];
 static char drvbuf[100];
+static bool fast = false;
 
 static int comp(const TaskStatus_t *a, const TaskStatus_t *b) {
     return strcmp(a->pcTaskName, b->pcTaskName);
@@ -46,9 +47,6 @@ static uint32_t map(uint32_t x, uint32_t in_min, uint32_t in_max, uint32_t out_m
 
 static void draw() {
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
-
-    sprintf(heapbuf, "#00007f FreeHeap# %5d #00007f ctg# %5d #00007f min# %5d", xPortGetFreeHeapSize(), heap_caps_get_largest_free_block(MALLOC_CAP_8BIT), xPortGetMinimumEverFreeHeapSize());
-    lv_label_set_static_text(heaplabel, heapbuf);
 
     uint16_t d = uxQueueMessagesWaiting(Driver_CommandQueue);
     uint16_t p = uxQueueMessagesWaiting(Driver_PcmQueue);
@@ -91,6 +89,10 @@ static void drawtasks() {
     tasklasttrt = trt;
 
     lv_label_set_static_text(tasklabel, &tasklabel_buf[0]);
+
+    sprintf(heapbuf, "#00007f FreeHeap# %5d #00007f ctg# %5d #00007f min# %5d", xPortGetFreeHeapSize(), heap_caps_get_largest_free_block(MALLOC_CAP_8BIT), xPortGetMinimumEverFreeHeapSize());
+    lv_label_set_static_text(heaplabel, heapbuf);
+    
     LcdDma_Mutex_Give();
 }
 
@@ -199,11 +201,14 @@ void Ui_Debug_Key(KeyEvent_t event) {
         ESP_LOGI(TAG, "Enabling screenshot key");
         Ui_ScreenshotEnabled = true;
     }
+    if (event.Key == KEY_B && event.State == KEY_EVENT_PRESS) {
+        fast = !fast;
+    }
 }
 
 void Ui_Debug_Tick() {
     uint32_t t = xthal_get_ccount();
-    if (t - timer >= 240000000/15) {
+    if (t - timer >= 240000000/(fast?30:15)) {
         draw();
         timer = xthal_get_ccount();
     }
