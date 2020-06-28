@@ -1112,7 +1112,6 @@ void Driver_Main() {
         uint8_t queueeventbits = xEventGroupGetBits(Driver_QueueEvents);
         if (commandeventbits & DRIVER_EVENT_START_REQUEST) {
             //reset all internal vars
-            Driver_Sample = 0;
             Driver_Cycle = 0;
             Driver_LastCc = Driver_Cc;
             Driver_NextSample = 0;
@@ -1153,6 +1152,7 @@ void Driver_Main() {
             for (uint8_t i=0;i<6+4;i++) {
                 ChannelMgr_States[i] = 0;
             }
+            Driver_Sample = 0;
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_FINISHED);
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_RESET_REQUEST);
             xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_RESET_ACK);

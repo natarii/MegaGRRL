@@ -22,6 +22,9 @@ static const char* TAG = "Ui_NowPlaying";
 volatile bool Ui_NowPlaying_DataAvail = false;
 volatile bool Ui_NowPlaying_DriverRunning = false;
 
+static uint8_t lastbarx = 0xff;
+static EventBits_t laststatus = 0;
+
 static IRAM_ATTR lv_obj_t *container;
 static lv_style_t labelstyle;
 static lv_style_t textstyle;
@@ -325,14 +328,17 @@ bool Ui_NowPlaying_Setup(lv_obj_t *uiscreen) {
     Ui_SoftBar_Update(2, true, "Settings", false);
     Ui_SoftBar_Update(1, true, "Browser", false);
     Ui_SoftBar_Update(0, true, LV_SYMBOL_HOME "Home", false);
-    LcdDma_Mutex_Give();
 
     xEventGroupClearBits(Player_Status, PLAYER_STATUS_RAN_OUT);
 
+    lastbarx = 0xff;
+    laststatus = 0;
     if (Ui_NowPlaying_DriverRunning) {
         newtrack();
         do_tick();
     }
+
+    LcdDma_Mutex_Give();
 
     return true;
 }
@@ -352,7 +358,6 @@ static IRAM_ATTR uint32_t elapsedmins;
 static IRAM_ATTR uint32_t elapsedsecs;
 
 static void newtrack() { //gd3, pls position, loop count/samples
-    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     //title
     if (strlen(Player_Gd3_Title) == 0) { //no title in gd3
         uint16_t nameoff = 0;
@@ -462,14 +467,10 @@ static void newtrack() { //gd3, pls position, loop count/samples
         strcpy(loopbuf, "1 / 1");
     }
     lv_label_set_static_text(text_loop, loopbuf);
-
-    LcdDma_Mutex_Give();
 }
 
 static IRAM_ATTR uint32_t lastelapsedsecs = 0xffffffff;
 static IRAM_ATTR uint32_t lastelapsedmins = 0xffffffff;
-static uint8_t lastbarx = 0xff;
-static EventBits_t laststatus = 0;
 static void do_tick() {
     //recalc these every tick now, since loopcount can change under our feet
     totalwithloops = (looppoint + (loopsamples * Player_LoopCount))/44100;
@@ -505,7 +506,6 @@ static void do_tick() {
         barx = 10+(220-2);
     }
     EventBits_t bits = xEventGroupGetBits(Player_Status);
-    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     if (bits != laststatus) {
         if (bits & (PLAYER_STATUS_PAUSED|PLAYER_STATUS_NOT_RUNNING)) {
             lv_label_set_text(dpadtext[0], LV_SYMBOL_PLAY);
@@ -535,7 +535,6 @@ static void do_tick() {
         }
         lv_label_set_static_text(text_loop, loopbuf);
     }
-    LcdDma_Mutex_Give();
     lastelapsedmins = elapsedmins;
     lastelapsedsecs = elapsedsecs;
     lastbarx = barx;
@@ -544,16 +543,22 @@ static void do_tick() {
 
 void Ui_NowPlaying_Tick() {
     //there are races with these vars, but they should be extremely unlikely
+    bool tookmutex = false;
     if (Ui_NowPlaying_DataAvail) {
         Ui_NowPlaying_DataAvail = false;
+        tookmutex = true;
+        LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         newtrack();
     }
     if (esp_timer_get_time() - nptimer >= 100000) {
         if (Ui_NowPlaying_DriverRunning) {
+            if (!tookmutex) LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+            tookmutex = true;
             do_tick();
         }
         nptimer = esp_timer_get_time();
     }
+    if (tookmutex) LcdDma_Mutex_Give();
 }
 
 void drawopts() {
