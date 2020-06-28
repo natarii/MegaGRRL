@@ -24,6 +24,7 @@ volatile bool Ui_NowPlaying_DriverRunning = false;
 
 static uint8_t lastbarx = 0xff;
 static EventBits_t laststatus = 0;
+static UiScreen_t lastscreen = UISCREEN_FILEBROWSER;
 
 static IRAM_ATTR lv_obj_t *container;
 static lv_style_t labelstyle;
@@ -87,6 +88,8 @@ void Ui_NowPlaying_Destroy() {
 }
 
 bool Ui_NowPlaying_Setup(lv_obj_t *uiscreen) {
+    if (Ui_Screen_Last != UISCREEN_NOWPLAYING) lastscreen = Ui_Screen_Last;
+
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
 
     container = lv_cont_create(uiscreen, NULL);
@@ -542,8 +545,21 @@ static void do_tick() {
 }
 
 void Ui_NowPlaying_Tick() {
-    //there are races with these vars, but they should be extremely unlikely
+    if (xEventGroupGetBits(Player_Status) & PLAYER_STATUS_RAN_OUT) {
+        ESP_LOGW(TAG, "player run out detected!!");
+        ESP_LOGW(TAG, "request stop");
+        xTaskNotify(Taskmgr_Handles[TASK_PLAYER], PLAYER_NOTIFY_STOP_RUNNING, eSetValueWithoutOverwrite);
+        ESP_LOGW(TAG, "wait stop");
+        xEventGroupWaitBits(Player_Status, PLAYER_STATUS_NOT_RUNNING, false, true, pdMS_TO_TICKS(3000));
+        QueueLength = 0;
+        QueuePosition = 0;
+        ESP_LOGW(TAG, "return to last screen");
+        Ui_Screen = lastscreen;
+        return;
+    }
+    
     bool tookmutex = false;
+    //there are races with these vars, but they should be extremely unlikely
     if (Ui_NowPlaying_DataAvail) {
         Ui_NowPlaying_DataAvail = false;
         tookmutex = true;
