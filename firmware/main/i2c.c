@@ -68,10 +68,10 @@ bool I2cMgr_Release(bool IsIsr) {
     return true;
 }
 
-void I2cMgr_Clear() {
+uint8_t I2cMgr_Clear() {
     gpio_config_t cfg;
     cfg.intr_type = GPIO_PIN_INTR_DISABLE;
-    cfg.mode = GPIO_MODE_OUTPUT;
+    cfg.mode = GPIO_MODE_INPUT_OUTPUT_OD;
     cfg.pin_bit_mask = (1<<PIN_I2C_CLK) | (1<<PIN_I2C_DATA);
     cfg.pull_down_en = 0;
     cfg.pull_up_en = 0;
@@ -86,4 +86,20 @@ void I2cMgr_Clear() {
         ets_delay_us(4);
     }
     ets_delay_us(10000);
+    bool fail = false;
+    if (!gpio_get_level(PIN_I2C_DATA)) {
+        ESP_LOGE(TAG, "I2C SDA appears to be stuck low");
+        return 1;
+    }
+    if (!gpio_get_level(PIN_I2C_CLK)) {
+        ESP_LOGE(TAG, "I2C SCL appears to be stuck low");
+        return 2;
+    }
+    gpio_set_level(PIN_I2C_CLK, 0);
+    ets_delay_us(10000);
+    if (!gpio_get_level(PIN_I2C_DATA)) {
+        ESP_LOGE(TAG, "I2C SCL & SDA appear to be shorted");
+        return 3;
+    }
+    return 0;
 }

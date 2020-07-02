@@ -293,7 +293,7 @@ void app_main(void)
     Driver_ResetChips();
 
     ESP_LOGI(TAG, "Clear I2C...");
-    I2cMgr_Clear();
+    uint8_t i2cclearresult = I2cMgr_Clear();
 
     ESP_LOGI(TAG, "Init I2C...");
     bool I2cUp = I2cMgr_Setup();
@@ -402,6 +402,13 @@ void app_main(void)
     if (!I2cUp) {
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         lv_ta_add_text(textarea, "I2C init failed !!\n");
+        if (i2cclearresult == 1) {
+            lv_ta_add_text(textarea, "SDA line stuck low?\n");
+        } else if (i2cclearresult == 2) {
+            lv_ta_add_text(textarea, "SCL line stuck low?\n");
+        } else if (i2cclearresult == 3) {
+            lv_ta_add_text(textarea, "SCL and SDA lines shorted?\n");
+        }
         LcdDma_Mutex_Give();
         crash();
     }
@@ -409,6 +416,13 @@ void app_main(void)
     if (!IoUp) {
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         lv_ta_add_text(textarea, "IO init failed !!\n");
+        if (i2cclearresult == 1) {
+            lv_ta_add_text(textarea, "SDA line stuck low?\n");
+        } else if (i2cclearresult == 2) {
+            lv_ta_add_text(textarea, "SCL line stuck low?\n");
+        } else if (i2cclearresult == 3) {
+            lv_ta_add_text(textarea, "SCL and SDA lines shorted?\n");
+        }
         LcdDma_Mutex_Give();
         crash();
     }
