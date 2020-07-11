@@ -33,8 +33,12 @@ static uint32_t timer = 0;
 static uint32_t taskstimer = 0;
 static uint32_t tasklastruntime[TASK_COUNT+6];
 static uint32_t tasklasttrt = 0;
-static char heapbuf[100];
-static char drvbuf[100];
+static char heapbuf[100] = "";
+static char drvbuf[100] = "";
+static char samplebuf1[50] = "";
+static char samplebuf2[75] = "";
+static IRAM_ATTR lv_obj_t *samplelabel1;
+static IRAM_ATTR lv_obj_t *samplelabel2;
 static bool fast = false;
 
 static int comp(const TaskStatus_t *a, const TaskStatus_t *b) {
@@ -55,6 +59,20 @@ static void draw() {
     lv_obj_set_size(driverbuf, map(d,0,DRIVER_QUEUE_SIZE,0,240), 1);
     lv_label_set_static_text(driverbuflabel, drvbuf);
     lv_obj_set_size(driverbufpcm, map(p,0,DRIVER_QUEUE_SIZE,0,240), 1);
+    sprintf(samplebuf1, "#00007f Driver cur sample:# %d", Driver_Sample);
+    lv_label_set_static_text(samplelabel1, samplebuf1);
+    uint32_t s = Driver_Sample;
+    uint32_t ns = Driver_NextSample+1;
+    if (!Driver_FirstWait) {
+        if (s>ns) {
+            sprintf(samplebuf2, "#00007f Driver lag:# #ff1f1f %06d samples# ;_;", s-ns);
+        } else {
+            strcpy(samplebuf2, "#00007f Driver lag:# 000000 samples ^_^");
+        }
+    } else {
+        sprintf(samplebuf2, "#00007f Driver lag:# #00ff00 %06d samples# >_>", (s>ns)?(s-ns):0);
+    }
+    lv_label_set_static_text(samplelabel2, samplebuf2);
 
     for (uint8_t i=0;i<DACSTREAM_PRE_COUNT;i++) {
         lv_obj_set_style(ds[i], (i==DacStreamId)?&bar_style:&bar_style_idle);
@@ -121,19 +139,19 @@ void Ui_Debug_Setup(lv_obj_t *uiscreen) {
     tasklabel_style.text.letter_space = -1;
 
     tasklabel = lv_label_create(container, NULL);
-    lv_obj_set_pos(tasklabel, 2, 2);
+    lv_obj_set_pos(tasklabel, 1, 2);
     y = 2 + (TASK_COUNT+1)*9;
     lv_label_set_style(tasklabel, LV_LABEL_STYLE_MAIN, &tasklabel_style);
     lv_label_set_recolor(tasklabel, true);
 
     heaplabel = lv_label_create(container, NULL);
-    lv_obj_set_pos(heaplabel, 2, y);
+    lv_obj_set_pos(heaplabel, 1, y);
     y += 9;
     lv_label_set_style(heaplabel, LV_LABEL_STYLE_MAIN, &tasklabel_style);
     lv_label_set_recolor(heaplabel, true);
 
     driverbuflabel = lv_label_create(container, NULL);
-    lv_obj_set_pos(driverbuflabel, 2, y);
+    lv_obj_set_pos(driverbuflabel, 1, y);
     y += 9;
     lv_label_set_style(driverbuflabel, LV_LABEL_STYLE_MAIN, &tasklabel_style);
     lv_label_set_recolor(driverbuflabel, true);
@@ -151,14 +169,28 @@ void Ui_Debug_Setup(lv_obj_t *uiscreen) {
     lv_obj_set_size(driverbuf, 240, 1);
     lv_obj_set_style(driverbuf, &bar_style);
 
+    y += 1; //spacer
+
     driverbufpcm = lv_obj_create(container, NULL);
     lv_obj_set_pos(driverbufpcm, 0, y-1);
     y += 1;
     lv_obj_set_size(driverbufpcm, 240, 1);
     lv_obj_set_style(driverbufpcm, &bar_style);
 
+    samplelabel1 = lv_label_create(container, NULL);
+    lv_obj_set_pos(samplelabel1, 1, y);
+    y += 9;
+    lv_label_set_style(samplelabel1, LV_LABEL_STYLE_MAIN, &tasklabel_style);
+    lv_label_set_recolor(samplelabel1, true);
+
+    samplelabel2 = lv_label_create(container, NULL);
+    lv_obj_set_pos(samplelabel2, 1, y);
+    y += 9;
+    lv_label_set_style(samplelabel2, LV_LABEL_STYLE_MAIN, &tasklabel_style);
+    lv_label_set_recolor(samplelabel2, true);
+
     dslabel = lv_label_create(container, NULL);
-    lv_obj_set_pos(dslabel, 2, y);
+    lv_obj_set_pos(dslabel, 1, y);
     y += 9;
     lv_label_set_style(dslabel, LV_LABEL_STYLE_MAIN, &tasklabel_style);
     lv_label_set_recolor(dslabel, true);
@@ -167,7 +199,7 @@ void Ui_Debug_Setup(lv_obj_t *uiscreen) {
     for (uint8_t i=0;i<DACSTREAM_PRE_COUNT;i++) {
         ds[i] = lv_obj_create(container, NULL);
         lv_obj_set_pos(ds[i], 0, y-1);
-        y += 3;
+        y += 2;
         lv_obj_set_size(ds[i], 240, 1);
         lv_obj_set_style(ds[i], &bar_style);
     }
