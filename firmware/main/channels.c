@@ -86,7 +86,7 @@ void ChannelMgr_Main() {
             ChannelMgr_States_Old[i] = ChannelMgr_States[i];
         }
         uint32_t avg = 0;
-        if (ChannelMgr_PcmCount) {
+        if (ChannelMgr_PcmCount && (Driver_FmMask & (1<<6))) {
             avg = ChannelMgr_PcmAccu / ChannelMgr_PcmCount;
             ChannelMgr_PcmAccu = ChannelMgr_PcmCount = 0;
             avg <<= 1;
