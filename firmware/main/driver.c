@@ -315,6 +315,8 @@ void Driver_WritePsgCh3Freq() {
         freq /= 10000;
     }
 
+    if (freq == 0) freq = 1;
+
     //first byte
     uint8_t out = 0b11000000 | (freq & 0b00001111);
     Driver_PsgOut(out);
@@ -643,11 +645,13 @@ static uint8_t FadePsgAtten(uint8_t atten) {
     return (atten & 0b11110000) | latten;
 }
 
-static uint8_t FilterPsgAttenWrite(uint8_t cmd1) {
+static uint8_t FilterPsgAttenWrite(uint8_t cmd1) { //handles fades and channel muting config
     uint8_t ch = (cmd1>>5) & 0b11;
-    Driver_PsgAttenuation[ch] = cmd1;
     if (FadeActive) {
         cmd1 = FadePsgAtten(cmd1);
+    }
+    if ((Driver_PsgMask & (1<<ch)) == 0) {
+        cmd1 |= 0b00001111;
     }
     return cmd1;
 }
@@ -759,7 +763,7 @@ void Driver_UpdateMuting() {
             } else {
                 atten = 0b10011111 | (i<<5);
             }
-            Driver_PsgOut(atten);
+            Driver_PsgOut(FilterPsgAttenWrite(atten));
         }
     } else if (Driver_DetectedMod == MEGAMOD_OPNA) {
         //todo: handle vgm_trim mitigation
@@ -860,11 +864,9 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
             } else { //attenuation or noise ch control write
                 if ((cmd[1] & 0b10010000) == 0b10010000) { //attenuation
                     uint8_t ch = (cmd[1]>>5)&0b00000011;
+                    Driver_PsgAttenuation[ch] = cmd[1];
                     cmd[1] = FilterPsgAttenWrite(cmd[1]);
                     if (Driver_MitigateVgmTrim && Driver_FirstWait) cmd[1] |= 0b00001111; //if we haven't reached the first wait, force full attenuation
-                    if ((Driver_PsgMask & (1<<ch)) == 0) {
-                        cmd[1] |= 0b00001111;
-                    }
                     if (ch == 2) {
                         //when ch 3 atten is updated, we also need to write frequency again. this is due to the periodic noise fix.
                         //TODO: this would be better if it only does it if actually transitioning in or out of mute, rather than on every atten update
