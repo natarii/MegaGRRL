@@ -207,7 +207,7 @@ bool Player_Setup() {
 }
 
 static tinfl_decompressor decomp;
-void Player_Unvgz(char *FilePath, bool ReplaceOriginalFile) {
+static tinfl_status Player_Unvgz(char *FilePath, bool ReplaceOriginalFile) {
     FILE *reader;
     FILE *writer;
 
@@ -279,18 +279,20 @@ void Player_Unvgz(char *FilePath, bool ReplaceOriginalFile) {
                 break;
             } else {
                 ESP_LOGE(TAG, "decomp fail %d", status);
+                break;
             }
         }
     }
     fclose(reader);
     fclose(writer);
-    //todo: success check!!
+    if (status != TINFL_STATUS_DONE) return status;
     if (ReplaceOriginalFile) {
         ESP_LOGW(TAG, "Unvgz: Deleting original file");
         remove(FilePath);
         ESP_LOGW(TAG, "Unvgz: Renaming temp file to %s", vgmfn);
         rename(unvgztmp, vgmfn);
     }
+    return status;
 }
 
 bool Player_StartTrack(char *FilePath) {
@@ -320,12 +322,14 @@ bool Player_StartTrack(char *FilePath) {
         ESP_LOGI(TAG, "Compressed");
         Ui_StatusBar_SetExtract(true);
         if (Player_UnvgzReplaceOriginal) {
-            Player_Unvgz(FilePath, true);
+            tinfl_status u = Player_Unvgz(FilePath, true);
+            if (u != TINFL_STATUS_DONE) return false;
             if (*(FilePath+(strlen(FilePath)-1)) == 'z' || *(FilePath+(strlen(FilePath)-1)) == 'Z') {
                 *(FilePath+(strlen(FilePath)-1)) -= 0x0d;
             }
         } else {
-            Player_Unvgz(FilePath, false);
+            tinfl_status u = Player_Unvgz(FilePath, false);
+            if (u != TINFL_STATUS_DONE) return false;
             OpenFilePath = unvgztmp;
         }
         Ui_StatusBar_SetExtract(false);
