@@ -9,6 +9,7 @@
 #include "../lcddma.h"
 #include "freertos/task.h"
 #include "../driver.h"
+#include "../ver.h"
 #include <stdio.h>
 #include <dirent.h>
 #include <math.h>
@@ -38,6 +39,9 @@ static IRAM_ATTR lv_obj_t *mm_icontext;
 static lv_style_t mm_icontext_style;
 static IRAM_ATTR lv_obj_t *mm_icondesc;
 static lv_style_t mm_icondesc_style;
+
+static IRAM_ATTR lv_obj_t *verlabel;
+static lv_style_t verlabel_style;
 
 static IRAM_ATTR lv_obj_t *container;
 static lv_style_t containerstyle;
@@ -119,6 +123,17 @@ void Ui_MainMenu_Setup(lv_obj_t *uiscreen) {
     lv_label_set_align(mm_icondesc, LV_LABEL_ALIGN_CENTER);
     lv_label_set_text(mm_icondesc, "");
     lv_label_set_anim_speed(mm_icondesc, 50);
+
+    lv_style_copy(&verlabel_style, &lv_style_plain);
+    verlabel_style.text.font = &lv_font_dejavu_10;
+    verlabel_style.text.color = LV_COLOR_MAKE(0,0,0);
+    verlabel = lv_label_create(container, NULL);
+    lv_label_set_long_mode(verlabel, LV_LABEL_LONG_BREAK);
+    lv_obj_set_pos(verlabel, 0, 235);
+    lv_obj_set_size(verlabel, 237, 10);
+    lv_label_set_style(verlabel, LV_LABEL_STYLE_MAIN, &verlabel_style);
+    lv_label_set_align(verlabel, LV_LABEL_ALIGN_RIGHT);
+    lv_label_set_static_text(verlabel, FWVER);
 
     #ifdef HWVER_PORTABLE
     Ui_SoftBar_Update(0, true, "PwrOff", false);
