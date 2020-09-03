@@ -650,7 +650,15 @@ void Ui_NowPlaying_Key(KeyEvent_t event) {
                         }
                         drawopts();
                     } else if (selectedopt == 2) {
-                        Pitch_Adjust(Pitch_Get()-((event.State&KEY_EVENT_REPEAT)?10:1));
+                        int16_t p = Pitch_Get();
+                        if ((event.State & KEY_EVENT_REPEAT) && p % 10 != 0) {
+                            if (p <= 0) p -= 10;
+                            p /= 10;
+                            p *= 10;
+                        } else {
+                            p -= (event.State & KEY_EVENT_REPEAT)?10:1;
+                        }
+                        Pitch_Adjust(p);
                         drawopts();
                     }
                 }
@@ -675,7 +683,15 @@ void Ui_NowPlaying_Key(KeyEvent_t event) {
                         }
                         drawopts();
                     } else if (selectedopt == 2) {
-                        Pitch_Adjust(Pitch_Get()+((event.State&KEY_EVENT_REPEAT)?10:1));
+                        int16_t p = Pitch_Get();
+                        if ((event.State & KEY_EVENT_REPEAT) && p % 10 != 0) {
+                            if (p > 0) p += 10;
+                            p /= 10;
+                            p *= 10;
+                        } else {
+                            p += (event.State & KEY_EVENT_REPEAT)?10:1;
+                        }
+                        Pitch_Adjust(p);
                         drawopts();
                     } else if (selectedopt == 3) {
                         Ui_Screen = UISCREEN_MUTING;
