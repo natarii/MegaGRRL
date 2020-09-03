@@ -339,6 +339,7 @@ bool Ui_NowPlaying_Setup(lv_obj_t *uiscreen) {
     if (Ui_NowPlaying_DriverRunning) {
         newtrack();
         do_tick();
+        Ui_NowPlaying_DataAvail = false;
     }
 
     LcdDma_Mutex_Give();
