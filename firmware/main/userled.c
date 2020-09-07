@@ -91,6 +91,7 @@ void UserLedMgr_Main() {
                 default:
                     break;
             }
+            if (LedDrv_States[7+4+led]) LedDrv_States_ULatch[led] = LedDrv_States[7+4+led];
         }
     }
 }

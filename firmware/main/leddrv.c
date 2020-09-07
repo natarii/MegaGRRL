@@ -15,6 +15,7 @@ static const char* TAG = "LedDrv";
 
 volatile uint8_t led_pwm[16];
 volatile uint8_t LedDrv_States[16];
+volatile uint8_t LedDrv_States_ULatch[3];
 volatile uint8_t LedDrv_Brightness = 0x40;
 
 const uint8_t led_curve_lut[256] = {
@@ -110,8 +111,12 @@ bool LedDrv_Update() {
     //we will expect whoever is calling this to take/give the i2c mutex themself.
 
     for (uint8_t i=0;i<16;i++) {
-        if (i>=11 && i<=13) { //don't scale brightness on user leds
-            led_pwm[led_channel_assignment[i]] = LedDrv_States[i];
+        if (i>=11 && i<=13) {
+            //handle user leds differently
+            //don't scale brightness
+            //handle pulse stretching "latch"
+            led_pwm[led_channel_assignment[i]] = LedDrv_States_ULatch[i-11];
+            if (!LedDrv_States[i]) LedDrv_States_ULatch[i-11] = 0;
             continue;
         }
         led_pwm[led_channel_assignment[i]] = led_curve_lut[LedDrv_States[i]];
