@@ -544,8 +544,8 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
         //Driver_FmAlgo[ch] = Value & 0b111; //now handled before we get here
         ChannelMgr_States[ch] |= CHSTATE_PARAM;
     } else if (Port == 0 && Register == 0x28) { //KON
-        uint8_t ch = Value & 0b111;
-        if (ch >= 0b100) ch = 0b11 + (ch - 0b100);
+        if ((Value & 3) == 3) return; //ignore bogus writes
+        uint8_t ch = ((Value & 0b100)?3:0) + (Value & 0b11);
         //uint8_t st = Value >> 4;
         uint8_t st = 0;
         switch (Driver_FmAlgo[ch]) {
