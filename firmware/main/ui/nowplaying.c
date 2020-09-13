@@ -71,6 +71,8 @@ static char loopcountbuf[3] = {0,0,0};
 static char pitchbuf[10] = "";
 static const char *loading = "Nothing playing...";
 static const char *broken_vgm_time_warning_text = " Playback time unavailable  due to broken VGM file";
+static IRAM_ATTR uint32_t lastelapsedsecs = 0xffffffff;
+static IRAM_ATTR uint32_t lastelapsedmins = 0xffffffff;
 
 static char loopbuf[11]; //size?
 
@@ -175,8 +177,12 @@ bool Ui_NowPlaying_Setup(lv_obj_t *uiscreen) {
 
     text_loop = lv_label_create(container, NULL);
     lv_label_set_style(text_loop, LV_LABEL_STYLE_MAIN, &textstyle_sm);
-    lv_obj_set_pos(text_loop, 125, 220);
-    sprintf(loopbuf, "1 / %d", Player_LoopCount);
+    lv_obj_set_pos(text_loop, 125, 220); 
+    if (Player_LoopCount < 255) {
+        sprintf(loopbuf, "1 / %d", Player_LoopCount);
+    } else {
+        strcpy(loopbuf, "1 / inf.");
+    }
     lv_label_set_static_text(text_loop, loopbuf);
 
 
@@ -336,6 +342,8 @@ bool Ui_NowPlaying_Setup(lv_obj_t *uiscreen) {
 
     lastbarx = 0xff;
     laststatus = 0;
+    lastelapsedsecs = 0xffffffff;
+    lastelapsedsecs = 0xffffffff;
     if (Ui_NowPlaying_DriverRunning) {
         newtrack();
         do_tick();
@@ -473,8 +481,6 @@ static void newtrack() { //gd3, pls position, loop count/samples
     lv_label_set_static_text(text_loop, loopbuf);
 }
 
-static IRAM_ATTR uint32_t lastelapsedsecs = 0xffffffff;
-static IRAM_ATTR uint32_t lastelapsedmins = 0xffffffff;
 static void do_tick() {
     //recalc these every tick now, since loopcount can change under our feet
     totalwithloops = (looppoint + (loopsamples * Player_LoopCount))/44100;
