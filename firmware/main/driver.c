@@ -14,6 +14,7 @@
 #include "driver/gpio.h"
 #include "loader.h"
 #include "player.h"
+#include "clk.h"
 
 static const char* TAG = "Driver";
 
@@ -261,23 +262,28 @@ void Driver_Sleep(uint32_t us) { //quick and dirty spin sleep
     while (xthal_get_ccount() - s < c);
 }
 
+void Driver_SleepClocks(uint32_t f, uint32_t clks) { //same dirty spin sleep, but timed relative to a certain clock freq and number of clocks
+    uint32_t s = xthal_get_ccount();
+    uint64_t c = (DRIVER_CLOCK_RATE*(uint64_t)clks)/f;
+    while (xthal_get_ccount() - s < c);
+}
+
 void Driver_PsgOut(uint8_t Data) {
+    uint32_t clk = Clk_GetCh1();
+    if (clk == 0) return;
     //data bus is reversed for the psg because it made pcb layout easier
     Driver_SrBuf[SR_DATABUS] = 0;
     for (uint8_t i=0;i<=7;i++) {
         Driver_SrBuf[SR_DATABUS] |= ((Data>>(7-i))&1)<<i;
     }
     Driver_Output();
-    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_PSG_CS;
-    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR;
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_PSG_CS; //!cs low
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR; //!wr low
     Driver_Output();
-    Driver_Sleep(20);
-    Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR;
+    Driver_SleepClocks(Clk_GetCh1(), 36); //32, but with wiggle room. but not enough to push us into another write cycle...
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_PSG_CS; //!cs high
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; //!wr high
     Driver_Output();
-    //Driver_Sleep(20);
-    Driver_SrBuf[SR_CONTROL] |= SR_BIT_PSG_CS;
-    Driver_Output();
-    Driver_Sleep(5);
 
     //channel led stuff
     if (Driver_NoLeds) return;
