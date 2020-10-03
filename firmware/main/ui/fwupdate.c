@@ -82,7 +82,9 @@ void Ui_Fwupdate_Setup(lv_obj_t *uiscreen) {
     fwupdate_ta_style.text.line_space = 2;
     fwupdate_ta_style.body.main_color = LV_COLOR_MAKE(0,0,0);
     fwupdate_ta_style.body.grad_color = LV_COLOR_MAKE(0,0,0);
-    //fwupdate_ta_style.text.font = &lv_font_monospace_8;
+    fwupdate_ta_style.text.font = &lv_font_unscii_8;
+    fwupdate_ta_style.text.line_space = 0;
+    fwupdate_ta_style.text.letter_space = -1;
 
     fwupdate_ta = lv_ta_create(container, NULL);
     lv_obj_set_style(fwupdate_ta, &fwupdate_ta_style);
@@ -90,7 +92,7 @@ void Ui_Fwupdate_Setup(lv_obj_t *uiscreen) {
     lv_obj_set_pos(fwupdate_ta, 0, 100);
     lv_ta_set_cursor_type(fwupdate_ta, LV_CURSOR_NONE);
     lv_ta_set_cursor_pos(fwupdate_ta, 0);
-    lv_ta_set_text(fwupdate_ta, "MegaGRRL Firmware Updater\n\nChecking update file...\n");
+    lv_ta_set_text(fwupdate_ta, "MegaGRRL OS Updater\n\nChecking update file...\n");
 
     LcdDma_Mutex_Give();
 
@@ -105,7 +107,7 @@ void Ui_Fwupdate_Setup(lv_obj_t *uiscreen) {
     fread(&newfirmware.updater_sum, 4, 1, f);
     if (newfirmware.magic != 0x6167656d) {
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
-        lv_ta_add_text(fwupdate_ta, "Invalid firmware file");
+        lv_ta_add_text(fwupdate_ta, "Invalid update file");
         LcdDma_Mutex_Give();
         fwupdate_valid = false;
         fclose(f);
@@ -129,14 +131,6 @@ void Ui_Fwupdate_Setup(lv_obj_t *uiscreen) {
     }
     char *nv = calloc(newfirmware.ver_length+1, 1);
     fread(nv, 1, newfirmware.ver_length, f);
-    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
-    lv_ta_add_text(fwupdate_ta, "Current version: ");
-    lv_ta_add_text(fwupdate_ta, FWVER);
-    lv_ta_add_text(fwupdate_ta, "\nNew version: ");
-    lv_ta_add_text(fwupdate_ta, nv);
-    lv_ta_add_text(fwupdate_ta, "\n");
-    free(nv);
-    LcdDma_Mutex_Give();
     uint32_t remaining = newfirmware.app_size;
     uint32_t crc = 0;
     if (remaining) {
@@ -193,7 +187,16 @@ void Ui_Fwupdate_Setup(lv_obj_t *uiscreen) {
     }
 
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
-    lv_ta_add_text(fwupdate_ta, "\nHold Flash to install");
+    lv_ta_add_text(fwupdate_ta, "\n\n\nCurrent version: ");
+    lv_ta_add_text(fwupdate_ta, FWVER);
+    lv_ta_add_text(fwupdate_ta, "\nNew version:     ");
+    lv_ta_add_text(fwupdate_ta, nv);
+    lv_ta_add_text(fwupdate_ta, "\n");
+    free(nv);
+    LcdDma_Mutex_Give();
+
+    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    lv_ta_add_text(fwupdate_ta, "*** Hold Flash to install ***");
     Ui_SoftBar_Update(2, true, LV_SYMBOL_CHARGE" Flash", false);
     LcdDma_Mutex_Give();
 
@@ -214,23 +217,35 @@ void fwupdate_flash() {
     Ui_SoftBar_Update(0, false, "", false);
     Ui_SoftBar_Update(1, false, "Back", false);
     Ui_SoftBar_Update(2, false, "Flashing", false);
-    lv_ta_set_text(fwupdate_ta, "Applying update...\n");
+    lv_ta_set_text(fwupdate_ta, "Installing update...\n\nDO NOT REMOVE SD CARD\nDO NOT POWER OFF\n\n");
     LcdDma_Mutex_Give();
+    vTaskDelay(pdMS_TO_TICKS(5000));
     if (newfirmware.updater_size) {
+        LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+        lv_ta_add_text(fwupdate_ta, "Backing up...\n");
+        LcdDma_Mutex_Give();
+        esp_partition_t *partition;
+        partition = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_0, NULL);
+        if (partition == NULL) ESP_LOGE(TAG, "no part found !!");
+        uint8_t *upd;
+        spi_flash_mmap_handle_t mmaphandle;
+        esp_partition_mmap(partition, 0, partition->size, SPI_FLASH_MMAP_DATA, (const void**)&upd, &mmaphandle);
+        FILE *f = fopen("/sd/.mega/backup_0.bin", "w");
+        fwrite(upd, partition->size, 1, f);
+        fclose(f);
+        spi_flash_munmap(mmaphandle);
+        vTaskDelay(pdMS_TO_TICKS(500));
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         lv_ta_add_text(fwupdate_ta, "Installing new updater...\n");
         LcdDma_Mutex_Give();
         vTaskDelay(pdMS_TO_TICKS(500));
-        esp_partition_t *partition;
-        partition = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_0, NULL);
-        if (partition == NULL) ESP_LOGE(TAG, "no part found !!");
         esp_ota_handle_t updatehandle = 0;
         esp_err_t ret = esp_ota_begin(partition, OTA_SIZE_UNKNOWN, &updatehandle);
         if (ret != ESP_OK) {
             ESP_LOGE(TAG, "ota begin fail %s", esp_err_to_name(ret));
         }
         if (updatehandle == NULL) ESP_LOGE(TAG, "update handle bad");
-        FILE *f = fopen(fwupdate_file, "r");
+        f = fopen(fwupdate_file, "r");
         fseek(f,22+newfirmware.ver_length+newfirmware.app_size, SEEK_SET);
         uint32_t remaining = newfirmware.updater_size;
         fwupdate_buf = malloc(1024);
@@ -247,7 +262,7 @@ void fwupdate_flash() {
     }
     if (newfirmware.app_size) {
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
-        lv_ta_add_text(fwupdate_ta, "Copying new OS...\n");
+        lv_ta_add_text(fwupdate_ta, "Preparing new OS...\n");
         LcdDma_Mutex_Give();
         vTaskDelay(pdMS_TO_TICKS(500));
         FILE *f = fopen(fwupdate_file, "r");

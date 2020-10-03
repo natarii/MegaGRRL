@@ -239,7 +239,7 @@ void app_main(void)
     uint8_t r = rtc_get_reset_reason(0);
 
     #ifdef FWUPDATE
-    ESP_LOGI(TAG, "MegaGRRL Firmware Updater");
+    ESP_LOGI(TAG, "MegaGRRL OS Updater");
     #else
     ESP_LOGI(TAG, "MegaGRRL boot");
     #endif
@@ -383,7 +383,7 @@ void app_main(void)
     if ((IoExp_PowerOnKeys & (1<<KEY_B)) == 0) lv_obj_set_hidden(textarea, true);
 
     #ifdef FWUPDATE
-    lv_ta_set_text(textarea, "MegaGRRL\nby kunoichi labs\n\nFirmware Updater\n\n");
+    lv_ta_set_text(textarea, "MegaGRRL\nby kunoichi labs\n\nOS Updater\n\n");
     #else
     lv_ta_set_text(textarea, "MegaGRRL\nby kunoichi labs\n\nBoot\n");
     #endif
@@ -477,7 +477,8 @@ void app_main(void)
     lv_ta_add_text(textarea, "Looking for update file...\n");
     LcdDma_Mutex_Give();
     FILE *fw;
-    fw = fopen("/sd/.mega/firmware.mgf", "r");
+    fw = fopen("/sd/recovery.mgf", "r");
+    if (fw == NULL) fw = fopen("/sd/.mega/firmware.mgf", "r");
     if (fw == NULL) fw = fopen("/sd/factory.mgf", "r");
     if (fw == NULL) {
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
@@ -488,18 +489,33 @@ void app_main(void)
 
     //ready to flash
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
-    lv_ta_set_text(textarea, "Locating boot partition\n");
+    lv_ta_add_text(textarea, "\nDO NOT REMOVE SD CARD\nDO NOT POWER OFF\n\n");
+    LcdDma_Mutex_Give();
+    vTaskDelay(pdMS_TO_TICKS(5000));
+    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    lv_ta_add_text(textarea, "Locating OS partition\n");
     LcdDma_Mutex_Give();
     esp_partition_t *partition;
     partition = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_1, NULL);
-    esp_ota_handle_t update = 0;
-    vTaskDelay(pdMS_TO_TICKS(500)); //if we go right into esp_ota_begin, lcddma has a hard time running, so give it some time to draw
+    uint8_t *app;
+    spi_flash_mmap_handle_t mmaphandle;
+    vTaskDelay(pdMS_TO_TICKS(500));
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
-    lv_ta_set_text(textarea, "Starting update\n");
+    lv_ta_add_text(textarea, "Backing up...\n");
+    LcdDma_Mutex_Give();
+    esp_partition_mmap(partition, 0, partition->size, SPI_FLASH_MMAP_DATA, (const void**)&app, &mmaphandle);
+    FILE *f = fopen("/sd/.mega/backup_1.bin", "w");
+    fwrite(app, partition->size, 1, f);
+    fclose(f);
+    spi_flash_munmap(mmaphandle);
+    esp_ota_handle_t update = 0;
+    vTaskDelay(pdMS_TO_TICKS(500));
+    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    lv_ta_add_text(textarea, "Starting update\n");
     LcdDma_Mutex_Give();
     esp_ota_begin(partition, OTA_SIZE_UNKNOWN, &update);
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
-    lv_ta_set_text(textarea, "Flashing");
+    lv_ta_add_text(textarea, "Flashing");
     LcdDma_Mutex_Give();
     while (!feof(fw)) {
         uint16_t read;
@@ -513,20 +529,21 @@ void app_main(void)
     fclose(fw);
 
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
-    lv_ta_set_text(textarea, "Removing update file\n");
+    lv_ta_add_text(textarea, "\nRemoving update file\n");
     LcdDma_Mutex_Give();
     vTaskDelay(2);
-    remove("/sd/.mega/firmware.mgf");
-    remove("/sd/factory.mgf");
+    rename("/sd/.mega/firmware.mgf", "/sd/.mega/backup_n.mgf");
+    rename("/sd/.mega/factory.mgf", "/sd/.mega/backup_f.mgf");
+    rename("/sd/.mega/recovery.mgf", "/sd/.mega/backup_r.mgf");
 
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
-    lv_ta_set_text(textarea, "Finishing update\n");
+    lv_ta_add_text(textarea, "Finishing update\n");
     LcdDma_Mutex_Give();
     vTaskDelay(2);
     esp_ota_end(update);
 
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
-    lv_ta_set_text(textarea, "Setting boot partition\n");
+    lv_ta_add_text(textarea, "Setting boot partition\n");
     LcdDma_Mutex_Give();
     vTaskDelay(2);
     esp_ota_set_boot_partition(partition);
