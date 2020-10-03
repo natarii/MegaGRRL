@@ -46,6 +46,7 @@ void Clk_Set(uint8_t ch, uint32_t freq) {
 
 uint32_t Clk_GetCh1() {
     uint64_t f = clk[1];
+    if (f == 0) return 0;
     f *= (1000LL + mult[1]);
     f /= 1000;
     return f;
@@ -53,6 +54,7 @@ uint32_t Clk_GetCh1() {
 
 void fastupdate(uint8_t ch) {
     uint64_t f = clk[ch];
+    if (f == 0) return;
     f *= (1000LL + mult[ch]);
     f /= 1000;
     ledc_set_freq(LEDC_HIGH_SPEED_MODE, ch, f);
