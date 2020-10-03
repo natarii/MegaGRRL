@@ -413,9 +413,12 @@ bool Player_StartTrack(char *FilePath) {
         Clk_Set(CLK_PSG, 0);
         uint32_t opna = 0;
         uint32_t opn = 0;
+        uint32_t ay = 0;
         fseek(Player_VgmFile, 0x44, SEEK_SET);
         fread(&opn,4,1,Player_VgmFile);
         fread(&opna,4,1,Player_VgmFile);
+        fseek(Player_VgmFile, 0x74, SEEK_SET);
+        fread(&ay,4,1,Player_VgmFile);
         if (opna & 0x80000000) {
             ESP_LOGW(TAG, "Only one opna supported !!");
         }
@@ -426,7 +429,10 @@ bool Player_StartTrack(char *FilePath) {
             ESP_LOGI(TAG, "Clock clamped: %d", opna);
             Clk_Set(CLK_FM, opna);
         } else if (opn) {
-            Clk_Set(CLK_FM, opn<<1);
+            Clk_Set(CLK_FM, opn<<1); //todo clamping
+        } else if (ay) {
+            ESP_LOGI(TAG, "Clock from vgm: AY %d", ay<<2);
+            Clk_Set(CLK_FM, ay<<2);
         }
     } else if (Driver_DetectedMod == MEGAMOD_OPL3) {
         uint32_t opl = 0;

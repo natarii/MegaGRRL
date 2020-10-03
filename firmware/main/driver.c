@@ -898,7 +898,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
         Driver_FmOutopl3(0, cmd[1], cmd[2]);
     } else if (cmd[0] == 0x5f) { //ymf262 port 1
         Driver_FmOutopl3(1, cmd[1], cmd[2]);
-    } else if (cmd[0] == 0x56 || cmd[0] == 0x57 || cmd[0] == 0x55) { //opna both banks, opn
+    } else if (cmd[0] == 0x56 || cmd[0] == 0x57 || cmd[0] == 0x55 || cmd[0] == 0xa0) { //opna both banks, opn, AY-3-8910
         if (cmd[0] == 0x57) {
             if (cmd[1] == 0x01) { //control/config
                 Driver_Opna_AdpcmConfig = cmd[2]; //don't force type=dram and width=1bit in the backup
@@ -956,7 +956,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
             Driver_Opna_RhythmConfig[i] = cmd[2];
             cmd[2] &= (Driver_FmMask & (1<<6))?0b11111111:0b00111111;
             if (Driver_ForceMono && (cmd[2] & 0b11000000)) cmd[2] |= 0b11000000;
-        } else if ((cmd[0] == 0x56 || cmd[0] == 0x55) && cmd[1] == 0x07) { //ssg tone enable
+        } else if ((cmd[0] == 0x56 || cmd[0] == 0x55 || cmd[0] == 0xa0) && cmd[1] == 0x07) { //ssg tone enable
             //todo vgm_trim mitigation
             Driver_Opna_SsgConfig = cmd[2];
             cmd[2] = Driver_ProcessOpnaSsgWrite(cmd[2]); //this handles masks
@@ -965,7 +965,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
                 ChannelMgr_PcmAccu = 127;
                 ChannelMgr_PcmCount = 1;
             }
-        } else if ((cmd[0] == 0x56 || cmd[0] == 0x55) && cmd[1] >= 0x08 && cmd[1] <= 0x0a) {
+        } else if ((cmd[0] == 0x56 || cmd[0] == 0x55 || cmd[0] == 0xa0) && cmd[1] >= 0x08 && cmd[1] <= 0x0a) {
             Driver_Opna_SsgLevel[cmd[1] - 0x08] = cmd[2];
         }
         if (!nw) Driver_FmOutopna((cmd[0] == 0x57)?1:0, cmd[1], cmd[2]); //not just checking the low bit because of opn
