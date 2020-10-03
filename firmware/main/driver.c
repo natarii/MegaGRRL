@@ -551,6 +551,7 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
     //todo: clean this up, there's so much code duplication.
     if (Register >= 0xb0 && Register <= 0xb2) {
         uint8_t ch = (Port?3:0)+(Register-0xb0);
+        if (ch > 5) ESP_LOGD(TAG, "algo/fb write over");
         //Driver_FmAlgo[ch] = Value & 0b111; //now handled before we get here
         ChannelMgr_States[ch] |= CHSTATE_PARAM;
     } else if (Port == 0 && Register == 0x28) { //KON
@@ -585,6 +586,7 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
         }
     } else if (Register >= 0xa0 && Register <= 0xae) { //frequency
         uint8_t ch = (Port?3:0) + min(2,Register-0xa0); //this is wacky, but it's to deal with ch3 special mode.
+        if (ch > 5) ESP_LOGD(TAG, "freq write over, reg %02x value %02x", Register, Value);
         ChannelMgr_States[ch] |= CHSTATE_PARAM;
     } else if (Register == 0x2a) { //dac value
         if (Value >= 0x7f) {
@@ -595,24 +597,31 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
         ChannelMgr_PcmCount++;
     } else if (Register >= 0x30 && Register <= 0x3e) { //multiply, detune
         uint8_t ch = (Port?3:0)+(Register%3);
+        if (ch > 5) ESP_LOGD(TAG, "MUL/DET write over, reg %02x value %02x", Register, Value);
         ChannelMgr_States[ch] |= CHSTATE_PARAM;
     } else if (Register >= 0x40 && Register <= 0x4e) { //TL
         uint8_t ch = (Port?3:0)+(Register%3);
+        if (ch > 5) ESP_LOGD(TAG, "TL write over, reg %02x value %02x", Register, Value);
         ChannelMgr_States[ch] |= CHSTATE_PARAM;
     } else if (Register >= 0x50 && Register <= 0x5e) { //attack rate/scaling
         uint8_t ch = (Port?3:0)+(Register%3);
+        if (ch > 5) ESP_LOGD(TAG, "AR/scale write over, reg %02x value %02x", Register, Value);
         ChannelMgr_States[ch] |= CHSTATE_PARAM;
     } else if (Register >= 0x60 && Register <= 0x6e) { //1st decay, am enable
         uint8_t ch = (Port?3:0)+(Register%3);
+        if (ch > 5) ESP_LOGD(TAG, "1st decay write over, reg %02x value %02x", Register, Value);
         ChannelMgr_States[ch] |= CHSTATE_PARAM;
     } else if (Register >= 0x70 && Register <= 0x7e) { //2nd decay
         uint8_t ch = (Port?3:0)+(Register%3);
+        if (ch > 5) ESP_LOGD(TAG, "2nd decay write over, reg %02x value %02x", Register, Value);
         ChannelMgr_States[ch] |= CHSTATE_PARAM;
     } else if (Register >= 0x80 && Register <= 0x8e) { //release rate, sustain
         uint8_t ch = (Port?3:0)+(Register%3);
+        if (ch > 5) ESP_LOGD(TAG, "release/sustain write over, reg %02x value %02x", Register, Value);
         ChannelMgr_States[ch] |= CHSTATE_PARAM;
     } else if (Register >= 0x90 && Register <= 0x9e) { //SSG-EG
         uint8_t ch = (Port?3:0)+(Register%3);
+        if (ch > 5) ESP_LOGD(TAG, "ssg-eg write over, reg %02x value %02x", Register, Value);
         ChannelMgr_States[ch] |= CHSTATE_PARAM;
     } else if (Register == 0x2b) { //dac enable
         if (Value & 0x80) ChannelMgr_States[5] |= CHSTATE_DAC;
