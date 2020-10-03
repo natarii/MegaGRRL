@@ -82,7 +82,9 @@ spi_device_handle_t Driver_SpiDevice;
 
 //vgm / 2612 pcm stuff
 uint32_t Driver_Sample = 0;     //current sample number
+uint32_t Driver_Sample_Ds = 0;  //current sample number for dacstreams
 uint64_t Driver_Cycle = 0;      //current cycle number
+uint64_t Driver_Cycle_Ds = 0;   //current cycle number for dacstreams
 uint32_t Driver_Cc = 0;         //current cycle from the api - just keep it off the stack
 uint32_t Driver_LastCc = 0;     //copy of the above var
 uint32_t Driver_NextSample = 0; //sample number at which the next command needs to be run
@@ -91,6 +93,7 @@ uint8_t Driver_PsgLastChannel = 0;
 volatile bool Driver_FirstWait = true;
 uint8_t Driver_FmPans[6] = {0b11000000,0b11000000,0b11000000,0b11000000,0b11000000,0b11000000};
 uint32_t Driver_PauseSample = 0; //sample no before stop
+uint32_t Driver_PauseSample_Ds = 0; //sample no before stop for dacstreams
 uint8_t Driver_PsgAttenuation[4] = {0b10011111, 0b10111111, 0b11011111, 0b11111111};
 bool Driver_NoLeds = false;
 
@@ -100,7 +103,6 @@ uint32_t DacStreamLastSeqPlayed = 0;    //last seq successfully played
 uint8_t DacStreamId = 0;                //index of the currently playing dacstream. should maybe consider using a pointer to the queue instead of keeping this around
 bool DacStreamActive = false;           //actively playing a stream?
 uint32_t DacStreamSampleRate = 0;       //stream current sample rate
-uint32_t DacStreamSampleTime = 0;       //stream sample timer
 uint8_t DacStreamPort = 0;              //chip port to write to
 uint8_t DacStreamCommand = 0;           //chip command to use
 uint32_t DacStreamSamplesPlayed = 0;    //how many samples played so far
@@ -208,14 +210,16 @@ bool Driver_Setup() {
 
     Driver_ResetChips();
 
-    /*ESP_LOGW(TAG, "Benchmarking FmOut");
+    /*ESP_LOGW(TAG, "Benchmarking output");
     uint32_t s = xthal_get_ccount();
     for (uint8_t i=0;i<255;i++) {
-        Driver_FmOut(0,0,0);
+        Driver_Output();
     }
     uint32_t e = xthal_get_ccount();
     e = (e-s)/255;
-    ESP_LOGW(TAG, "Average write latency %d clocks", e);*/
+    e /= 240;
+    ESP_LOGW(TAG, "output time %d us", e);*/
+
 
     ESP_LOGI(TAG, "Ready");
     return true;
@@ -1056,9 +1060,9 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
             DacStreamSampleRate = DacStreamEntries[DacStreamId].SampleRate;
             DacStreamPort = DacStreamEntries[DacStreamId].ChipPort;
             DacStreamCommand = DacStreamEntries[DacStreamId].ChipCommand;
-            DacStreamSampleTime = xthal_get_ccount();
             DacStreamLastSeqPlayed = DacStreamSeq;
             DacStreamSamplesPlayed = 0;
+            Driver_Cycle_Ds = 0;
             DacStreamLengthMode = DacStreamEntries[DacStreamId].LengthMode;
             DacStreamDataLength = DacStreamEntries[DacStreamId].DataLength;
             ESP_LOGD(TAG, "playing %d q size %d rate %d LM %d len %d", DacStreamSeq, uxQueueMessagesWaiting(DacStreamEntries[DacStreamId].Queue), DacStreamSampleRate, DacStreamLengthMode, DacStreamDataLength);
@@ -1070,6 +1074,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
         if (DacStreamActive) {
             DacStreamSampleRate = *(uint32_t*)&cmd[2];
             ESP_LOGD(TAG, "Dacstream samplerate updated to %d", DacStreamSampleRate);
+            //TODO: handle the math for updating the current sample number, if sample rate changes mid-stream
         } else {
             ESP_LOGD(TAG, "Not updating dacstream samplerate, not playing");
         }
@@ -1168,6 +1173,7 @@ void Driver_Main() {
             commandeventbits |= DRIVER_EVENT_RESET_ACK;
         } else if (commandeventbits & DRIVER_EVENT_STOP_REQUEST) {
             Driver_PauseSample = Driver_Sample;
+            Driver_PauseSample_Ds = Driver_Sample_Ds;
             Driver_NoLeds = true;
             if (Driver_DetectedMod == MEGAMOD_NONE) {
                 Driver_FmOut(0, 0xb4, Driver_FmPans[0] & 0b00111111);
@@ -1190,8 +1196,9 @@ void Driver_Main() {
             Driver_NoLeds = true;
             Driver_UpdateMuting();
             Driver_NoLeds = false;
-            Driver_Cc = Driver_LastCc = DacStreamSampleTime = xthal_get_ccount(); //dacstreams may end up being off by a sample or two upon resume - not going to worry about it
+            Driver_Cc = Driver_LastCc = xthal_get_ccount();
             Driver_Sample = Driver_PauseSample;
+            Driver_Sample_Ds = Driver_PauseSample_Ds;
             xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_RUNNING);
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_RESUME_REQUEST);
             commandeventbits &= ~DRIVER_EVENT_RESUME_REQUEST;
@@ -1265,10 +1272,9 @@ void Driver_Main() {
                 //decide whether those are worth implementing
                 Driver_BusyStart = xthal_get_ccount();
                 if (uxQueueMessagesWaiting(DacStreamEntries[DacStreamId].Queue)) {
-                    uint64_t delta = (DRIVER_CLOCK_RATE/DacStreamSampleRate);
-                    delta *= (1000LL + -Driver_SpeedMult);
-                    delta /= 1000;
-                    if (xthal_get_ccount() - DacStreamSampleTime >= delta) {
+                    Driver_Cycle_Ds += diff;
+                    Driver_Sample_Ds = Driver_Cycle_Ds / (DRIVER_CLOCK_RATE/DacStreamSampleRate);
+                    if (Driver_Sample_Ds > DacStreamSamplesPlayed) {
                         uint8_t sample;
                         xQueueReceiveFromISR(DacStreamEntries[DacStreamId].Queue, &sample, 0);
                         if (Driver_DetectedMod == MEGAMOD_OPNA) {
@@ -1276,7 +1282,6 @@ void Driver_Main() {
                         } else {
                             Driver_FmOut(DacStreamPort, DacStreamCommand, sample);
                         }
-                        DacStreamSampleTime += delta;
                         DacStreamSamplesPlayed++;
                         if (DacStreamSamplesPlayed == DacStreamDataLength && (DacStreamLengthMode == 0 || DacStreamLengthMode == 1 || DacStreamLengthMode == 3)) {
                             DacStreamActive = false;
