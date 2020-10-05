@@ -245,21 +245,37 @@ void DacStream_FindTask() {
     }
 }
 
-uint8_t DacStream_FillBuf[FREAD_LOCAL_BUF];
-void DacStream_FillTask_DoPre(uint8_t idx) {
+static uint8_t DacStream_FillBuf[DACSTREAM_BUF_SIZE];
+static uint32_t LastOffset = 0;
+bool DacStream_FillTask_DoPre(uint8_t idx) { //returns whether or not it had to hit the card
+    bool ret = false;
     xSemaphoreTake(DacStream_Mutex, pdMS_TO_TICKS(1000));
     if (!DacStreamEntries[idx].SlotFree) {
         if (uxQueueSpacesAvailable(DacStreamEntries[idx].Queue) > DACSTREAM_BUF_SIZE/3 && DacStreamEntries[idx].ReadOffset < DacStreamEntries[idx].DataLength) {
             UserLedMgr_DiskState[DISKSTATE_DACSTREAM_FILL] = true;
             UserLedMgr_Notify();
             uint32_t o = DacStream_GetDataOffset(DacStreamEntries[idx].DataBankId, DacStreamEntries[idx].DataStart + DacStreamEntries[idx].ReadOffset);
-            fseek(DacStream_FillFile,o,SEEK_SET);
+            uint16_t dsbufused;
+            if (o >= LastOffset && o < LastOffset + DACSTREAM_BUF_SIZE) { //if we're going to end up reading the same chunk, don't bother, reuse the buffer
+                ESP_LOGD(TAG, "Reused buf");
+                dsbufused = o - LastOffset;
+            } else { //it's a different chunk than what's in the buf
+                ESP_LOGD(TAG, "Couldn't reuse buf");
+                fseek(DacStream_FillFile,o,SEEK_SET);
+                fread(&DacStream_FillBuf[0], 1, DACSTREAM_BUF_SIZE, DacStream_FillFile); //slight code repetition, makes flow a bit easier
+                LastOffset = o;
+                dsbufused = 0;
+                ret = true;
+            }
             uint32_t a = uxQueueSpacesAvailable(DacStreamEntries[idx].Queue);
-            uint16_t dsbufused = FREAD_LOCAL_BUF;
+            //try to find a dead dacstream that has the data we need. has to be a dead one, any active ones might have data removed 
             while (a && DacStreamEntries[idx].ReadOffset < DacStreamEntries[idx].DataLength) {
-                if (dsbufused == FREAD_LOCAL_BUF) {
-                    fread(&DacStream_FillBuf[0], 1, FREAD_LOCAL_BUF, DacStream_FillFile); //todo: fix read past eof
+                if (dsbufused == DACSTREAM_BUF_SIZE) {
+                    ESP_LOGD(TAG, "Read past buffer");
+                    fread(&DacStream_FillBuf[0], 1, DACSTREAM_BUF_SIZE, DacStream_FillFile);
                     dsbufused = 0;
+                    LastOffset += DACSTREAM_BUF_SIZE;
+                    ret = true;
                 }
                 xQueueSendToBackFromISR(DacStreamEntries[idx].Queue, &DacStream_FillBuf[dsbufused], 0);
                 dsbufused++;
@@ -271,6 +287,7 @@ void DacStream_FillTask_DoPre(uint8_t idx) {
         }
     }
     xSemaphoreGive(DacStream_Mutex);
+    return ret;
 }
 
 bool DacStream_FillRunning = false;
@@ -285,6 +302,7 @@ void DacStream_FillTask() {
             xEventGroupClearBits(DacStream_FillStatus, DACSTREAM_STOPPED);
             xEventGroupSetBits(DacStream_FillStatus, DACSTREAM_RUNNING);
             xEventGroupClearBits(DacStream_FillStatus, DACSTREAM_START_REQUEST);
+            LastOffset = 0; //invalidate - could be at the same pos in the file, but different file now
             DacStream_FillRunning = true;
         } else if (bits & DACSTREAM_STOP_REQUEST) {
             ESP_LOGI(TAG, "Fill stopping");
@@ -295,8 +313,12 @@ void DacStream_FillTask() {
         }
         if (DacStream_FillRunning) {
             if (DacStreamId != 0xff && DacStreamId != idx) DacStream_FillTask_DoPre(DacStreamId);
-            DacStream_FillTask_DoPre(idx);
+            bool ret = DacStream_FillTask_DoPre(idx);
             if (++idx == DACSTREAM_PRE_COUNT) idx = 0;
+            if (!ret) { //if we didn't hit the card, that pre was basically "free", so go ahead with the next one right away
+                bool ret = DacStream_FillTask_DoPre(idx);
+                if (++idx == DACSTREAM_PRE_COUNT) idx = 0;
+            }
             vTaskDelay(pdMS_TO_TICKS(10));
         }
     }
