@@ -135,10 +135,17 @@ void Loader_Main() {
                             LOADER_BUF_READ4(NewPos);
                             uint32_t NewOff = Loader_GetPcmOffset(NewPos);
                             if (NewOff != (Loader_PcmOff+1)) {
-                                ESP_LOGD(TAG, "Pcm seeking to %d", NewOff);
-                                fseek(Loader_PcmFile, NewOff, SEEK_SET);
-                                Loader_PcmOff = NewOff;
-                                Loader_PcmBufUsed = FREAD_LOCAL_BUF;
+                                ESP_LOGD(TAG, "Pcm seeking to NewOff %d BufUsed %d PcmOff %d", NewOff, Loader_PcmBufUsed, Loader_PcmOff);
+                                if (NewOff <= Loader_PcmOff && Loader_PcmOff - NewOff <= Loader_PcmBufUsed) { //don't seek the file if we can just rewind the buffer. todo: possibly handle optimize handling skipping forward within the buf's range?
+                                    ESP_LOGD(TAG, "PCM buffer rewind");
+                                    Loader_PcmBufUsed -= Loader_PcmOff - NewOff;
+                                    Loader_PcmOff = NewOff;
+                                } else { //it's either ahead of our current position, or too far behind that it's not in the buffer
+                                    ESP_LOGD(TAG, "PCM actual read");
+                                    fseek(Loader_PcmFile, NewOff, SEEK_SET);
+                                    Loader_PcmOff = NewOff;
+                                    Loader_PcmBufUsed = FREAD_LOCAL_BUF;
+                                }
                             }
                             Loader_PcmPos = NewPos;
                             continue;
