@@ -57,7 +57,8 @@ void backdir();
 
 char thumbsdb[] = "Thumbs.db";
 char sysvolinfo[] = "System Volume Information";
-#define BROWSER_IGNORE if (ent->d_name[0] == '.' || strcasecmp(ent->d_name, thumbsdb) == 0 || strcmp(ent->d_name, sysvolinfo) == 0) continue;
+char recyclebin[] = "$Recycle.Bin";
+#define BROWSER_IGNORE if (ent->d_name[0] == '.' || strcasecmp(ent->d_name, thumbsdb) == 0 || strcmp(ent->d_name, sysvolinfo) == 0 || strcmp(ent->d_name, recyclebin) == 0) continue;
 #define BROWSER_LAST_VER 0x15
 
 volatile SortDirection_t Ui_FileBrowser_SortDir = SORT_ASCENDING;
