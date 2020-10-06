@@ -246,7 +246,7 @@ void DacStream_FindTask() {
 }
 
 static uint8_t DacStream_FillBuf[DACSTREAM_BUF_SIZE];
-static uint32_t LastOffset = 0;
+static uint32_t LastOffset = 0xffffffff;
 bool DacStream_FillTask_DoPre(uint8_t idx) { //returns whether or not it had to hit the card
     bool ret = false;
     xSemaphoreTake(DacStream_Mutex, pdMS_TO_TICKS(1000));
@@ -302,7 +302,7 @@ void DacStream_FillTask() {
             xEventGroupClearBits(DacStream_FillStatus, DACSTREAM_STOPPED);
             xEventGroupSetBits(DacStream_FillStatus, DACSTREAM_RUNNING);
             xEventGroupClearBits(DacStream_FillStatus, DACSTREAM_START_REQUEST);
-            LastOffset = 0; //invalidate - could be at the same pos in the file, but different file now
+            LastOffset = 0xffffffff; //invalidate - could be at the same pos in the file, but different file now
             DacStream_FillRunning = true;
         } else if (bits & DACSTREAM_STOP_REQUEST) {
             ESP_LOGI(TAG, "Fill stopping");
