@@ -14,10 +14,9 @@ enum {
 };
 
 extern char QueueM3uFilename[256];
-extern char QueueM3uPath[256];
 extern char QueuePlayingFilename[512];
-extern uint32_t QueuePosition;
-extern uint32_t QueueLength;
+extern IRAM_ATTR uint32_t QueuePosition;
+extern IRAM_ATTR uint32_t QueueLength;
 
 void QueueLoadM3u(char *M3uPath, char *M3uFilename, uint32_t pos, bool CountComments);
 bool QueueNext();
