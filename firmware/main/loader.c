@@ -7,6 +7,7 @@
 #include "userled.h"
 #include "player.h"
 #include "taskmgr.h"
+#include "clk.h"
 
 static const char* TAG = "Loader";
 
@@ -26,6 +27,7 @@ uint8_t Loader_VgmBuf[FREAD_LOCAL_BUF];
 uint16_t Loader_VgmBufPos = FREAD_LOCAL_BUF;
 uint32_t Loader_VgmFilePos = 0;
 volatile bool Loader_IgnoreZeroSampleLoops = true;
+volatile bool Loader_FastOpnaUpload = false;
 
 //local buffer thingie. big speedup
 #define LOADER_BUF_FILL fseek(Loader_File, Loader_VgmFilePos, SEEK_SET); fread(&Loader_VgmBuf[0], 1, sizeof(Loader_VgmBuf), Loader_File); Loader_VgmBufPos = 0; //todo fix read past eof
@@ -167,12 +169,14 @@ void Loader_Main() {
                                 //handle opna pcm datablocks, since they need to be uploaded
                                 if (Loader_VgmDataBlocks[Loader_VgmDataBlockIndex-1].Type == 0x81) {
                                     ESP_LOGI(TAG, "Requesting OPNA PCM upload");
+                                    Clk_TempSet(0,Loader_FastOpnaUpload?12000000:8000000); //avoid timing issues / speed reduction if chip underclocked
                                     Driver_Opna_PcmUploadId = Loader_VgmDataBlockIndex-1;
                                     Driver_Opna_PcmUpload = true;
                                     while (Driver_Opna_PcmUpload) {
                                         vTaskDelay(pdMS_TO_TICKS(10));
                                         //todo: timeout?
                                     }
+                                    Clk_Restore(0);
                                     ESP_LOGI(TAG, "Done");
                                 }
                             }

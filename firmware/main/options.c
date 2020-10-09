@@ -253,6 +253,18 @@ const option_t Options[OPTION_COUNT] = {
         opts_pitchupdate,
         NULL
     },
+    {
+        0x000f,
+        "Fast OPNA ADPCM upload",
+        "Increases OPNA ADPCM upload speed. Warning: Sound chip will be overclocked.",
+        OPTION_CATEGORY_ADVANCED,
+        OPTION_TYPE_BOOL,
+        OPTION_SUBTYPE_NONE,
+        &Loader_FastOpnaUpload,
+        false,
+        NULL,
+        NULL
+    },
 /* just getting rid of this for now. portable only
     {
         "Backlight timer",

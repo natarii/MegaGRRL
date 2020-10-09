@@ -44,7 +44,7 @@ typedef struct {
     void (*cb_initial)();
 } option_t;
 
-#define OPTION_COUNT 16
+#define OPTION_COUNT 17
 
 #define OPTIONS_VER 0xA0
 

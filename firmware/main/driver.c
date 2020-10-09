@@ -508,7 +508,7 @@ void Driver_Opna_UploadByte(uint8_t pair) {
     Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; // /wr high
     Driver_SrBuf[SR_CONTROL] |= SR_BIT_FM_CS; // /cs high
     Driver_Output();
-    Driver_Sleep(15);
+    Driver_Sleep(Loader_FastOpnaUpload?12:15);
 }
 
 void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
