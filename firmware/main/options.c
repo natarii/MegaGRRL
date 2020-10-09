@@ -111,8 +111,8 @@ const option_t Options[OPTION_COUNT] = {
     },
     {
         0x0004,
-        "Channel LED brightness",
-        "Sets the overall brightness of the channel status LEDs",
+        "LED brightness",
+        "Sets the overall LED brightness",
         OPTION_CATEGORY_LEDS,
         OPTION_TYPE_NUMERIC,
         OPTION_SUBTYPE_BRIGHTNESS,
