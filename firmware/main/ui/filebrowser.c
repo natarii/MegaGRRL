@@ -9,7 +9,7 @@
 #include "../taskmgr.h"
 #include "../ui.h"
 #include "fwupdate.h"
-
+#include <rom/crc.h>
 #include <stdio.h>
 #include <dirent.h>
 
@@ -59,7 +59,7 @@ char thumbsdb[] = "Thumbs.db";
 char sysvolinfo[] = "System Volume Information";
 char recyclebin[] = "$Recycle.Bin";
 #define BROWSER_IGNORE if (ent->d_name[0] == '.' || strcasecmp(ent->d_name, thumbsdb) == 0 || strcmp(ent->d_name, sysvolinfo) == 0 || strcmp(ent->d_name, recyclebin) == 0) continue;
-#define BROWSER_LAST_VER 0x15
+#define BROWSER_LAST_VER 0x16
 
 volatile SortDirection_t Ui_FileBrowser_SortDir = SORT_ASCENDING;
 volatile bool Ui_FileBrowser_Sort = true;
@@ -122,19 +122,30 @@ void savelast() {
     uint8_t ver = BROWSER_LAST_VER;
     //ver no.
     fwrite(&ver, 1, 1, last);
+    uint32_t crc = 0;
+    fwrite(&crc, 4, 1, last); //just to alloc the space in the file, this isn't valid data yet
     char *name = direntry_cache + direntry_offset[diroffset + selectedfile];
     uint16_t s = strlen(path) + 1 + strlen(name);
     //full path including last played filename, and length thereof
     fwrite(&s, 2, 1, last);
+    crc = crc32_le(crc, (uint8_t*)&s, 2);
     fwrite(path, strlen(path), 1, last);
+    crc = crc32_le(crc, (uint8_t*)path, strlen(path));
     fwrite("/", 1, 1, last);
+    s = '/'; //extremely cheezy
+    crc = crc32_le(crc, (uint8_t*)&s, 1);
     fwrite(name, strlen(name), 1, last);
+    crc = crc32_le(crc, (uint8_t*)name, strlen(name));
     //offset of just the last played filename
     s = strlen(path)+1;
     fwrite(&s, 2, 1, last);
+    crc = crc32_le(crc, (uint8_t*)&s, 2);
     //write out the type, so we know what to check for when loading
     unsigned char type = direntry_cache[direntry_offset[diroffset + selectedfile]-1];
     fwrite(&type, 1, 1, last);
+    crc = crc32_le(crc, &type, 1);
+    fseek(last, 1, SEEK_SET);
+    fwrite(&crc, 4, 1, last);
     fclose(last);
     ESP_LOGI(TAG, "dumped fbrowser.las");
 }
@@ -153,8 +164,28 @@ bool loadhistory() {
     fread(&ver,1,1,last);
     if (ver != BROWSER_LAST_VER) {
         ESP_LOGW(TAG, "version 0x%02x doesn't match 0x%02x", ver, BROWSER_LAST_VER);
+        fclose(last);
         return false;
     }
+    uint32_t filecrc;
+    fread(&filecrc,4,1,last);
+    uint32_t curpos = ftell(last);
+    fseek(last, 0, SEEK_END);
+    uint32_t remaining = ftell(last) - curpos;
+
+    //load in the rest of the file to verify the crc
+    fseek(last, curpos, SEEK_SET);
+    fread(direntry_cache, 1, remaining, last); //don't bother bounds checking this, if the last file is bigger than the direntry cache array, something is suuuuuper wrong
+    uint32_t crc = 0;
+    crc = crc32_le(crc, (uint8_t*)direntry_cache, remaining);
+    ESP_LOGD(TAG, "SavedCRC = %08x, ReadCRC = %08x", filecrc, crc);
+    if (filecrc != crc) {
+        ESP_LOGE(TAG, "History file is corrupt!!!");
+        fclose(last);
+        return false;
+    }
+    fseek(last, curpos, SEEK_SET); //back to where we were before. TODO just yank it all out of the direntry cache array since we have it there already anyway...
+
     uint16_t pathlen;
     fread(&pathlen,2,1,last); //length of last path + filename
     fread(&path,1,pathlen,last); //last path + filename
