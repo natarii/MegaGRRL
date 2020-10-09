@@ -60,86 +60,106 @@ static void displayvalue(char *buf, bool def) {
     uint8_t val = def?Options[Options_OptId].defaultval:*(uint8_t*)Options[Options_OptId].var;
     switch (Options[Options_OptId].type) {
         case OPTION_TYPE_NUMERIC:
-            sprintf(buf, "%d", val);
-            break;
-        case OPTION_TYPE_LOOPS:
-            if (val == 255) {
-                strcpy(buf, "Infinite");
-            } else {
-                sprintf(buf, "%d", val);
+            switch (Options[Options_OptId].subtype) {
+                case OPTION_SUBTYPE_NONE:
+                case OPTION_SUBTYPE_BRIGHTNESS: //this one will go away as soon as the LUT exists
+                    sprintf(buf, "%d", val);
+                    break;
+                case OPTION_SUBTYPE_LOOPS:
+                    if (val == 255) {
+                        strcpy(buf, "Infinite");
+                    } else {
+                        sprintf(buf, "%d", val);
+                    }
+                    break;
+                case OPTION_SUBTYPE_FADELENGTH:
+                    sprintf(buf, "%d seconds", val);
+                    break;
+                case OPTION_SUBTYPE_PLAYMODE:
+                    switch ((RepeatMode_t)val) {
+                        case REPEAT_NONE:
+                            strcpy(buf, "Repeat None");
+                            break;
+                        case REPEAT_ONE:
+                            strcpy(buf, "Repeat One");
+                            break;
+                        case REPEAT_ALL:
+                            strcpy(buf, "Repeat All");
+                            break;
+                        default:
+                            break;
+                    }
+                    break;
+                case OPTION_SUBTYPE_USERLED:
+                    switch ((UserLedSource_t)val) {
+                        case USERLED_SRC_NONE:
+                            strcpy(buf, "Disabled");
+                            break;
+                        case USERLED_SRC_PLAYPAUSE:
+                            strcpy(buf, "Play/Pause");
+                            break;
+                        case USERLED_SRC_DISK_ALL:
+                            strcpy(buf, "SD Read");
+                            break;
+                        case USERLED_SRC_DISK_VGM:
+                            strcpy(buf, "SD Read (VGM)");
+                            break;
+                        case USERLED_SRC_DISK_DSALL:
+                            strcpy(buf, "SD Read (DS)");
+                            break;
+                        case USERLED_SRC_DISK_DSFILL:
+                            strcpy(buf, "SD Read (DS Fill)");
+                            break;
+                        case USERLED_SRC_DISK_DSFIND:
+                            strcpy(buf, "SD Read (DS Find)");
+                            break;
+                        case USERLED_SRC_DRIVERCPU:
+                            strcpy(buf, "Driver CPU");
+                            break;
+                        default:
+                            break;
+                    }
+                    break;
+                case OPTION_SUBTYPE_SORTDIR:
+                    switch ((SortDirection_t)val) {
+                        case SORT_ASCENDING:
+                            strcpy(buf, "Ascending");
+                            break;
+                        case SORT_DESCENDING:
+                            strcpy(buf, "Descending");
+                            break;
+                        default:
+                            break;
+                    }
+                    break;
+                default:
+                    strcpy(buf, "OPTION_TYPE_NUMERIC");
+                    break;
             }
             break;
         case OPTION_TYPE_BOOL:
-            if (val) {
-                strcpy(buf, "True");
-            } else {
-                strcpy(buf, "False");
-            }
-            break;
-        case OPTION_TYPE_STEREOMONO:
-            if (val) {
-                strcpy(buf, "Force Mono");
-            } else {
-                strcpy(buf, "Stereo");
-            }
-            break;
-        case OPTION_TYPE_PLAYMODE:
-            switch ((RepeatMode_t)val) {
-                case REPEAT_NONE:
-                    strcpy(buf, "Repeat None");
+            switch (Options[Options_OptId].subtype) {
+                case OPTION_SUBTYPE_NONE:
+                    if (val) {
+                        strcpy(buf, "True");
+                    } else {
+                        strcpy(buf, "False");
+                    }
                     break;
-                case REPEAT_ONE:
-                    strcpy(buf, "Repeat One");
-                    break;
-                case REPEAT_ALL:
-                    strcpy(buf, "Repeat All");
+                case OPTION_SUBTYPE_STEREOMONO:
+                    if (val) {
+                        strcpy(buf, "Force Mono");
+                    } else {
+                        strcpy(buf, "Stereo");
+                    }
                     break;
                 default:
+                    strcpy(buf, "OPTION_TYPE_BOOL");
                     break;
             }
             break;
-        case OPTION_TYPE_USERLED:
-            switch ((UserLedSource_t)val) {
-                case USERLED_SRC_NONE:
-                    strcpy(buf, "Disabled");
-                    break;
-                case USERLED_SRC_PLAYPAUSE:
-                    strcpy(buf, "Play/Pause");
-                    break;
-                case USERLED_SRC_DISK_ALL:
-                    strcpy(buf, "SD Read");
-                    break;
-                case USERLED_SRC_DISK_VGM:
-                    strcpy(buf, "SD Read (VGM)");
-                    break;
-                case USERLED_SRC_DISK_DSALL:
-                    strcpy(buf, "SD Read (DS)");
-                    break;
-                case USERLED_SRC_DISK_DSFILL:
-                    strcpy(buf, "SD Read (DS Fill)");
-                    break;
-                case USERLED_SRC_DISK_DSFIND:
-                    strcpy(buf, "SD Read (DS Find)");
-                    break;
-                case USERLED_SRC_DRIVERCPU:
-                    strcpy(buf, "Driver CPU");
-                    break;
-                default:
-                    break;
-            }
-            break;
-        case OPTION_TYPE_SORTDIR:
-            switch ((SortDirection_t)val) {
-                case SORT_ASCENDING:
-                    strcpy(buf, "Ascending");
-                    break;
-                case SORT_DESCENDING:
-                    strcpy(buf, "Descending");
-                    break;
-                default:
-                    break;
-            };
         default:
+            strcpy(buf, "Unknown option type");
             break;
     }
 }
@@ -148,59 +168,67 @@ static void changevalue(bool inc) {
     uint8_t *var = (uint8_t*)Options[Options_OptId].var;
     switch (Options[Options_OptId].type) {
         case OPTION_TYPE_NUMERIC:
-            if (inc) {
-                if (*var < 255) {
-                    *var += 1;
-                }
-            } else {
-                if (*var > 0) {
-                    *var -= 1;
-                }
-            }
-            break;
-        case OPTION_TYPE_USERLED:
-            if (inc) {
-                if (*var < USERLED_SRC_COUNT-1) {
-                    *var += 1;
-                }
-            } else {
-                if (*var > 0) {
-                    *var -= 1;
-                }
-            }
-            break;
-        case OPTION_TYPE_LOOPS:
-            if (inc) {
-                if (*var < 10) {
-                    *var += 1;
-                } else {
-                    *var = 255;
-                }
-            } else {
-                if (*var == 255) {
-                    *var = 10;
-                } else if (*var > 1) {
-                    *var -= 1;
-                }
-            }
-            break;
-        case OPTION_TYPE_PLAYMODE:
-            if (inc) {
-                if (*var < REPEAT_COUNT-1) *var += 1;
-            } else {
-                if (*var > 0) *var -= 1;
+            switch (Options[Options_OptId].subtype) {
+                case OPTION_SUBTYPE_NONE:
+                    if (inc) {
+                        if (*var < 255) {
+                            *var += 1;
+                        }
+                    } else {
+                        if (*var > 0) {
+                            *var -= 1;
+                        }
+                    }
+                    break;
+                case OPTION_SUBTYPE_USERLED:
+                    if (inc) {
+                        if (*var < USERLED_SRC_COUNT-1) {
+                            *var += 1;
+                        }
+                    } else {
+                        if (*var > 0) {
+                            *var -= 1;
+                        }
+                    }
+                    break;
+                case OPTION_SUBTYPE_LOOPS:
+                    if (inc) {
+                        if (*var < 10) {
+                            *var += 1;
+                        } else {
+                            *var = 255;
+                        }
+                    } else {
+                        if (*var == 255) {
+                            *var = 10;
+                        } else if (*var > 1) {
+                            *var -= 1;
+                        }
+                    }
+                    break;
+                case OPTION_SUBTYPE_PLAYMODE:
+                    if (inc) {
+                        if (*var < REPEAT_COUNT-1) *var += 1;
+                    } else {
+                        if (*var > 0) *var -= 1;
+                    }
+                    break;
+                case OPTION_SUBTYPE_SORTDIR:
+                    if (inc) {
+                        *var = SORT_DESCENDING;
+                    } else {
+                        *var = SORT_ASCENDING;
+                    }
+                    break;
+                default:
+                    //uh oh
+                    break;
             }
             break;
         case OPTION_TYPE_BOOL:
-        case OPTION_TYPE_STEREOMONO:
+            //subtype doesn't matter for changing a bool
             *var = (uint8_t)inc;
             break;
-        case OPTION_TYPE_SORTDIR:
-            if (inc) {
-                *var = SORT_DESCENDING;
-            } else {
-                *var = SORT_ASCENDING;
-            }
         default:
             break;
     }
