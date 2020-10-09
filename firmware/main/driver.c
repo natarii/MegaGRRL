@@ -1315,14 +1315,14 @@ void Driver_Main() {
 
                     //TODO ALLOW FOR CHUNKS BIGGER THAN 64KBYTE
                     pcmoff /= 4;
-                    Driver_FmOutopl3(1,0x02,pcmoff&0xff);   //start L
-                    Driver_FmOutopl3(1,0x03,pcmoff>>8);     //start H
-                    Driver_FmOutopl3(1,0x04,0xff);          //stop L
-                    Driver_FmOutopl3(1,0x05,0xff);          //stop H
-                    Driver_FmOutopl3(1,0x0c,0xff);          //limit L
-                    Driver_FmOutopl3(1,0x0d,0xff);          //limit H
-                    Driver_FmOutopl3(1,0x00,0x01);          //ADPCM reg0 reset
-                    Driver_FmOutopl3(1,0x00,0x60);          //ADPCM reg0 REC | MEMDATA
+                    Driver_FmOutopna(1,0x02,pcmoff&0xff);   //start L
+                    Driver_FmOutopna(1,0x03,pcmoff>>8);     //start H
+                    Driver_FmOutopna(1,0x04,0xff);          //stop L
+                    Driver_FmOutopna(1,0x05,0xff);          //stop H
+                    Driver_FmOutopna(1,0x0c,0xff);          //limit L
+                    Driver_FmOutopna(1,0x0d,0xff);          //limit H
+                    Driver_FmOutopna(1,0x00,0x01);          //ADPCM reg0 reset
+                    Driver_FmOutopna(1,0x00,0x60);          //ADPCM reg0 REC | MEMDATA
                     //no need to set adpcm reg1 at this point, it should be zeroed from the reset
                     Driver_Opna_PrepareUpload();
                     for (uint32_t i=0;i<pcmsize;i++) {
@@ -1336,7 +1336,7 @@ void Driver_Main() {
                     for (uint8_t j=0;j<6;j++) {
                         ChannelMgr_States[j] = 0;
                     }
-                    Driver_FmOutopl3(1,0x00,0x01);          //ADPCM reg0 reset
+                    Driver_FmOutopna(1,0x00,0x01);          //ADPCM reg0 reset
 
                     Driver_Opna_PcmUpload = false;
                 } else {
