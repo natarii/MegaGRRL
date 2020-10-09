@@ -73,7 +73,11 @@ static void displayvalue(char *buf, bool def) {
                     }
                     break;
                 case OPTION_SUBTYPE_FADELENGTH:
-                    sprintf(buf, "%d seconds", val);
+                    if (val > 1) {
+                        sprintf(buf, "%d seconds", val);
+                    } else {
+                        strcpy(buf, "1 second");
+                    }
                     break;
                 case OPTION_SUBTYPE_PLAYMODE:
                     switch ((RepeatMode_t)val) {
@@ -176,6 +180,17 @@ static void changevalue(bool inc) {
                         }
                     } else {
                         if (*var > 0) {
+                            *var -= 1;
+                        }
+                    }
+                    break;
+                case OPTION_SUBTYPE_FADELENGTH:
+                    if (inc) {
+                        if (*var < 10) {
+                            *var += 1;
+                        }
+                    } else {
+                        if (*var > 1) {
                             *var -= 1;
                         }
                     }
