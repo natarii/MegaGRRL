@@ -435,7 +435,7 @@ void Driver_FmOutopna(uint8_t Port, uint8_t Register, uint8_t Value) {
                 ChannelMgr_States[ch] &= ~CHSTATE_KON;
             }
         } else if (Register >= 0xb0 && Register <= 0xb2) { //algo
-            Driver_FmAlgo[(Port?3:0) + Register - 0xb0] = Value >> 4;
+            //Driver_FmAlgo[(Port?3:0) + Register - 0xb0] = Value >> 4;
         } else if (Register >= 0xa0 && Register <= 0xa2) { //fnum1
             ChannelMgr_States[(Port?3:0) + Register - 0xa0] |= CHSTATE_PARAM;
         } else if (Register >= 0xa4 && Register <= 0xa6) { //fnum2 + block
@@ -657,8 +657,7 @@ static uint8_t FilterTLWrite(uint8_t bank, uint8_t cmd1, uint8_t cmd2) {
 }
 
 static uint8_t FadePsgAtten(uint8_t atten) {
-    uint32_t latten = atten;
-    latten = atten & 0b1111;
+    uint32_t latten = atten & 0b1111;
     latten += map(FadePos, 0, 44100*Driver_FadeLength, 0, 0xf);
     if (latten > 0xf) latten = 0xf;
     return (atten & 0b11110000) | latten;
@@ -694,30 +693,64 @@ static void HandleAlgoWrite(uint8_t bank, uint8_t cmd1, uint8_t cmd2) {
                 if (scale) savedtl = FadeTL(savedtl);
             }
             ESP_LOGD(TAG, "fix write ch %d op %d tl %d REG 0x%02x BANK %d", ch, op, savedtl,  0x40+(ch%3)+(4*OperatorMap[op]), ch/3);
-            Driver_FmOut(ch/3, 0x40+(ch%3)+(4*OperatorMap[op]), savedtl);
+            if (Driver_DetectedMod == MEGAMOD_NONE) {
+                Driver_FmOut(ch/3, 0x40+(ch%3)+(4*OperatorMap[op]), savedtl);
+            } else if (Driver_DetectedMod == MEGAMOD_OPNA) {
+                Driver_FmOutopna(ch/3, 0x40+(ch%3)+(4*OperatorMap[op]), savedtl);
+            }
         }
         Driver_FmAlgo[ch] = newalgo;
     }
 }
 
+static uint8_t FadeSsgLevel(uint8_t level) {
+    //todo: figure out what to do about channels with envelope enabled (bit 4)
+    int32_t l = level & 0b1111;
+    l -= map(FadePos,0,44100*Driver_FadeLength,0,0xf);
+    if (l<0) l=0;
+    return (level & 0b11110000) | l;
+}
+
+static uint8_t FilterSsgLevelWrite(uint8_t cmd1, uint8_t cmd2) { //handles fades and channel muting config - channel muting handled ONLY to stop level change popping and SSGPCM!!
+    uint8_t ch = cmd1 - 0x08;
+    if (FadeActive) {
+        cmd2 = FadeSsgLevel(cmd2);
+    }
+    return cmd2;
+}
+
 static void FadeTick() {
-    for (uint8_t ch=0;ch<6;ch++) {
-        for (uint8_t op=0;op<4;op++) {
-            uint8_t savedtl = TLs[(ch*4)+op];
-            uint8_t algo = Driver_FmAlgo[ch];
-            bool scale = true;
-            if (op == 0 && algo <= 6) scale = false;
-            if (op == 1 && algo <= 3) scale = false;
-            if (op == 2 && algo <= 4) scale = false;
-            if (scale) {
-                savedtl = FadeTL(savedtl);
-                Driver_FmOut(ch/3, 0x40+(ch%3)+(4*OperatorMap[op]), savedtl);
+    if (Driver_DetectedMod == MEGAMOD_NONE || Driver_DetectedMod == MEGAMOD_OPNA) {
+        for (uint8_t ch=0;ch<6;ch++) {
+            for (uint8_t op=0;op<4;op++) {
+                uint8_t savedtl = TLs[(ch*4)+op];
+                uint8_t algo = Driver_FmAlgo[ch];
+                bool scale = true;
+                if (op == 0 && algo <= 6) scale = false;
+                if (op == 1 && algo <= 3) scale = false;
+                if (op == 2 && algo <= 4) scale = false;
+                if (scale) {
+                    savedtl = FadeTL(savedtl);
+                    if (Driver_DetectedMod == MEGAMOD_NONE) {
+                        Driver_FmOut(ch/3, 0x40+(ch%3)+(4*OperatorMap[op]), savedtl);
+                    } else if (Driver_DetectedMod == MEGAMOD_OPNA) {
+                        Driver_FmOutopna(ch/3, 0x40+(ch%3)+(4*OperatorMap[op]), savedtl);
+                    }
+                }
             }
         }
     }
 
-    for (uint8_t ch=0;ch<4;ch++) {
-        Driver_PsgOut(FilterPsgAttenWrite(Driver_PsgAttenuation[ch]));
+    if (Driver_DetectedMod == MEGAMOD_OPNA) {
+        for (uint8_t ch=0;ch<3;ch++) {
+            Driver_FmOutopna(0, 0x08+ch, FilterSsgLevelWrite(0x08+ch, Driver_Opna_SsgLevel[ch]));
+        }
+    }
+
+    if (Driver_DetectedMod == MEGAMOD_NONE || Driver_DetectedMod == MEGAMOD_OPLLPSG) {
+        for (uint8_t ch=0;ch<4;ch++) {
+            Driver_PsgOut(FilterPsgAttenWrite(Driver_PsgAttenuation[ch]));
+        }
     }
 }
 
@@ -733,7 +766,7 @@ void Driver_UpdateCh6Muting() {
     Driver_FmOut(1, 0xb6, reg);
 }
 
-uint8_t Driver_ProcessOpnaSsgWrite(uint8_t ssgreg) {
+static uint8_t Driver_ProcessSsgControlWrite(uint8_t ssgreg) {
     //tones
     for (uint8_t i=0;i<3;i++) {
         if (Driver_PsgMask & (1<<i)) { //unmuted
@@ -805,7 +838,13 @@ void Driver_UpdateMuting() {
             Driver_FmOutopna(0, i, reg);
         }
         //ssg:
-        Driver_FmOutopna(0,0x07,Driver_ProcessOpnaSsgWrite(Driver_Opna_SsgConfig));
+        //if we are coming out of mute, level registers will be wrong, because writes to them are blocked during mute. so fix them:
+        for (uint8_t i=0;i<3;i++) {
+            //only bother writing if that ch is actually enabled - prevents pops and led flashes
+            if (Driver_PsgMask & (1<<i)) Driver_FmOutopna(0,0x08+i,Driver_Opna_SsgLevel[i]);
+        }
+        //ssg tone/noise enable bits
+        Driver_FmOutopna(0,0x07,Driver_ProcessSsgControlWrite(Driver_Opna_SsgConfig));
     }
 }
 
@@ -972,7 +1011,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
         } else if ((cmd[0] == 0x56 || cmd[0] == 0x55 || cmd[0] == 0xa0) && cmd[1] == 0x07) { //ssg tone enable
             //todo vgm_trim mitigation
             Driver_Opna_SsgConfig = cmd[2];
-            cmd[2] = Driver_ProcessOpnaSsgWrite(cmd[2]); //this handles masks
+            cmd[2] = Driver_ProcessSsgControlWrite(cmd[2]); //this handles masks
         } else if (cmd[0] == 0x56 && cmd[1] == 0x10) { //rhythm
             if (cmd[2] & 0b00111111) {
                 ChannelMgr_PcmAccu = 127;
@@ -980,6 +1019,18 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
             }
         } else if ((cmd[0] == 0x56 || cmd[0] == 0x55 || cmd[0] == 0xa0) && cmd[1] >= 0x08 && cmd[1] <= 0x0a) {
             Driver_Opna_SsgLevel[cmd[1] - 0x08] = cmd[2];
+            
+            //block writes to ssg level registers during mute, to avoid level change pops:
+            if ((Driver_PsgMask & (1<<(cmd[1]-8))) == 0) nw = true;
+            
+            cmd[2] = FilterSsgLevelWrite(cmd[1], cmd[2]);
+        } else if (cmd[0] >= 0x55 && cmd[0] <= 0x57 && cmd[1] >= 0xb0 && cmd[1] <= 0xb2) { //algo
+            ESP_LOGD(TAG, "algo write");
+            HandleAlgoWrite((cmd[0]==0x57)?1:0, cmd[1], cmd[2]);
+        }
+        if (cmd[0] >= 0x55 && cmd[0] <= 0x57 && ((cmd[1] >= 0x40 && cmd[1] <= 0x42) || (cmd[1] >= 0x48 && cmd[1] <= 0x4a) || (cmd[1] >= 0x44 && cmd[1] <= 0x46) || (cmd[1] >= 0x4c && cmd[1] <= 0x4e))) { //TL
+            ESP_LOGD(TAG, "tl write");
+            cmd[2] = FilterTLWrite((cmd[0]==0x57)?1:0, cmd[1], cmd[2]);
         }
         if (!nw) Driver_FmOutopna((cmd[0] == 0x57)?1:0, cmd[1], cmd[2]); //not just checking the low bit because of opn
     } else if (cmd[0] == 0x52) { //YM2612 port 0
@@ -1191,6 +1242,18 @@ void Driver_Main() {
                 Driver_FmOut(1, 0xb4, Driver_FmPans[3] & 0b00111111);
                 Driver_FmOut(1, 0xb5, Driver_FmPans[4] & 0b00111111);
                 Driver_FmOut(1, 0xb6, Driver_FmPans[5] & 0b00111111);
+            } else if (Driver_DetectedMod == MEGAMOD_OPNA) {
+                Driver_FmOutopna(0, 0xb4, Driver_FmPans[0] & 0b00111111);
+                Driver_FmOutopna(0, 0xb5, Driver_FmPans[1] & 0b00111111);
+                Driver_FmOutopna(0, 0xb6, Driver_FmPans[2] & 0b00111111);
+                Driver_FmOutopna(1, 0xb4, Driver_FmPans[3] & 0b00111111);
+                Driver_FmOutopna(1, 0xb5, Driver_FmPans[4] & 0b00111111);
+                Driver_FmOutopna(1, 0xb6, Driver_FmPans[5] & 0b00111111);
+            }
+            if (Driver_DetectedMod == MEGAMOD_OPNA) {
+                Driver_FmOutopna(0, 0x07, Driver_Opna_SsgConfig | 0b00111111);
+            }
+            if (Driver_DetectedMod == MEGAMOD_NONE || Driver_DetectedMod == MEGAMOD_OPLLPSG) {
                 for (uint8_t i=0;i<4;i++) {
                     Driver_PsgOut(0b10011111 | (i<<5));
                 }
