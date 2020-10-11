@@ -10,6 +10,7 @@
 #include "../player.h" //for repeat mode defs
 #include "../userled.h" //for user led source defs
 #include "filebrowser.h" //for sort dir defs
+#include "../driver.h" //to know what megamod we have
 #include <string.h>
 
 static IRAM_ATTR lv_obj_t *container;
@@ -310,6 +311,7 @@ void Ui_Options_Opts_Setup(lv_obj_t *uiscreen) {
     lv_label_set_style(header, LV_LABEL_STYLE_MAIN, &headerstyle);
     uint8_t items = 0;
     for (uint8_t i=0;i<OPTION_COUNT;i++) {
+        if (Driver_DetectedMod != MEGAMOD_OPNA && Options[i].uid == 0x0010) continue;
         if (Options[i].category != Options_Cat) continue;
         items++;
     }
@@ -420,6 +422,7 @@ void redrawopts() {
     uint8_t skip = 0;
     uint8_t off = (Options_Sel/5)*5;
     for (uint8_t opt=0;opt<OPTION_COUNT;opt++) {
+        if (Driver_DetectedMod != MEGAMOD_OPNA && Options[opt].uid == 0x0010) continue;
         if (Options[opt].category != Options_Cat) continue;
         if (skip++ < off) continue;
         lv_label_set_text(optionoptlabels[idx], Options[opt].name);
@@ -469,6 +472,7 @@ void Ui_Options_Opts_Key(KeyEvent_t event) {
         } else if (event.Key == KEY_DOWN && !editing) {
             uint8_t max = 0;
             for (uint8_t opt=0;opt<OPTION_COUNT;opt++) {
+                if (Driver_DetectedMod != MEGAMOD_OPNA && Options[opt].uid == 0x0010) continue;
                 if (Options[opt].category == Options_Cat) max++;
             }
             if (Options_Sel < max-1) { //need to actually see how many things are in the category to know where to clamp this
