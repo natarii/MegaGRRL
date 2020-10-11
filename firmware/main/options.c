@@ -17,6 +17,7 @@ volatile bool OptionsMgr_Unsaved = false;
 volatile uint8_t OptionsMgr_ShittyTimer = 0;
 
 const char *OptionCatNames[OPTION_CATEGORY_COUNT] = {
+    "General",
     "File Browser",
     "LEDs",
     "Playback",
@@ -34,19 +35,8 @@ static void opts_pitchupdate() {
 
 static bool loaded[OPTION_COUNT];
 
+//last used: 10
 const option_t Options[OPTION_COUNT] = {
-    {
-        0x0000,
-        "Loop count",
-        "Number of times the looping section of the track should be played.",
-        OPTION_CATEGORY_PLAYBACK,
-        OPTION_TYPE_NUMERIC,
-        OPTION_SUBTYPE_LOOPS,
-        &Player_LoopCount,
-        2,
-        NULL,
-        NULL
-    },
     {
         0x0001,
         "Play mode",
@@ -58,6 +48,18 @@ const option_t Options[OPTION_COUNT] = {
         REPEAT_ALL,
         NULL,
         NULL
+    },
+    {
+        0x0000,
+        "Loop count",
+        "Number of times the looping section of the track should be played",
+        OPTION_CATEGORY_PLAYBACK,
+        OPTION_TYPE_NUMERIC,
+        OPTION_SUBTYPE_LOOPS,
+        &Player_LoopCount,
+        2,
+        NULL,
+        NULL
     },/*
     {
         "vgm_trim mitigation",
@@ -67,19 +69,7 @@ const option_t Options[OPTION_COUNT] = {
         &Driver_MitigateVgmTrim,
         true,
         NULL
-    },*/
-    {
-        0x0002,
-        "Ignore zero-sample loops",
-        "Some badly made VGMs specify a loop offset without a loop length. Deflemask is known to do this. Turning this option off will fix looping in some broken VGMs, but will cause unwanted looping in other broken VGMs.",
-        OPTION_CATEGORY_PLAYBACK,
-        OPTION_TYPE_BOOL,
-        OPTION_SUBTYPE_NONE,
-        &Loader_IgnoreZeroSampleLoops,
-        true,
-        NULL,
-        NULL
-    },/*
+    },*//*
     {
         "Allow PCM across block boundaries",
         "Allow PCM to be played across data block boundaries. No VGMs are known to require this, so it is recommended to leave this off. Enabling this may cause significant slowdown.",
@@ -113,7 +103,7 @@ const option_t Options[OPTION_COUNT] = {
     {
         0x0004,
         "LED brightness",
-        "Sets the overall LED brightness",
+        "Overall LED brightness",
         OPTION_CATEGORY_LEDS,
         OPTION_TYPE_NUMERIC,
         OPTION_SUBTYPE_BRIGHTNESS,
@@ -124,8 +114,8 @@ const option_t Options[OPTION_COUNT] = {
     },
     {
         0x000e,
-        "Fade out",
-        "Enables and disables fading out at the end of each track",
+        "Fade out at end",
+        "Enables and disables fading out at the end of each track.",
         OPTION_CATEGORY_PLAYBACK,
         OPTION_TYPE_BOOL,
         OPTION_SUBTYPE_NONE,
@@ -137,7 +127,7 @@ const option_t Options[OPTION_COUNT] = {
     {
         0x000f,
         "Fade length",
-        "Sets length of fade out, in seconds",
+        "Length of fade out, in seconds",
         OPTION_CATEGORY_PLAYBACK,
         OPTION_TYPE_NUMERIC,
         OPTION_SUBTYPE_FADELENGTH,
@@ -147,9 +137,21 @@ const option_t Options[OPTION_COUNT] = {
         NULL
     },
     {
+        0x0002,
+        "Ignore zero-sample loops",
+        "Some badly made VGMs specify a loop offset without a loop length. Deflemask is known to do this. Turning this option off will fix looping in some broken VGMs, but will cause unwanted looping in other broken VGMs.",
+        OPTION_CATEGORY_PLAYBACK,
+        OPTION_TYPE_BOOL,
+        OPTION_SUBTYPE_NONE,
+        &Loader_IgnoreZeroSampleLoops,
+        true,
+        NULL,
+        NULL
+    },
+    {
         0x0005,
-        "User LED A",
-        "Sets the source of User LED A",
+        "User LED A source",
+        "Sets the source of User LED A.",
         OPTION_CATEGORY_LEDS,
         OPTION_TYPE_NUMERIC,
         OPTION_SUBTYPE_USERLED,
@@ -160,8 +162,8 @@ const option_t Options[OPTION_COUNT] = {
     },
     {
         0x0006,
-        "User LED B",
-        "Sets the source of User LED B",
+        "User LED B source",
+        "Sets the source of User LED B.",
         OPTION_CATEGORY_LEDS,
         OPTION_TYPE_NUMERIC,
         OPTION_SUBTYPE_USERLED,
@@ -172,8 +174,8 @@ const option_t Options[OPTION_COUNT] = {
     },
     {
         0x0007,
-        "User LED C",
-        "Sets the source of User LED C",
+        "User LED C source",
+        "Sets the source of User LED C.",
         OPTION_CATEGORY_LEDS,
         OPTION_TYPE_NUMERIC,
         OPTION_SUBTYPE_USERLED,
@@ -197,7 +199,7 @@ const option_t Options[OPTION_COUNT] = {
     {
         0x0009,
         "Alphabetical sort direction",
-        "Set whether directory contents are sorted in ascending or descending order.",
+        "Sets whether directory contents are sorted in ascending or descending order.",
         OPTION_CATEGORY_FILEBROWSER,
         OPTION_TYPE_NUMERIC,
         OPTION_SUBTYPE_SORTDIR,
@@ -209,7 +211,7 @@ const option_t Options[OPTION_COUNT] = {
     {
         0x000a,
         "Sort dirs before files",
-        "Set whether directories appear before files.",
+        "Sets whether directories appear before files.",
         OPTION_CATEGORY_FILEBROWSER,
         OPTION_TYPE_BOOL,
         OPTION_SUBTYPE_NONE,
@@ -222,7 +224,7 @@ const option_t Options[OPTION_COUNT] = {
         0x000b,
         "Overwrite VGZ files",
         "When this is enabled, VGZ files will be overwritten with extracted VGM equivalents when first played. This will replace the files on the SD card, but will result in much shorter track load times on future plays.",
-        OPTION_CATEGORY_PLAYBACK,
+        OPTION_CATEGORY_GENERAL,
         OPTION_TYPE_BOOL,
         OPTION_SUBTYPE_NONE,
         &Player_UnvgzReplaceOriginal,
@@ -255,7 +257,7 @@ const option_t Options[OPTION_COUNT] = {
         NULL
     },
     {
-        0x000f,
+        0x0010,
         "Fast OPNA ADPCM upload",
         "Increases OPNA ADPCM upload speed. Warning: Sound chip will be overclocked.",
         OPTION_CATEGORY_ADVANCED,
@@ -266,16 +268,6 @@ const option_t Options[OPTION_COUNT] = {
         NULL,
         NULL
     },
-/* just getting rid of this for now. portable only
-    {
-        "Backlight timer",
-        "Length of time after the last keypress that the backlight will remain on.",
-        OPTION_CATEGORY_SCREEN,
-        OPTION_TYPE_NUMERIC,
-        NULL, //
-        10
-    },
-*/
 };
 
 void OptionsMgr_Save() {

@@ -22,6 +22,7 @@ typedef enum {
 } optionsubtype_t;
 
 typedef enum {
+    OPTION_CATEGORY_GENERAL,
     OPTION_CATEGORY_FILEBROWSER,
     OPTION_CATEGORY_LEDS,
     OPTION_CATEGORY_PLAYBACK,
