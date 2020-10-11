@@ -9,6 +9,7 @@
 #include "player.h"
 #include "clk.h"
 #include "pitch.h"
+#include "ui.h"
 #include <rom/crc.h>
 
 static const char* TAG = "OptionsMgr";
@@ -35,7 +36,7 @@ static void opts_pitchupdate() {
 
 static bool loaded[OPTION_COUNT];
 
-//last used: 10
+//last used: 11
 const option_t Options[OPTION_COUNT] = {
     {
         0x0001,
@@ -218,6 +219,18 @@ const option_t Options[OPTION_COUNT] = {
         &Ui_FileBrowser_DirsBeforeFiles,
         true,
         Ui_FileBrowser_InvalidateDirEntry,
+        NULL
+    },
+    {
+        0x0011,
+        "Text scroll type",
+        "Method by which long text will be scrolled",
+        OPTION_CATEGORY_GENERAL,
+        OPTION_TYPE_NUMERIC,
+        OPTION_SUBTYPE_SCROLLTYPE,
+        &Ui_ScrollType,
+        SCROLLTYPE_PINGPONG,
+        NULL, //note: if there are ever any global ui elements this applies to, we need to set a callback to force changes on them
         NULL
     },
     {

@@ -29,6 +29,8 @@ static uint8_t Ui_KeyQueueBuf[UI_KEYQUEUE_SIZE*sizeof(KeyEvent_t)];
 
 volatile bool Ui_ScreenshotEnabled = false;
 
+volatile ScrollType_t Ui_ScrollType = SCROLLTYPE_PINGPONG;
+
 volatile UiScreen_t Ui_Screen;
 UiScreen_t Ui_Screen_Last;
 
@@ -37,6 +39,12 @@ lv_style_t uiscreenstyle;
 lv_obj_t *hlines[2];
 lv_style_t hlinestyle;
 static lv_point_t hpoints[4];
+
+static const lv_label_long_mode_t scrolltypeLUT[SCROLLTYPE_COUNT] = {LV_LABEL_LONG_SROLL, LV_LABEL_LONG_SROLL_CIRC, LV_LABEL_LONG_DOT};
+
+lv_label_long_mode_t Ui_GetScrollType() {
+    return scrolltypeLUT[Ui_ScrollType];
+}
 
 bool Ui_EarlySetup() {
     ESP_LOGI(TAG, "Doing early setup...");

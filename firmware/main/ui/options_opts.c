@@ -136,6 +136,18 @@ static void displayvalue(char *buf, bool def) {
                             break;
                     }
                     break;
+                case OPTION_SUBTYPE_SCROLLTYPE:
+                    switch ((ScrollType_t)val) {
+                        case SCROLLTYPE_PINGPONG:
+                            strcpy(buf, "Ping-Pong");
+                            break;
+                        case SCROLLTYPE_CIRCULAR:
+                            strcpy(buf, "Circular");
+                            break;
+                        default:
+                            break;
+                    }
+                    break;
                 default:
                     strcpy(buf, "OPTION_TYPE_NUMERIC");
                     break;
@@ -235,6 +247,16 @@ static void changevalue(bool inc) {
                         *var = SORT_ASCENDING;
                     }
                     break;
+                case OPTION_SUBTYPE_SCROLLTYPE:
+                    if (inc) {
+                        if (*var < SCROLLTYPE_COUNT-1) *var += 1;
+                    } else {
+                        if (*var > 0) *var -= 1;
+                    }
+                    //update it so they can see it now
+                    lv_label_set_long_mode(optiondesc, Ui_GetScrollType());
+                    lv_obj_set_width(optiondesc, 220);
+                    break;
                 default:
                     //uh oh
                     break;
@@ -316,7 +338,7 @@ void Ui_Options_Opts_Setup(lv_obj_t *uiscreen) {
         optionoptlabels[i] = lv_label_create(optionoptlines[i], NULL);
         lv_obj_set_pos(optionoptlabels[i], 2, 2);
         lv_label_set_text(optionoptlabels[i], "");
-        lv_label_set_long_mode(optionoptlabels[i], (i==0xff)?LV_LABEL_LONG_SROLL:LV_LABEL_LONG_DOT); //todo
+        lv_label_set_long_mode(optionoptlabels[i], (i==0xff)?Ui_GetScrollType():LV_LABEL_LONG_DOT); //todo
         lv_obj_set_width(optionoptlabels[i], 240);
     }
 
@@ -335,7 +357,7 @@ void Ui_Options_Opts_Setup(lv_obj_t *uiscreen) {
     y += 2; //
     lv_obj_set_pos(optiondesc, 10, y);
     y += 20;
-    lv_label_set_long_mode(optiondesc, LV_LABEL_LONG_SROLL);
+    lv_label_set_long_mode(optiondesc, Ui_GetScrollType());
     lv_obj_set_width(optiondesc, 220);
     lv_label_set_anim_speed(optiondesc, 75);
 
@@ -409,7 +431,7 @@ void redrawopts() {
             Options_OptId = opt;
             lv_obj_set_style(optionoptlines[idx], &optionoptstyle_sel);
             lv_obj_set_style(optionoptlabels[idx], &optionoptstyle_sel);
-            lv_label_set_long_mode(optionoptlabels[idx], LV_LABEL_LONG_SROLL);
+            lv_label_set_long_mode(optionoptlabels[idx], Ui_GetScrollType());
             lv_label_set_text(optiondesc, Options[opt].description);
         }
         idx++;

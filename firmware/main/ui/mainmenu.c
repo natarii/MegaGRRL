@@ -116,7 +116,7 @@ void Ui_MainMenu_Setup(lv_obj_t *uiscreen) {
     mm_icondesc_style.text.font = &lv_font_dejavu_18;
 
     mm_icondesc = lv_label_create(container, NULL);
-    lv_label_set_long_mode(mm_icondesc, LV_LABEL_LONG_SROLL);
+    lv_label_set_long_mode(mm_icondesc, Ui_GetScrollType());
     lv_obj_set_pos(mm_icondesc, 11, (250/2)+(100/2)+32-15);
     lv_obj_set_size(mm_icondesc, 219, 50);
     lv_label_set_style(mm_icondesc, LV_LABEL_STYLE_MAIN, &mm_icondesc_style);

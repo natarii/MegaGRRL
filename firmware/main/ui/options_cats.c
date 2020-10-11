@@ -69,7 +69,7 @@ void Ui_Options_Cats_Setup(lv_obj_t *uiscreen) {
         optioncatlabels[i] = lv_label_create(optioncatlines[i], NULL);
         lv_obj_set_pos(optioncatlabels[i], 2, 2);
         lv_label_set_text(optioncatlabels[i], "");
-        lv_label_set_long_mode(optioncatlabels[i], (i==0xff)?LV_LABEL_LONG_SROLL:LV_LABEL_LONG_DOT);
+        lv_label_set_long_mode(optioncatlabels[i], (i==0xff)?Ui_GetScrollType():LV_LABEL_LONG_DOT);
         lv_obj_set_width(optioncatlabels[i], 240);
     }
 

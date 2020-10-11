@@ -20,12 +20,20 @@ typedef enum {
     UISCREEN_COUNT
 } UiScreen_t;
 
+typedef enum {
+    SCROLLTYPE_PINGPONG,
+    SCROLLTYPE_CIRCULAR,
+    SCROLLTYPE_COUNT,
+} ScrollType_t;
+
 extern volatile UiScreen_t Ui_Screen;
 extern UiScreen_t Ui_Screen_Last;
 extern volatile bool Ui_ScreenshotEnabled;
+extern volatile ScrollType_t Ui_ScrollType;
 
 bool Ui_EarlySetup();
 bool Ui_Setup();
 void Ui_Main();
+lv_label_long_mode_t Ui_GetScrollType();
 
 #endif

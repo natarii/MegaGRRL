@@ -218,7 +218,7 @@ bool Ui_NowPlaying_Setup(lv_obj_t *uiscreen) {
     broken_vgm_time_warning = lv_label_create(container, NULL);
     lv_label_set_style(broken_vgm_time_warning, LV_LABEL_STYLE_MAIN, &style_time_warning);
     lv_obj_set_pos(broken_vgm_time_warning, 13, 129);
-    lv_label_set_long_mode(broken_vgm_time_warning, LV_LABEL_LONG_SROLL);
+    lv_label_set_long_mode(broken_vgm_time_warning, Ui_GetScrollType());
     lv_obj_set_width(broken_vgm_time_warning, 217);
     lv_obj_set_hidden(broken_vgm_time_warning, true);
 
@@ -382,7 +382,7 @@ static void newtrack() { //gd3, pls position, loop count/samples
     } else {
         lv_label_set_static_text(text_title, Player_Gd3_Title);
     }
-    lv_label_set_long_mode(text_title, LV_LABEL_LONG_SROLL);
+    lv_label_set_long_mode(text_title, Ui_GetScrollType());
     lv_obj_set_width(text_title, 230);
 
     //author
@@ -393,7 +393,7 @@ static void newtrack() { //gd3, pls position, loop count/samples
         lv_label_set_style(text_author, LV_LABEL_STYLE_MAIN, &labelstyle);
         lv_label_set_static_text(text_author, npnone);
     }
-    lv_label_set_long_mode(text_author, LV_LABEL_LONG_SROLL);
+    lv_label_set_long_mode(text_author, Ui_GetScrollType());
     lv_obj_set_width(text_author, 230);
 
     //game
@@ -404,7 +404,7 @@ static void newtrack() { //gd3, pls position, loop count/samples
         lv_label_set_style(text_game, LV_LABEL_STYLE_MAIN, &labelstyle);
         lv_label_set_static_text(text_game, npnone);
     }
-    lv_label_set_long_mode(text_game, LV_LABEL_LONG_SROLL);
+    lv_label_set_long_mode(text_game, Ui_GetScrollType());
     lv_obj_set_width(text_game, 230);
 
     //playlist position
