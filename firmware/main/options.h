@@ -46,7 +46,8 @@ typedef struct {
 
 #define OPTION_COUNT 17
 
-#define OPTIONS_VER 0xA0
+//options version. this was 0xA0 before the crc was added, so we will support 0xA0 files.
+#define OPTIONS_VER 0xA1
 
 extern const option_t Options[];
 extern const char *OptionCatNames[];

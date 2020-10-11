@@ -9,6 +9,7 @@
 #include "player.h"
 #include "clk.h"
 #include "pitch.h"
+#include <rom/crc.h>
 
 static const char* TAG = "OptionsMgr";
 
@@ -280,61 +281,117 @@ const option_t Options[OPTION_COUNT] = {
 void OptionsMgr_Save() {
     ESP_LOGI(TAG, "saving options");
     FILE *f = fopen("/sd/.mega/options.mgo", "w");
-    uint8_t tmp = OPTIONS_VER;
+    uint32_t tmp = OPTIONS_VER;
     fwrite(&tmp, 1, 1, f);
+    uint32_t crc = 0;
+    fwrite(&crc, 4, 1, f); //alloc space for crc
     tmp = OPTION_COUNT;
     fwrite(&tmp, 1, 1, f);
+    crc = crc32_le(crc, (uint8_t*)&tmp, 1);
     for (uint8_t i=0;i<OPTION_COUNT;i++) {
         fwrite(&Options[i].uid, 2, 1, f);
+        crc = crc32_le(crc, (uint8_t*)&Options[i].uid, 2);
         if (Options[i].var == NULL) {
             tmp = 0;
             fwrite(&tmp, 1, 1, f);
+            crc = crc32_le(crc, (uint8_t*)&tmp, 1);
             continue;
         }
-        fwrite(Options[i].var, 1, 1, f);
+        fwrite((uint8_t*)Options[i].var, 1, 1, f);
+        crc = crc32_le(crc, (uint8_t*)Options[i].var, 1);
     }
+    //now write out the crc
+    fseek(f, 1, SEEK_SET);
+    fwrite(&crc, 4, 1, f);
     fclose(f);
     ESP_LOGI(TAG, "options saved");
 }
 
-void OptionsMgr_Setup() {
-    //load options, apply defaults if file not found
-    memset(&loaded, false, OPTION_COUNT);
-    ESP_LOGI(TAG, "checking options file");
-    FILE *f = fopen("/sd/.mega/options.mgo", "r");
-    if (f) {
-        uint8_t tmp = 0;
-        fread(&tmp, 1, 1, f);
-        if (tmp == OPTIONS_VER) {
-            fread(&tmp, 1, 1, f);
-            ESP_LOGI(TAG, "file contains %d options", tmp);
-            for (uint8_t i=0;i<tmp;i++) {
-                uint16_t uid = 0;
-                fread(&uid, 2, 1, f);
-                uint8_t v = 0;
-                fread(&v, 1, 1, f);
-                bool found = false;
-                for (uint8_t j=0;j<OPTION_COUNT;j++) {
-                    if (Options[j].uid == uid) {
-                        found = true;
-                        if (Options[j].var != NULL) *(volatile uint8_t*)Options[j].var = v;
-                        if (Options[j].cb_initial != NULL) Options[j].cb_initial();
-                        loaded[j] = true;
-                        ESP_LOGI(TAG, "applied option uid %d - %d", uid, v);
-                        break;
-                    }
-                }
-                if (!found) {
-                    ESP_LOGW(TAG, "skipping unknown option uid %d", uid);
-                }
-            }
-            fclose(f);
-            ESP_LOGI(TAG, "finished loading options file");
-        } else {
-            ESP_LOGW(TAG, "options file bad ver (0x%02x != 0x%02x)", tmp, OPTIONS_VER);
-        }
-    } else {
+static uint8_t loadoptionsfile(const char *filename) {
+    ESP_LOGI(TAG, "checking options file %s", filename);
+    FILE *f = fopen(filename, "r");
+    if (f == NULL) {
         ESP_LOGI(TAG, "no options file exists");
+        return 1;
+    }
+    uint32_t tmp = 0;
+    fread(&tmp, 1, 1, f);
+    //note: we still support version A0 files, it was the ver prior to the CRC being added
+    if (tmp != OPTIONS_VER && tmp != 0xa0) {
+        ESP_LOGW(TAG, "options file bad ver 0x%02x", tmp);
+        fclose(f);
+        return 2;
+    }
+    ESP_LOGI(TAG, "file ver 0x%02x", tmp);
+    if (tmp != 0xa0) { //we have a crc
+        ESP_LOGI(TAG, "Verifying crc");
+        fread(&tmp, 4, 1, f); //file's crc
+        uint32_t curpos = ftell(f);
+        fseek(f, 0, SEEK_END);
+        uint32_t remaining = ftell(f) - curpos;
+        //nobody else is using pcmbuf right now, so we can stash some stuff there
+        fseek(f, curpos, SEEK_SET);
+        fread(Driver_PcmBuf, 1, remaining, f);
+        uint32_t crc = 0;
+        crc = crc32_le(crc, Driver_PcmBuf, remaining);
+        if (tmp != crc) {
+            ESP_LOGE(TAG, "options file bad crc!!!");
+            fclose(f);
+            return 3;
+        }
+        fseek(f, curpos, SEEK_SET); //back to where we were
+        ESP_LOGI(TAG, "crc all good");
+        tmp = 0;
+    } else {
+        ESP_LOGI(TAG, "Old version, no crc to verify");
+    }
+    fread(&tmp, 1, 1, f);
+    ESP_LOGI(TAG, "file contains %d options", tmp);
+    for (uint8_t i=0;i<tmp;i++) {
+        uint16_t uid = 0;
+        fread(&uid, 2, 1, f);
+        uint8_t v = 0;
+        fread(&v, 1, 1, f);
+        bool found = false;
+        for (uint8_t j=0;j<OPTION_COUNT;j++) {
+            if (Options[j].uid == uid) {
+                found = true;
+                if (Options[j].var != NULL) *(volatile uint8_t*)Options[j].var = v;
+                if (Options[j].cb_initial != NULL) Options[j].cb_initial();
+                loaded[j] = true;
+                ESP_LOGI(TAG, "applied option uid %d - %d", uid, v);
+                break;
+            }
+        }
+        if (!found) {
+            ESP_LOGW(TAG, "skipping unknown option uid %d", uid);
+        }
+    }
+    fclose(f);
+    ESP_LOGI(TAG, "finished loading options file");
+    return 0;
+}
+
+void OptionsMgr_Setup() {
+    //load options, apply defaults if file not found, if file is corrupt try a backup
+    memset(&loaded, false, OPTION_COUNT);
+
+    uint8_t ret = loadoptionsfile("/sd/.mega/options.mgo");
+    if (ret == 3) { //corrupt, try the backup
+        ret = loadoptionsfile("/sd/.mega/options.bak");
+        //return value doesn't really matter now, if it's bad version/corrupt/doesn't exist it just won't apply anything, and we'll set defaults below
+    } else if (ret == 0) { //loaded alright, let's take a backup
+        ESP_LOGI(TAG, "Backing up options file...");
+        FILE *o = fopen("/sd/.mega/options.mgo", "r");
+        FILE *b = fopen("/sd/.mega/options.bak", "w");
+        fseek(o, 0, SEEK_END);
+        uint32_t s = ftell(o);
+        fseek(o, 0, SEEK_SET);
+        fread(Driver_PcmBuf, 1, s, o);
+        fwrite(Driver_PcmBuf, 1, s, b);
+        fclose(b);
+        fclose(o);
+        ESP_LOGI(TAG, "Backup done");
     }
 
     for (uint8_t i=0;i<OPTION_COUNT;i++) {
