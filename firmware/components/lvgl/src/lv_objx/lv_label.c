@@ -1245,8 +1245,8 @@ static void lv_label_refr_text(lv_obj_t * label)
                         LV_LABEL_WAIT_CHAR_COUNT;
         anim.ready_cb       = NULL;
         anim.path_cb        = lv_anim_path_linear;
-        anim.playback_pause = 0;
-        anim.repeat_pause   = 0;
+        anim.playback_pause = 500;
+        anim.repeat_pause   = 500;
 
         bool hor_anim = false;
         if(size.x > lv_obj_get_width(label)) {
