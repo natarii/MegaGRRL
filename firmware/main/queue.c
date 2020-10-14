@@ -59,14 +59,12 @@ void QueueLoadM3u(char *M3uPath, char *M3uFilename, uint32_t pos, bool CountComm
 
     //shuffle and write out the shuffled one
     ESP_LOGI(TAG, "Shuffling");
-    bool updated = false;
     if (QueueLength > 1) {
         for (size_t i=0;i<QueueLength-1;i++) {
             size_t j = i+rand() / (RAND_MAX/(QueueLength-i)+1);
-            if (!updated && j == QueuePosition) {
-                ESP_LOGI(TAG, "Shuffle is on, updating queue position from %d to %d", j, i);
-                QueuePosition = i;
-                updated = true;
+            if (i == QueuePosition || j == QueuePosition) { //don't screw with the currently selected one - little more user friendly behavior if they turn shuffle on/off
+                ESP_LOGI(TAG, "Shuffle is on, not swapping %d and %d", j, i);
+                continue;
             }
             uint32_t t = 0;
             memcpy(&t, &Driver_PcmBuf[5+(j*4)], 4);
