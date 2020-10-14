@@ -11,6 +11,7 @@
 #include "pitch.h"
 #include "ui.h"
 #include <rom/crc.h>
+#include "queue.h"
 
 static const char* TAG = "OptionsMgr";
 
@@ -36,7 +37,7 @@ static void opts_pitchupdate() {
 
 static bool loaded[OPTION_COUNT];
 
-//last used: 11
+//last used: 12
 const option_t Options[OPTION_COUNT] = {
     {
         0x0001,
@@ -89,6 +90,18 @@ const option_t Options[OPTION_COUNT] = {
         true,
         NULL
     },*/
+    {
+        0x0012,
+        "Shuffle",
+        "Randomize order of playback",
+        OPTION_CATEGORY_PLAYBACK,
+        OPTION_TYPE_BOOL,
+        OPTION_SUBTYPE_SHUFFLE,
+        &Queue_Shuffle,
+        false,
+        NULL,
+        NULL
+    },
     {
         0x0003,
         "Stereo/Mono toggle",

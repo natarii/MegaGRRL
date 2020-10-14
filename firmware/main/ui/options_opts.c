@@ -170,6 +170,13 @@ static void displayvalue(char *buf, bool def) {
                         strcpy(buf, "Stereo");
                     }
                     break;
+                case OPTION_SUBTYPE_SHUFFLE:
+                    if (val) {
+                        strcpy(buf, "On");
+                    } else {
+                        strcpy(buf, "Off");
+                    }
+                    break;
                 default:
                     strcpy(buf, "OPTION_TYPE_BOOL");
                     break;

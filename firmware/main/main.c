@@ -38,6 +38,7 @@
 #include "esp_flash_partitions.h"
 #include "esp_partition.h"
 #include "esp_ota_ops.h"
+#include "bootloader_random.h"
 
 #include "driver.h"
 #include "taskmgr.h"
@@ -314,6 +315,8 @@ void app_main(void)
     //it's also possible the ioexpander is very borked
     #endif
     #endif
+
+    bootloader_random_enable(); //can't use this if we ever use i2s or wireless!!
 
     ESP_LOGI(TAG, "Early LcdDma setup... let's hope this doesn't fail !!");
     LcdDma_Setup();

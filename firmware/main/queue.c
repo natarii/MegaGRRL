@@ -16,8 +16,10 @@ char QueuePlayingFilename[512]; //always absolute
 static FILE *QueueM3uFile;
 static FILE *cachefile;
 static char QueueLine[256];
+volatile bool Queue_Shuffle = false;
 #define QUEUE_CACHE_VER 1
 static const char cachefilename[] = "/sd/.mega/m3ucache.bin";
+static const char cachefilename_shuf[] = "/sd/.mega/m3ushufl.bin";
 
 void QueueLoadM3u(char *M3uPath, char *M3uFilename, uint32_t pos, bool CountComments) { //make sure to never call this while player is running! it fucks with the fileptr, temp vars, and queue position!
     CountComments = false; //needs to either be handled properly, or deleted. just doing this for now...
@@ -48,8 +50,32 @@ void QueueLoadM3u(char *M3uPath, char *M3uFilename, uint32_t pos, bool CountComm
 
     uint32_t tmp = QueueLength; //QueueLength is in IRAM, can't fwrite it directly...
     memcpy(&Driver_PcmBuf[1], &tmp, 4);
+    
+    //write out the non-shuffled playlist cache
     ESP_LOGI(TAG, "Writing playlist cache");
     cachefile = fopen(cachefilename, "w");
+    fwrite(Driver_PcmBuf, 1, 5 + (QueueLength*4), cachefile);
+    fclose(cachefile);
+
+    //shuffle and write out the shuffled one
+    ESP_LOGI(TAG, "Shuffling");
+    bool updated = false;
+    if (QueueLength > 1) {
+        for (size_t i=0;i<QueueLength-1;i++) {
+            size_t j = i+rand() / (RAND_MAX/(QueueLength-i)+1);
+            if (!updated && j == QueuePosition) {
+                ESP_LOGI(TAG, "Shuffle is on, updating queue position from %d to %d", j, i);
+                QueuePosition = i;
+                updated = true;
+            }
+            uint32_t t = 0;
+            memcpy(&t, &Driver_PcmBuf[5+(j*4)], 4);
+            memcpy(&Driver_PcmBuf[5+(j*4)], &Driver_PcmBuf[5+(i*4)], 4);
+            memcpy(&Driver_PcmBuf[5+(i*4)], &t, 4);
+        }
+    }
+    ESP_LOGI(TAG, "Writing shuffled playlist cache");
+    cachefile = fopen(cachefilename_shuf, "w");
     fwrite(Driver_PcmBuf, 1, 5 + (QueueLength*4), cachefile);
     fclose(cachefile);
     ESP_LOGI(TAG, "Done");
@@ -74,7 +100,7 @@ bool QueuePrev() {
 
 void QueueSetupEntry(bool ReturnComments) {
     if (QueueSource == QUEUE_SOURCE_M3U) {
-        cachefile = fopen(cachefilename, "r");
+        cachefile = fopen(Queue_Shuffle?cachefilename_shuf:cachefilename, "r");
         fseek(cachefile, 5 + (QueuePosition*4), SEEK_SET); //ver and entry count + file offset
         uint32_t off = 0;
         fread(&off, 4, 1, cachefile);

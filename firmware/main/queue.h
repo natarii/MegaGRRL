@@ -17,6 +17,7 @@ extern char QueueM3uFilename[256];
 extern char QueuePlayingFilename[512];
 extern IRAM_ATTR uint32_t QueuePosition;
 extern IRAM_ATTR uint32_t QueueLength;
+extern volatile bool Queue_Shuffle;
 
 void QueueLoadM3u(char *M3uPath, char *M3uFilename, uint32_t pos, bool CountComments);
 bool QueueNext();
