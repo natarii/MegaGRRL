@@ -148,7 +148,7 @@ void Ui_StatusBar_SetExtract(bool extracting) {
     if (extracting) {
         uint16_t nextx = 83;
         if (Player_RepeatMode != REPEAT_NONE) nextx += 17;
-        if (Queue_Shuffle) nextx += 17;
+        if (Queue_Shuffle) nextx += 22;
         Ui_StatusBar_DrawIcon(ICON_EXTRACT, iconlabels[3], nextx, 7);
     } else {
         lv_label_set_static_text(iconlabels[3], "");
