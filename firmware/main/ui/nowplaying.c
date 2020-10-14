@@ -55,11 +55,10 @@ static IRAM_ATTR lv_obj_t *dpad[4];
 static lv_style_t style_dpad;
 static IRAM_ATTR lv_obj_t *dpadtext[4];
 //this is really a mess and should be redone, but for now...
-static IRAM_ATTR lv_obj_t *label_opt_loops;
+static IRAM_ATTR lv_obj_t *text_opt_shuffle;
 static IRAM_ATTR lv_obj_t *text_opt_loops;
-static IRAM_ATTR lv_obj_t *label_opt_pitch;
 static IRAM_ATTR lv_obj_t *text_opt_pitch;
-static IRAM_ATTR lv_obj_t *label_opt_playmode;
+static IRAM_ATTR lv_obj_t *label_options;
 static IRAM_ATTR lv_obj_t *text_opt_playmode;
 static IRAM_ATTR lv_obj_t *text_opt_more;
 static IRAM_ATTR lv_obj_t *text_opt_muting;
@@ -105,6 +104,7 @@ bool Ui_NowPlaying_Setup(lv_obj_t *uiscreen) {
 
     lv_style_copy(&labelstyle_sm, &labelstyle);
     labelstyle_sm.text.font = &lv_font_dejavu_14_2bpp;
+    labelstyle_sm.text.line_space = -2;
 
     lv_style_copy(&textstyle_sm, &textstyle);
     textstyle_sm.text.font = &lv_font_dejavu_14_2bpp;
@@ -118,17 +118,17 @@ bool Ui_NowPlaying_Setup(lv_obj_t *uiscreen) {
     label_title = lv_label_create(container, NULL);
     lv_label_set_style(label_title, LV_LABEL_STYLE_MAIN, &labelstyle);
     lv_obj_set_pos(label_title, 5, 5);
-    lv_label_set_text(label_title, "Title");
+    lv_label_set_static_text(label_title, "Title");
 
     label_author = lv_label_create(container, NULL);
     lv_label_set_style(label_author, LV_LABEL_STYLE_MAIN, &labelstyle);
     lv_obj_set_pos(label_author, 5, 45);
-    lv_label_set_text(label_author, "Authors");
+    lv_label_set_static_text(label_author, "Authors");
 
     label_game = lv_label_create(container, NULL);
     lv_label_set_style(label_game, LV_LABEL_STYLE_MAIN, &labelstyle);
     lv_obj_set_pos(label_game, 5, 85);
-    lv_label_set_text(label_game, "Game");
+    lv_label_set_static_text(label_game, "Game");
 
     text_title = lv_label_create(container, NULL);
     lv_label_set_style(text_title, LV_LABEL_STYLE_MAIN, &textstyle);
@@ -158,22 +158,22 @@ bool Ui_NowPlaying_Setup(lv_obj_t *uiscreen) {
     text_playlist = lv_label_create(container, NULL);
     lv_label_set_style(text_playlist, LV_LABEL_STYLE_MAIN, &textstyle_sm);
     lv_obj_set_pos(text_playlist, 125, 160);
-    lv_label_set_text(text_playlist, "0 / 0");
+    lv_label_set_static_text(text_playlist, "0 / 0");
 
     label_time = lv_label_create(container, NULL);
     lv_label_set_style(label_time, LV_LABEL_STYLE_MAIN, &labelstyle_sm);
     lv_obj_set_pos(label_time, 125, 175);
-    lv_label_set_text(label_time, "Time");
+    lv_label_set_static_text(label_time, "Time");
 
     text_time = lv_label_create(container, NULL);
     lv_label_set_style(text_time, LV_LABEL_STYLE_MAIN, &textstyle_sm);
     lv_obj_set_pos(text_time, 125, 190);
-    lv_label_set_text(text_time, "00:00 / 00:00");
+    lv_label_set_static_text(text_time, "00:00 / 00:00");
 
     label_loop = lv_label_create(container, NULL);
     lv_label_set_style(label_loop, LV_LABEL_STYLE_MAIN, &labelstyle_sm);
     lv_obj_set_pos(label_loop, 125, 205);
-    lv_label_set_text(label_loop, "Loop");
+    lv_label_set_static_text(label_loop, "Loop");
 
     text_loop = lv_label_create(container, NULL);
     lv_label_set_style(text_loop, LV_LABEL_STYLE_MAIN, &textstyle_sm);
@@ -235,63 +235,57 @@ bool Ui_NowPlaying_Setup(lv_obj_t *uiscreen) {
     lv_style_copy(&textstyle_sm_sel, &textstyle_sm);
     textstyle_sm_sel.text.color = LV_COLOR_MAKE(255,255,0);
 
-    int16_t yd = 12;
-    int16_t y = 137;
-    label_opt_playmode = lv_label_create(container, NULL);
-    lv_label_set_style(label_opt_playmode, LV_LABEL_STYLE_MAIN, &labelstyle_sm);
-    lv_obj_set_pos(label_opt_playmode, 125, y);
-    y += yd;
-    lv_label_set_static_text(label_opt_playmode, "Play Mode");
+    label_options = lv_label_create(container, NULL);
+    lv_label_set_style(label_options, LV_LABEL_STYLE_MAIN, &labelstyle_sm);
+    lv_obj_set_pos(label_options, 3, 139);
+    lv_obj_set_size(label_options, 120, 100);
+    lv_label_set_align(label_options, LV_LABEL_ALIGN_RIGHT);
+    lv_label_set_static_text(label_options, "Play Mode\nLoop Count\nShuffle\nPitch\n\nChannel Muting\nMore Settings");
+
+    int16_t yd = 15;
+    int16_t y = 139;
 
     text_opt_playmode = lv_label_create(container, NULL);
     lv_label_set_style(text_opt_playmode, LV_LABEL_STYLE_MAIN, &textstyle_sm);
     lv_obj_set_pos(text_opt_playmode, 125, y);
-    y += yd+1;
-    lv_label_set_text(text_opt_playmode, "Repeat All");
-
-    label_opt_loops = lv_label_create(container, NULL);
-    lv_label_set_style(label_opt_loops, LV_LABEL_STYLE_MAIN, &labelstyle_sm);
-    lv_obj_set_pos(label_opt_loops, 125, y);
     y += yd;
-    lv_label_set_text(label_opt_loops, "Loop Count");
+    lv_label_set_static_text(text_opt_playmode, "Repeat All");
 
     text_opt_loops = lv_label_create(container, NULL);
     lv_label_set_style(text_opt_loops, LV_LABEL_STYLE_MAIN, &textstyle_sm_sel);
     lv_obj_set_pos(text_opt_loops, 125, y);
-    y += yd+1;
-    lv_label_set_text(text_opt_loops, "2");
-
-    label_opt_pitch = lv_label_create(container, NULL);
-    lv_label_set_style(label_opt_pitch, LV_LABEL_STYLE_MAIN, &labelstyle_sm);
-    lv_obj_set_pos(label_opt_pitch, 125, y);
     y += yd;
-    lv_label_set_text(label_opt_pitch, "Pitch");
+    lv_label_set_static_text(text_opt_loops, "2");
+
+    text_opt_shuffle = lv_label_create(container, NULL);
+    lv_label_set_style(text_opt_shuffle, LV_LABEL_STYLE_MAIN, &textstyle_sm_sel);
+    lv_obj_set_pos(text_opt_shuffle, 125, y);
+    y += yd;
+    lv_label_set_static_text(text_opt_shuffle, "Off");
 
     text_opt_pitch = lv_label_create(container, NULL);
     lv_label_set_style(text_opt_pitch, LV_LABEL_STYLE_MAIN, &textstyle_sm_sel);
     lv_obj_set_pos(text_opt_pitch, 125, y);
     y += yd;
-    lv_label_set_text(text_opt_pitch, "0%");
+    lv_label_set_static_text(text_opt_pitch, "0%");
 
+    y += (yd*1); //no of blank lines
 
-    yd = 15;
-    y = 219;
     text_opt_muting = lv_label_create(container, NULL);
     lv_label_set_style(text_opt_muting, LV_LABEL_STYLE_MAIN, &textstyle_sm_sel);
     lv_obj_set_pos(text_opt_muting, 125, y);
     y += yd;
-    lv_label_set_text(text_opt_muting, "Ch. Muting "LV_SYMBOL_RIGHT);
+    lv_label_set_static_text(text_opt_muting, "Press C "LV_SYMBOL_RIGHT);
 
     text_opt_more = lv_label_create(container, NULL);
     lv_label_set_style(text_opt_more, LV_LABEL_STYLE_MAIN, &textstyle_sm_sel);
     lv_obj_set_pos(text_opt_more, 125, y);
-    lv_label_set_text(text_opt_more, "More Settings "LV_SYMBOL_RIGHT);
+    lv_label_set_static_text(text_opt_more, "Press C "LV_SYMBOL_RIGHT);
 
-    lv_obj_set_hidden(label_opt_playmode, true);
+    lv_obj_set_hidden(label_options, true);
     lv_obj_set_hidden(text_opt_playmode, true);
-    lv_obj_set_hidden(label_opt_loops, true);
     lv_obj_set_hidden(text_opt_loops, true);
-    lv_obj_set_hidden(label_opt_pitch, true);
+    lv_obj_set_hidden(text_opt_shuffle, true);
     lv_obj_set_hidden(text_opt_pitch, true);
     lv_obj_set_hidden(text_opt_more, true);
     lv_obj_set_hidden(text_opt_muting, true);
@@ -321,13 +315,13 @@ bool Ui_NowPlaying_Setup(lv_obj_t *uiscreen) {
     lv_obj_set_pos(dpad[1], 45, 250-4-30);
     lv_obj_set_pos(dpad[2], 8, 179);
     lv_obj_set_pos(dpad[3], 120-8-30, 179);
-    lv_label_set_text(dpadtext[0], LV_SYMBOL_PLAY);
+    lv_label_set_static_text(dpadtext[0], LV_SYMBOL_PLAY);
     lv_obj_set_pos(dpadtext[0], 9, 5);
-    lv_label_set_text(dpadtext[1], LV_SYMBOL_STOP);
+    lv_label_set_static_text(dpadtext[1], LV_SYMBOL_STOP);
     lv_obj_set_pos(dpadtext[1], 7, 5);
-    lv_label_set_text(dpadtext[2], LV_SYMBOL_LEFT);
+    lv_label_set_static_text(dpadtext[2], LV_SYMBOL_LEFT);
     lv_obj_set_pos(dpadtext[2], 7, 5);
-    lv_label_set_text(dpadtext[3], LV_SYMBOL_RIGHT);
+    lv_label_set_static_text(dpadtext[3], LV_SYMBOL_RIGHT);
     lv_obj_set_pos(dpadtext[3], 11, 5);
     
 
@@ -461,10 +455,10 @@ static void newtrack() { //gd3, pls position, loop count/samples
 
     //initial dpad status - especially important if going mainmenu->nowplaying
     if (xEventGroupGetBits(Player_Status) & (PLAYER_STATUS_PAUSED|PLAYER_STATUS_NOT_RUNNING)) {
-        lv_label_set_text(dpadtext[0], LV_SYMBOL_PLAY);
+        lv_label_set_static_text(dpadtext[0], LV_SYMBOL_PLAY);
         lv_obj_set_pos(dpadtext[0], 9, 5);
     } else {
-        lv_label_set_text(dpadtext[0], LV_SYMBOL_PAUSE);
+        lv_label_set_static_text(dpadtext[0], LV_SYMBOL_PAUSE);
         lv_obj_set_pos(dpadtext[0], 7, 5);
     }
 
@@ -518,10 +512,10 @@ static void do_tick() {
     EventBits_t bits = xEventGroupGetBits(Player_Status);
     if (bits != laststatus) {
         if (bits & (PLAYER_STATUS_PAUSED|PLAYER_STATUS_NOT_RUNNING)) {
-            lv_label_set_text(dpadtext[0], LV_SYMBOL_PLAY);
+            lv_label_set_static_text(dpadtext[0], LV_SYMBOL_PLAY);
             lv_obj_set_pos(dpadtext[0], 9, 5);
         } else {
-            lv_label_set_text(dpadtext[0], LV_SYMBOL_PAUSE);
+            lv_label_set_static_text(dpadtext[0], LV_SYMBOL_PAUSE);
             lv_obj_set_pos(dpadtext[0], 7, 5);
         }
     }
@@ -586,11 +580,21 @@ void Ui_NowPlaying_Tick() {
 
 void drawopts() {
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
-    lv_obj_set_hidden(label_opt_playmode, !optionsopen);
+    if (optionsopen) {
+        Ui_SoftBar_Update(1, true, LV_SYMBOL_LEFT" Back", false);
+        if (selectedopt == 4 || selectedopt == 5) { //links
+            Ui_SoftBar_Update(2, true, LV_SYMBOL_RIGHT" Go", false);
+        } else {
+            Ui_SoftBar_Update(2, false, LV_SYMBOL_CLOSE" N/A", false);
+        }
+    } else {
+        Ui_SoftBar_Update(1, true, "Browser", false);
+        Ui_SoftBar_Update(2, true, "Settings", false);
+    }
+    lv_obj_set_hidden(label_options, !optionsopen);
     lv_obj_set_hidden(text_opt_playmode, !optionsopen);
-    lv_obj_set_hidden(label_opt_loops, !optionsopen);
     lv_obj_set_hidden(text_opt_loops, !optionsopen);
-    lv_obj_set_hidden(label_opt_pitch, !optionsopen);
+    lv_obj_set_hidden(text_opt_shuffle, !optionsopen);
     lv_obj_set_hidden(text_opt_pitch, !optionsopen);
     lv_obj_set_hidden(text_opt_more, !optionsopen);
     lv_obj_set_hidden(text_opt_muting, !optionsopen);
@@ -602,18 +606,22 @@ void drawopts() {
     lv_obj_set_hidden(text_loop, optionsopen);
     lv_obj_set_style(text_opt_playmode, selectedopt==0?&textstyle_sm_sel:&textstyle_sm);
     lv_obj_set_style(text_opt_loops, selectedopt==1?&textstyle_sm_sel:&textstyle_sm);
-    lv_obj_set_style(text_opt_pitch, selectedopt==2?&textstyle_sm_sel:&textstyle_sm);
-    lv_obj_set_style(text_opt_muting, selectedopt==3?&textstyle_sm_sel:&textstyle_sm);
-    lv_obj_set_style(text_opt_more, selectedopt==4?&textstyle_sm_sel:&textstyle_sm);
+    lv_obj_set_style(text_opt_shuffle, selectedopt==2?&textstyle_sm_sel:&textstyle_sm);
+    lv_obj_set_style(text_opt_pitch, selectedopt==3?&textstyle_sm_sel:&textstyle_sm);
+    lv_obj_set_style(text_opt_muting, selectedopt==4?&textstyle_sm_sel:&textstyle_sm);
+    lv_obj_set_style(text_opt_more, selectedopt==5?&textstyle_sm_sel:&textstyle_sm);
+    for (uint8_t i=0;i<4;i++) {
+        lv_obj_set_hidden(dpad[i], optionsopen);
+    }
     switch (Player_RepeatMode) {
         case REPEAT_NONE:
-            lv_label_set_text(text_opt_playmode, "Repeat None");
+            lv_label_set_static_text(text_opt_playmode, "Repeat None");
             break;
         case REPEAT_ONE:
-            lv_label_set_text(text_opt_playmode, "Repeat One");
+            lv_label_set_static_text(text_opt_playmode, "Repeat One");
             break;
         case REPEAT_ALL:
-            lv_label_set_text(text_opt_playmode, "Repeat All");
+            lv_label_set_static_text(text_opt_playmode, "Repeat All");
             break;
         default:
             break;
@@ -622,12 +630,17 @@ void drawopts() {
         sprintf(loopcountbuf, "%d", Player_LoopCount);
         lv_label_set_text(text_opt_loops, loopcountbuf);
     } else {
-        lv_label_set_text(text_opt_loops, "inf.");
+        lv_label_set_static_text(text_opt_loops, "inf.");
     }
     if (Pitch_Get() < 0) *pitchbuf = '-';
     else *pitchbuf = '+';
     sprintf(pitchbuf+1, "%.1f%%", (float)abs(Pitch_Get())/10.0f);
     lv_label_set_text(text_opt_pitch, pitchbuf);
+    if (Queue_Shuffle) {
+        lv_label_set_static_text(text_opt_shuffle, "On");
+    } else {
+        lv_label_set_static_text(text_opt_shuffle, "Off");
+    }
     LcdDma_Mutex_Give();
 }
 
@@ -638,13 +651,13 @@ void Ui_NowPlaying_Key(KeyEvent_t event) {
                 if (!optionsopen) {
                     if (QueueLength) xTaskNotify(Taskmgr_Handles[TASK_PLAYER], PLAYER_NOTIFY_PREV, eSetValueWithoutOverwrite);
                 } else {
-                    if (selectedopt == 0) {
+                    if (selectedopt == 0) { //play mode
                         if (Player_RepeatMode > 0) {
                             Player_RepeatMode--;
                             OptionsMgr_Touch();
                         }
                         drawopts();
-                    } else if (selectedopt == 1) {
+                    } else if (selectedopt == 1) { //loop count
                         if (Player_LoopCount > 1) {
                             if (Player_LoopCount != 255) {
                                 --Player_LoopCount;
@@ -655,7 +668,11 @@ void Ui_NowPlaying_Key(KeyEvent_t event) {
                             }
                         }
                         drawopts();
-                    } else if (selectedopt == 2) {
+                    } else if (selectedopt == 2) { //shuffle
+                        Queue_Shuffle = false;
+                        OptionsMgr_Touch();
+                        drawopts();
+                    } else if (selectedopt == 3) { //pitch
                         int16_t p = Pitch_Get();
                         if ((event.State & KEY_EVENT_REPEAT) && p % 10 != 0) {
                             if (p <= 0) p -= 10;
@@ -673,13 +690,13 @@ void Ui_NowPlaying_Key(KeyEvent_t event) {
                 if (!optionsopen) {
                     if (QueueLength) xTaskNotify(Taskmgr_Handles[TASK_PLAYER], PLAYER_NOTIFY_NEXT, eSetValueWithoutOverwrite);
                 } else {
-                    if (selectedopt == 0) {
+                    if (selectedopt == 0) { //play mode
                         if (Player_RepeatMode < REPEAT_COUNT-1) {
                             Player_RepeatMode++;
                             OptionsMgr_Touch();
                         }
                         drawopts();
-                    } else if (selectedopt == 1) {
+                    } else if (selectedopt == 1) { //loop count
                         if (Player_LoopCount == 10) {
                             Player_LoopCount = 255;
                             OptionsMgr_Touch();
@@ -688,7 +705,11 @@ void Ui_NowPlaying_Key(KeyEvent_t event) {
                             OptionsMgr_Touch();
                         }
                         drawopts();
-                    } else if (selectedopt == 2) {
+                    } else if (selectedopt == 2) { //shuffle
+                        Queue_Shuffle = true;
+                        OptionsMgr_Touch();
+                        drawopts();
+                    } else if (selectedopt == 3) { //pitch
                         int16_t p = Pitch_Get();
                         if ((event.State & KEY_EVENT_REPEAT) && p % 10 != 0) {
                             if (p > 0) p += 10;
@@ -699,16 +720,21 @@ void Ui_NowPlaying_Key(KeyEvent_t event) {
                         }
                         Pitch_Adjust(p);
                         drawopts();
-                    } else if (selectedopt == 3) {
-                        Ui_Screen = UISCREEN_MUTING;
-                    } else if (selectedopt == 4) {
-                        Ui_Screen = UISCREEN_OPTIONS_CATS;
                     }
                 }
                 break;
             case KEY_B:
                 KeyMgr_Consume(KEY_B);
-                Ui_Screen = UISCREEN_FILEBROWSER;
+                if (optionsopen) { //closing options
+                    optionsopen = false;
+                    drawopts();
+                    //force redraw of time and stuff, if loop count changed
+                    lastelapsedmins = 0;
+                    lastelapsedsecs = 0;
+                    do_tick();
+                } else {
+                    Ui_Screen = UISCREEN_FILEBROWSER;
+                }
                 break;
             case KEY_UP:
                 if (!optionsopen) {
@@ -737,24 +763,27 @@ void Ui_NowPlaying_Key(KeyEvent_t event) {
                     QueuePosition = 0;
                     Ui_Screen = UISCREEN_MAINMENU;
                 } else {
-                    if (selectedopt < 4) {
+                    if (selectedopt < 5) {
                         selectedopt++;
                         drawopts();
                     }
                 }
                 break;
             case KEY_C:
-                optionsopen = !optionsopen;
-                if (optionsopen) {
-                    Ui_SoftBar_Update(2, true, LV_SYMBOL_OK" Done", true);
-                } else {
-                    Ui_SoftBar_Update(2, true, "Settings", true);
-                    //force redraw of time and stuff, if loop count changed
-                    lastelapsedmins = 0;
-                    lastelapsedsecs = 0;
-                    do_tick();
+                if (optionsopen) { //options open, are we pressing go on muting or options links?
+                    //if one of the "links" is selected, go there
+                    if (selectedopt == 4) {
+                        Ui_Screen = UISCREEN_MUTING;
+                    } else if (selectedopt == 5) {
+                        Ui_Screen = UISCREEN_OPTIONS_CATS;
+                    } else {
+                        //do nothing
+                    }
+                    drawopts();
+                } else { //options not open, we're opening it
+                    optionsopen = true;
+                    drawopts();
                 }
-                drawopts();
                 break;
             case KEY_A:
                 KeyMgr_Consume(KEY_A);
