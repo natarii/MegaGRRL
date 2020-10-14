@@ -90,14 +90,14 @@ void Ui_MainMenu_Setup(lv_obj_t *uiscreen) {
 
     mm_icon = lv_img_create(container, NULL);
     lv_img_set_src(mm_icon, &img_library);
-    lv_obj_set_pos(mm_icon, (240/2)-(100/2)+1, (250/2)-(100/2)-15);
+    lv_obj_set_pos(mm_icon, (240/2)-(100/2)+1, (250/2)-(100/2)-18);
 
     mm_iconL = lv_img_create(container, NULL);
     lv_img_set_src(mm_iconL, &img_library);
-    lv_obj_set_pos(mm_iconL, -(50/2)+10, (250/2)-(50/2)-15);
+    lv_obj_set_pos(mm_iconL, -(50/2)+10, (250/2)-(50/2)-18);
     mm_iconR = lv_img_create(container, NULL);
     lv_img_set_src(mm_iconR, &img_library);
-    lv_obj_set_pos(mm_iconR, 240-(50/2)-10, (250/2)-(50/2)-15);
+    lv_obj_set_pos(mm_iconR, 240-(50/2)-10, (250/2)-(50/2)-18);
 
     lv_style_copy(&mm_icontext_style, &lv_style_plain);
     mm_icontext_style.text.color = LV_COLOR_MAKE(255,255,255);
@@ -105,7 +105,7 @@ void Ui_MainMenu_Setup(lv_obj_t *uiscreen) {
 
     mm_icontext = lv_label_create(container, NULL);
     lv_label_set_long_mode(mm_icontext, LV_LABEL_LONG_CROP);
-    lv_obj_set_pos(mm_icontext, 1, (250/2)+(100/2)-3-15);
+    lv_obj_set_pos(mm_icontext, 1, 168);
     lv_obj_set_size(mm_icontext, 239, 50);
     lv_label_set_style(mm_icontext, LV_LABEL_STYLE_MAIN, &mm_icontext_style);
     lv_label_set_align(mm_icontext, LV_LABEL_ALIGN_CENTER);
@@ -117,8 +117,8 @@ void Ui_MainMenu_Setup(lv_obj_t *uiscreen) {
 
     mm_icondesc = lv_label_create(container, NULL);
     lv_label_set_long_mode(mm_icondesc, Ui_GetScrollType());
-    lv_obj_set_pos(mm_icondesc, 11, (250/2)+(100/2)+32-15);
-    lv_obj_set_size(mm_icondesc, 219, 50);
+    lv_obj_set_pos(mm_icondesc, 4, 199);
+    lv_obj_set_size(mm_icondesc, 232, 50);
     lv_label_set_style(mm_icondesc, LV_LABEL_STYLE_MAIN, &mm_icondesc_style);
     lv_label_set_align(mm_icondesc, LV_LABEL_ALIGN_CENTER);
     lv_label_set_text(mm_icondesc, "");
