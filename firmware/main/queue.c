@@ -13,15 +13,15 @@ static uint8_t QueueSource = QUEUE_SOURCE_UNDEFINED;
 char QueueM3uFilename[256]; //always absolute
 static char QueueM3uPath[256];
 char QueuePlayingFilename[512]; //always absolute
-static FILE *QueueM3uFile;
-static FILE *cachefile;
+static FILE *QueueM3uFile = NULL;
+static FILE *cachefile = NULL;
 static char QueueLine[256];
 volatile bool Queue_Shuffle = false;
 #define QUEUE_CACHE_VER 1
 static const char cachefilename[] = "/sd/.mega/m3ucache.bin";
 static const char cachefilename_shuf[] = "/sd/.mega/m3ushufl.bin";
 
-void QueueLoadM3u(char *M3uPath, char *M3uFilename, uint32_t pos, bool CountComments) { //make sure to never call this while player is running! it fucks with the fileptr, temp vars, and queue position!
+void QueueLoadM3u(char *M3uPath, char *M3uFilename, uint32_t pos, bool CountComments, bool ShufflePreserveCurrentEntry) { //make sure to never call this while player is running! it fucks with the fileptr, temp vars, and queue position!
     CountComments = false; //needs to either be handled properly, or deleted. just doing this for now...
     ESP_LOGI(TAG, "QueueLoadM3u() starting");
 
@@ -33,6 +33,7 @@ void QueueLoadM3u(char *M3uPath, char *M3uFilename, uint32_t pos, bool CountComm
     //figure out how many entries are available, also generate offset cache
     Driver_PcmBuf[0] = QUEUE_CACHE_VER;
     QueueLength = 0;
+    if (QueueM3uFile) fclose(QueueM3uFile);
     QueueM3uFile = fopen(&QueueM3uFilename[0], "r");
     while (!feof(QueueM3uFile)) {
         uint32_t pos = ftell(QueueM3uFile); //might be faster to add up strlens rather than ftell?
@@ -44,7 +45,7 @@ void QueueLoadM3u(char *M3uPath, char *M3uFilename, uint32_t pos, bool CountComm
             }
         }
     }
-    fclose(QueueM3uFile);
+    //fclose(QueueM3uFile);
 
     ESP_LOGI(TAG, "QueueLoadM3u() found %d entries", QueueLength);
 
@@ -53,6 +54,7 @@ void QueueLoadM3u(char *M3uPath, char *M3uFilename, uint32_t pos, bool CountComm
     
     //write out the non-shuffled playlist cache
     ESP_LOGI(TAG, "Writing playlist cache");
+    if (cachefile) fclose(cachefile);
     cachefile = fopen(cachefilename, "w");
     fwrite(Driver_PcmBuf, 1, 5 + (QueueLength*4), cachefile);
     fclose(cachefile);
@@ -62,7 +64,7 @@ void QueueLoadM3u(char *M3uPath, char *M3uFilename, uint32_t pos, bool CountComm
     if (QueueLength > 1) {
         for (size_t i=0;i<QueueLength-1;i++) {
             size_t j = i+rand() / (RAND_MAX/(QueueLength-i)+1);
-            if (i == QueuePosition || j == QueuePosition) { //don't screw with the currently selected one - little more user friendly behavior if they turn shuffle on/off
+            if (ShufflePreserveCurrentEntry && (i == QueuePosition || j == QueuePosition)) { //don't screw with the currently selected one - little more user friendly behavior if they turn shuffle on/off
                 ESP_LOGI(TAG, "Shuffle is on, not swapping %d and %d", j, i);
                 continue;
             }
@@ -77,6 +79,8 @@ void QueueLoadM3u(char *M3uPath, char *M3uFilename, uint32_t pos, bool CountComm
     fwrite(Driver_PcmBuf, 1, 5 + (QueueLength*4), cachefile);
     fclose(cachefile);
     ESP_LOGI(TAG, "Done");
+
+    cachefile = NULL;
 
     if (QueuePosition > QueueLength-1) {
         ESP_LOGE(TAG, "QueueLoadM3u() got bad queue pos %d, len %d", QueuePosition, QueueLength);
@@ -96,15 +100,26 @@ bool QueuePrev() {
     return true;
 }
 
-void QueueSetupEntry(bool ReturnComments) {
+volatile char *qse_last_filename = NULL;
+
+void QueueSetupEntry(bool ReturnComments, bool ProcessShuffle) {
     if (QueueSource == QUEUE_SOURCE_M3U) {
-        cachefile = fopen(Queue_Shuffle?cachefilename_shuf:cachefilename, "r");
+        char *fn = (ProcessShuffle&&Queue_Shuffle)?cachefilename_shuf:cachefilename;
+        if (cachefile && fn != qse_last_filename) {
+            fclose(cachefile);
+            cachefile = NULL;
+        }
+        if (!cachefile) {
+            ESP_LOGI(TAG, "need to reopen queue cache");
+            cachefile = fopen(fn, "r");
+        }
+        qse_last_filename = fn;
         fseek(cachefile, 5 + (QueuePosition*4), SEEK_SET); //ver and entry count + file offset
         uint32_t off = 0;
         fread(&off, 4, 1, cachefile);
-        fclose(cachefile);
+        //fclose(cachefile);
         ESP_LOGD(TAG, "Entry at m3u file offset %d", off);
-        QueueM3uFile = fopen(&QueueM3uFilename[0], "r");
+        if (QueueM3uFile == NULL) QueueM3uFile = fopen(&QueueM3uFilename[0], "r");
         fseek(QueueM3uFile, off, SEEK_SET);
         fgets(&QueueLine[0], 255, QueueM3uFile);
         for (uint8_t i=0;i<255;i++) {
@@ -118,15 +133,15 @@ void QueueSetupEntry(bool ReturnComments) {
             } else { //already absolute
                 strcpy(QueuePlayingFilename, QueueLine);
             }
-            fclose(QueueM3uFile);
+            //fclose(QueueM3uFile);
             return;
         } else if (QueueLine[0] == '#') {
             if (ReturnComments) {
                 strcpy(QueuePlayingFilename, QueueLine);
-                fclose(QueueM3uFile);
+                //fclose(QueueM3uFile);
                 return;
             }
         }
-        fclose(QueueM3uFile);
+        //fclose(QueueM3uFile);
     }
 }

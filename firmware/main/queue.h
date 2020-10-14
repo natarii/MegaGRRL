@@ -19,9 +19,9 @@ extern IRAM_ATTR uint32_t QueuePosition;
 extern IRAM_ATTR uint32_t QueueLength;
 extern volatile bool Queue_Shuffle;
 
-void QueueLoadM3u(char *M3uPath, char *M3uFilename, uint32_t pos, bool CountComments);
+void QueueLoadM3u(char *M3uPath, char *M3uFilename, uint32_t pos, bool CountComments, bool ShufflePreserveCurrentEntry);
 bool QueueNext();
 bool QueuePrev();
-void QueueSetupEntry(bool ReturnComments);
+void QueueSetupEntry(bool ReturnComments, bool ProcessShuffle);
 
 #endif

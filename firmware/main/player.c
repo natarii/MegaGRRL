@@ -51,11 +51,11 @@ bool Player_NextTrk(bool UserSpecified) { //returns true if there is now a track
                 return false; //nothing more to play
             } else if (Player_RepeatMode == REPEAT_ALL || Player_RepeatMode == REPEAT_ONE) {
                 QueuePosition = 0;
-                QueueSetupEntry(false);
+                QueueSetupEntry(false, true);
             }
         } else { //not the end of the queue, just load the next track
             QueueNext();
-            QueueSetupEntry(false);
+            QueueSetupEntry(false, true);
         }
     }
     return true;
@@ -72,11 +72,11 @@ bool Player_PrevTrk(bool UserSpecified) { //returns true if there is now a track
                 //nothing to do - just start the same track again
             } else if (Player_RepeatMode == REPEAT_ALL || Player_RepeatMode == REPEAT_ONE) {
                 QueuePosition = QueueLength-1;
-                QueueSetupEntry(false);
+                QueueSetupEntry(false, true);
             }
         } else { //not the end of the queue, just load the prev track
             QueuePrev();
-            QueueSetupEntry(false);
+            QueueSetupEntry(false, true);
         }
     }
     return true;
@@ -94,7 +94,7 @@ void Player_Main() {
                 xEventGroupClearBits(Player_Status, PLAYER_STATUS_PAUSED);
                 if ((xEventGroupGetBits(Player_Status) & PLAYER_STATUS_RUNNING) == 0) {
                     xEventGroupSetBits(Player_Status, PLAYER_STATUS_RUNNING); //do this now, Player_StartTrack could take longer than the timeout of the task waiting for this event.
-                    QueueSetupEntry(false);
+                    QueueSetupEntry(false, true);
                     Player_StartTrack(&QueuePlayingFilename[0]);
                 } else {
                     //already running. yikes!

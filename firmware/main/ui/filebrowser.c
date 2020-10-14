@@ -510,9 +510,9 @@ void m3u2m3u() {
     FILE *p;
     p = fopen("/sd/.mega/temp.m3u", "w");
 
-    QueueLoadM3u(path, temppath, 0, true);
+    QueueLoadM3u(path, temppath, 0, true, false); //don't care about position after shuffle, we don't shuffle here ever
     for (uint32_t i=0;i<QueueLength;i++) {
-        QueueSetupEntry(true);
+        QueueSetupEntry(true, false);
         strcat(QueuePlayingFilename, "\n"); //VILE
         fwrite(QueuePlayingFilename, strlen(QueuePlayingFilename), 1, p);
         QueueNext();
@@ -538,7 +538,7 @@ void openselection() {
             ESP_LOGI(TAG, "wait stop");
             xEventGroupWaitBits(Player_Status, PLAYER_STATUS_NOT_RUNNING, false, true, pdMS_TO_TICKS(3000));
             ESP_LOGI(TAG, "load m3u");
-            QueueLoadM3u("/sd/.mega", "/sd/.mega/temp.m3u", dumpm3u(), false);
+            QueueLoadM3u("/sd/.mega", "/sd/.mega/temp.m3u", dumpm3u(), false, true);
             ESP_LOGI(TAG, "request start");
             xTaskNotify(Taskmgr_Handles[TASK_PLAYER], PLAYER_NOTIFY_START_RUNNING, eSetValueWithoutOverwrite);
             Ui_Screen = UISCREEN_NOWPLAYING;
@@ -558,7 +558,7 @@ void openselection() {
             strcat(temppath, name);
             m3u2m3u();
             ESP_LOGI(TAG, "load m3u");
-            QueueLoadM3u("/sd/.mega", "/sd/.mega/temp.m3u", 0, false);
+            QueueLoadM3u("/sd/.mega", "/sd/.mega/temp.m3u", 0, false, true);
             ESP_LOGI(TAG, "request start");
             xTaskNotify(Taskmgr_Handles[TASK_PLAYER], PLAYER_NOTIFY_START_RUNNING, eSetValueWithoutOverwrite);
             Ui_Screen = UISCREEN_NOWPLAYING;
