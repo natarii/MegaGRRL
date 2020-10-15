@@ -163,6 +163,7 @@ void Ui_Main() {
             }
         }
         if (Ui_Screen != Ui_Screen_Last) {
+            UiScreen_t scr = Ui_Screen;
             ESP_LOGI(TAG, "screen %d -> %d", Ui_Screen_Last, Ui_Screen);
             ESP_LOGI(TAG, "destroying old");
             switch (Ui_Screen_Last) {
@@ -201,7 +202,6 @@ void Ui_Main() {
                 default:
                     break;
             }
-            Ui_Screen_Last = Ui_Screen;
             ESP_LOGI(TAG, "creating new");
             switch (Ui_Screen) {
                 case UISCREEN_FILEBROWSER:
@@ -237,6 +237,7 @@ void Ui_Main() {
                 default:
                     break;
             }
+            Ui_Screen_Last = scr; //one of the setups might have changed the actual Ui_Screen var, so use this backup. we should really have a function to change screen, not just setting a var...
         }
         Ui_StatusBar_Tick();
         Ui_FileBrowser_Tick();
