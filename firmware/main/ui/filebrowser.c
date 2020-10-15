@@ -55,9 +55,9 @@ void redrawlist();
 void startdir(bool docache);
 void backdir();
 
-char thumbsdb[] = "Thumbs.db";
-char sysvolinfo[] = "System Volume Information";
-char recyclebin[] = "$Recycle.Bin";
+static const char thumbsdb[] = "Thumbs.db";
+static const char sysvolinfo[] = "System Volume Information";
+static const char recyclebin[] = "$Recycle.Bin";
 #define BROWSER_IGNORE if (ent->d_name[0] == '.' || strcasecmp(ent->d_name, thumbsdb) == 0 || strcmp(ent->d_name, sysvolinfo) == 0 || strcmp(ent->d_name, recyclebin) == 0) continue;
 #define BROWSER_LAST_VER 0x16
 
