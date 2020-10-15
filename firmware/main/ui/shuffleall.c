@@ -8,6 +8,7 @@
 #include "../player.h"
 #include "../taskmgr.h"
 #include "../options.h"
+#include "../driver.h" //for buffer space
 #include "softbar.h"
 #include <stdio.h>
 #include <dirent.h>
@@ -36,6 +37,7 @@ static IRAM_ATTR lv_obj_t *preload;
 static bool already = false;
 static char cntbuf[16] = "0 tracks";
 static IRAM_ATTR uint32_t trackcount = 0;
+static IRAM_ATTR uint32_t bufused = 0;
 
 static void trimdir() {
     uint16_t l = 0xffff;
@@ -68,12 +70,19 @@ static void dumppls() {
         } else if (ent->d_type == DT_REG) {
             uint32_t namelen = strlen(ent->d_name);
             if ((strcasecmp(&ent->d_name[namelen-4], ".vgm") == 0) || (strcasecmp(&ent->d_name[namelen-4], ".vgz") == 0)) {
-                strcpy(temppath, path);
-                strcat(temppath, "/");
-                strcat(temppath, ent->d_name);
-                strcat(temppath, "\n");
-                fwrite(temppath, 1, strlen(temppath), f);
+                memcpy(&Driver_PcmBuf[bufused], path, strlen(path));
+                bufused += strlen(path);
+                Driver_PcmBuf[bufused++] = '/';
+                memcpy(&Driver_PcmBuf[bufused], ent->d_name, strlen(ent->d_name));
+                bufused += strlen(ent->d_name);
+                Driver_PcmBuf[bufused++] = 0x0a;
                 trackcount++;
+
+                if (bufused >= 79500) {
+                    ESP_LOGI(TAG, "Flushing");
+                    fwrite(Driver_PcmBuf, 1, bufused, f);
+                    bufused = 0;
+                }
             }
         }
     }
@@ -169,6 +178,11 @@ void Ui_ShuffleAll_Setup(lv_obj_t *uiscreen) {
         strcpy(path, "/sd");
         ESP_LOGI(TAG, "start dumping playlist");
         dumppls();
+        
+        if (bufused) {
+            ESP_LOGI(TAG, "Flushing");
+            fwrite(Driver_PcmBuf, 1, bufused, f);
+        }
 
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         lv_obj_set_hidden(cnt, true);
