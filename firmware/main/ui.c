@@ -20,6 +20,7 @@
 #include "ui/options_opts.h"
 #include "ui/fwupdate.h"
 #include "ui/debug.h"
+#include "ui/shuffleall.h"
 
 static const char* TAG = "Ui";
 
@@ -103,6 +104,7 @@ bool Ui_Setup() {
 }
 
 void Ui_Main() {
+    //todo: clean up this disaster
     ESP_LOGI(TAG, "Task start");
     KeyMgr_TargetTask = Taskmgr_Handles[TASK_UI]; //can't do this in early setup, because handle isn't known yet
     while (1) {
@@ -151,6 +153,9 @@ void Ui_Main() {
                     case UISCREEN_DEBUG:
                         Ui_Debug_Key(event);
                         break;
+                    case UISCREEN_SHUFFLEALL:
+                        Ui_ShuffleAll_Key(event);
+                        break;
                     default:
                         break;
                 }
@@ -190,9 +195,13 @@ void Ui_Main() {
                 case UISCREEN_DEBUG:
                     Ui_Debug_Destroy();
                     break;
+                case UISCREEN_SHUFFLEALL:
+                    Ui_ShuffleAll_Destroy();
+                    break;
                 default:
                     break;
             }
+            Ui_Screen_Last = Ui_Screen;
             ESP_LOGI(TAG, "creating new");
             switch (Ui_Screen) {
                 case UISCREEN_FILEBROWSER:
@@ -222,10 +231,12 @@ void Ui_Main() {
                 case UISCREEN_DEBUG:
                     Ui_Debug_Setup(uiscreen);
                     break;
+                case UISCREEN_SHUFFLEALL:
+                    Ui_ShuffleAll_Setup(uiscreen);
+                    break;
                 default:
                     break;
             }
-            Ui_Screen_Last = Ui_Screen;
         }
         Ui_StatusBar_Tick();
         Ui_FileBrowser_Tick();

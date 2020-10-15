@@ -419,7 +419,7 @@ typedef void * lv_obj_user_data_t;
  */
 
 /*Arc (dependencies: -)*/
-#define LV_USE_ARC      0
+#define LV_USE_ARC      1
 
 /*Bar (dependencies: -)*/
 #define LV_USE_BAR      0
@@ -521,11 +521,11 @@ typedef void * lv_obj_user_data_t;
 #endif
 
 /*Preload (dependencies: lv_arc, lv_anim)*/
-#define LV_USE_PRELOAD      0
+#define LV_USE_PRELOAD      1
 #if LV_USE_PRELOAD != 0
 #  define LV_PRELOAD_DEF_ARC_LENGTH   60      /*[deg]*/
 #  define LV_PRELOAD_DEF_SPIN_TIME    1000    /*[ms]*/
-#  define LV_PRELOAD_DEF_ANIM         LV_PRELOAD_TYPE_SPINNING_ARC
+#  define LV_PRELOAD_DEF_ANIM         LV_PRELOAD_TYPE_CONSTANT_ARC
 #endif
 
 /*Roller (dependencies: lv_ddlist)*/

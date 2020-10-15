@@ -16,6 +16,7 @@ typedef enum {
     UISCREEN_ABOUT,
     UISCREEN_FWUPDATE,
     UISCREEN_DEBUG,
+    UISCREEN_SHUFFLEALL,
 
     UISCREEN_COUNT
 } UiScreen_t;
