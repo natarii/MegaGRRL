@@ -63,7 +63,7 @@ void QueueLoadM3u(char *M3uPath, char *M3uFilename, uint32_t pos, bool CountComm
     ESP_LOGI(TAG, "Shuffling");
     if (QueueLength > 1) {
         for (size_t i=0;i<QueueLength-1;i++) {
-            size_t j = i+rand() / (RAND_MAX/(QueueLength-i)+1);
+            size_t j = i+esp_random() / (UINT32_MAX/(QueueLength-i)+1);
             if (ShufflePreserveCurrentEntry && (i == QueuePosition || j == QueuePosition)) { //don't screw with the currently selected one - little more user friendly behavior if they turn shuffle on/off
                 ESP_LOGI(TAG, "Shuffle is on, not swapping %d and %d", j, i);
                 continue;
