@@ -44,13 +44,11 @@ uint8_t Driver_SrBuf[2] = {0xff & ~SR_BIT_IC,0x00};
 uint8_t Driver_SrBuf[2] = {0x00,0xff & ~SR_BIT_IC};
 #endif
 
-QueueHandle_t Driver_CommandQueue; //queue of incoming vgm data
-QueueHandle_t Driver_PcmQueue; //queue of attached pcm data (if any)
+MegaStreamContext_t Driver_CommandStream; //queue of incoming vgm data
+MegaStreamContext_t Driver_PcmStream; //queue of attached pcm data (if any)
 EventGroupHandle_t Driver_CommandEvents; //driver status flags
-EventGroupHandle_t Driver_QueueEvents; //queue status flags
-StaticQueue_t Driver_CommandStaticQueue;
-StaticQueue_t Driver_PcmStaticQueue;
-uint8_t *Driver_CommandQueueBuf;
+EventGroupHandle_t Driver_StreamEvents; //queue status flags
+uint8_t *Driver_CommandStreamBuf;
 uint8_t Driver_PcmBuf[DACSTREAM_BUF_SIZE*DACSTREAM_PRE_COUNT];
 
 volatile uint32_t Driver_CpuPeriod = 0;
@@ -153,32 +151,24 @@ static uint32_t map(uint32_t x, uint32_t in_min, uint32_t in_max, uint32_t out_m
 }
 
 bool Driver_Setup() {
-    //create the queues and event groups
     ESP_LOGI(TAG, "Setting up");
-    ESP_LOGI(TAG, "working around dram0 size - allocating commandqueue buffer...");
-    Driver_CommandQueueBuf = heap_caps_malloc(DRIVER_QUEUE_SIZE, MALLOC_CAP_8BIT);
-    if (Driver_CommandQueueBuf == NULL) {
+
+    ESP_LOGI(TAG, "working around dram0 size - allocating commandstream buffer...");
+    Driver_CommandStreamBuf = heap_caps_malloc(DRIVER_QUEUE_SIZE, MALLOC_CAP_8BIT);
+    if (Driver_CommandStreamBuf == NULL) {
         ESP_LOGE(TAG, "failed !!");
         return false;
     }
-    Driver_CommandQueue = xQueueCreateStatic(DRIVER_QUEUE_SIZE, sizeof(uint8_t), Driver_CommandQueueBuf, &Driver_CommandStaticQueue);
-    if (Driver_CommandQueue == NULL) {
-        ESP_LOGE(TAG, "Command queue create failed !!");
-        return false;
-    }
-    Driver_PcmQueue = xQueueCreateStatic(DRIVER_QUEUE_SIZE, sizeof(uint8_t), &Driver_PcmBuf[0], &Driver_PcmStaticQueue);
-    if (Driver_PcmQueue == NULL) {
-        ESP_LOGE(TAG, "Pcm queue create failed !!");
-        return false;
-    }
+    MegaStream_Create(&Driver_CommandStream, Driver_CommandStreamBuf, DRIVER_QUEUE_SIZE);
+    MegaStream_Create(&Driver_PcmStream, Driver_PcmBuf, DRIVER_QUEUE_SIZE);
     Driver_CommandEvents = xEventGroupCreate();
     if (Driver_CommandEvents == NULL) {
         ESP_LOGE(TAG, "Command event group create failed !!");
         return false;
     }
-    Driver_QueueEvents = xEventGroupCreate();
-    if (Driver_QueueEvents == NULL) {
-        ESP_LOGE(TAG, "Queue event group create failed !!");
+    Driver_StreamEvents = xEventGroupCreate();
+    if (Driver_StreamEvents == NULL) {
+        ESP_LOGE(TAG, "Stream event group create failed !!");
         return false;
     }
 
@@ -889,14 +879,12 @@ uint16_t opnastart = 0;
 uint16_t opnastart_hacked = 0;
 uint16_t opnastop = 0;
 uint16_t opnastop_hacked = 0;
-bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the queue. command length as a parameter just to avoid looking it up a second time
+bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the stream. command length as a parameter just to avoid looking it up a second time
     uint8_t cmd[CommandLength]; //buffer for command + attached data
     bool nw = false; //skip write
     
-    //read command + data from the queue
-    for (uint8_t i=0;i<CommandLength;i++) {
-        xQueueReceiveFromISR(Driver_CommandQueue, &cmd[i], 0);
-    }
+    //read command + data from the stream
+    MegaStream_Recv(&Driver_CommandStream, cmd, CommandLength);
 
     if (cmd[0] == 0x50) { //SN76489
         //psg writes need to be intercepted to fix frequency register differences between TI PSG <-> SEGA VDP PSG
@@ -1094,8 +1082,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
         if (Driver_FirstWait) Driver_SetFirstWait();
     } else if ((cmd[0] & 0xf0) == 0x80) { //YM2612 DAC + wait
         uint8_t sample;
-        //TODO check if queue is empty
-        xQueueReceiveFromISR(Driver_PcmQueue, &sample, 0);
+        MegaStream_Recv(&Driver_PcmStream, &sample, 1);
         Driver_FmOut(0, 0x2a, sample);
         Driver_NextSample += cmd[0] & 0x0f;
         if (Driver_FirstWait && (cmd[0] & 0x0f) > 0) {
@@ -1125,7 +1112,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the qu
             Driver_Cycle_Ds = 0;
             DacStreamLengthMode = DacStreamEntries[DacStreamId].LengthMode;
             DacStreamDataLength = DacStreamEntries[DacStreamId].DataLength;
-            ESP_LOGD(TAG, "playing %d q size %d rate %d LM %d len %d", DacStreamSeq, uxQueueMessagesWaiting(DacStreamEntries[DacStreamId].Queue), DacStreamSampleRate, DacStreamLengthMode, DacStreamDataLength);
+            ESP_LOGD(TAG, "playing %d q size %d rate %d LM %d len %d", DacStreamSeq, MegaStream_Used(&DacStreamEntries[DacStreamId].Stream), DacStreamSampleRate, DacStreamLengthMode, DacStreamDataLength);
             DacStreamActive = true;
         }
     } else if (cmd[0] == 0x94) { //dac stream stop
@@ -1182,7 +1169,7 @@ void Driver_Main() {
     while (1) {
         Driver_Cc = xthal_get_ccount();
         uint8_t commandeventbits = xEventGroupGetBits(Driver_CommandEvents);
-        uint8_t queueeventbits = xEventGroupGetBits(Driver_QueueEvents);
+        uint8_t queueeventbits = xEventGroupGetBits(Driver_StreamEvents);
         if (commandeventbits & DRIVER_EVENT_START_REQUEST) {
             //reset all internal vars
             Driver_Cycle = 0;
@@ -1297,21 +1284,20 @@ void Driver_Main() {
             //vgm stuff
             if (Driver_Sample >= Driver_NextSample) { //time to move on to the next sample
                 Driver_BusyStart = xthal_get_ccount();
-                uint32_t waiting = uxQueueMessagesWaiting(Driver_CommandQueue);
+                uint32_t waiting = MegaStream_Used(&Driver_CommandStream);
                 if (waiting > 0) { //is any data available?
                     //update half-empty event bit
                     if ((queueeventbits & DRIVER_EVENT_COMMAND_HALF) == 0 && waiting <= DRIVER_QUEUE_SIZE/2) {
-                        xEventGroupSetBits(Driver_QueueEvents, DRIVER_EVENT_COMMAND_HALF);
+                        xEventGroupSetBits(Driver_StreamEvents, DRIVER_EVENT_COMMAND_HALF);
                         queueeventbits |= DRIVER_EVENT_COMMAND_HALF;
                     } else if ((queueeventbits & DRIVER_EVENT_COMMAND_HALF) && waiting > DRIVER_QUEUE_SIZE/2) {
-                        xEventGroupClearBits(Driver_QueueEvents, DRIVER_EVENT_COMMAND_HALF);
+                        xEventGroupClearBits(Driver_StreamEvents, DRIVER_EVENT_COMMAND_HALF);
                         queueeventbits &= ~DRIVER_EVENT_COMMAND_HALF;
                     }
 
-                    uint8_t peeked;
-                    xQueuePeek(Driver_CommandQueue, &peeked, 0); //peek at first command in the queue
+                    uint8_t peeked = MegaStream_Peek(&Driver_CommandStream);
                     uint8_t cmdlen = VgmCommandLength(peeked); //look up the length of this command + attached data
-                    if (waiting >= cmdlen) { //if the entire command + data is in the queue
+                    if (waiting >= cmdlen) { //if the entire command + data is in the stream
                         bool ret = Driver_RunCommand(cmdlen);
                         if (!ret) {
                             printf("ERR command run fail");
@@ -1319,14 +1305,14 @@ void Driver_Main() {
                             /*xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_ERROR);
                             commandeventbits |= DRIVER_EVENT_ERROR;*/
                         }
-                    } else { //not enough data in queue - underrun
-                        xEventGroupSetBits(Driver_QueueEvents, DRIVER_EVENT_COMMAND_UNDERRUN);
+                    } else { //not enough data in stream - underrun
+                        xEventGroupSetBits(Driver_StreamEvents, DRIVER_EVENT_COMMAND_UNDERRUN);
                         queueeventbits |= DRIVER_EVENT_COMMAND_UNDERRUN;
                         printf("UNDER data\n");
                         fflush(stdout);
                     }
-                } else { //no data at all in queue - underrun
-                    xEventGroupSetBits(Driver_QueueEvents, DRIVER_EVENT_COMMAND_UNDERRUN);
+                } else { //no data at all in stream - underrun
+                    xEventGroupSetBits(Driver_StreamEvents, DRIVER_EVENT_COMMAND_UNDERRUN);
                     queueeventbits |= DRIVER_EVENT_COMMAND_UNDERRUN;
                     printf("UNDER none\n");
                     fflush(stdout);
@@ -1343,12 +1329,12 @@ void Driver_Main() {
                 //can't just go by bytes played because some play modes are based on time
                 //decide whether those are worth implementing
                 Driver_BusyStart = xthal_get_ccount();
-                if (uxQueueMessagesWaiting(DacStreamEntries[DacStreamId].Queue)) {
+                if (MegaStream_Used(&DacStreamEntries[DacStreamId].Stream)) {
                     Driver_Cycle_Ds += diff;
                     Driver_Sample_Ds = Driver_Cycle_Ds / (DRIVER_CLOCK_RATE/DacStreamSampleRate);
                     if (Driver_Sample_Ds > DacStreamSamplesPlayed) {
                         uint8_t sample;
-                        xQueueReceiveFromISR(DacStreamEntries[DacStreamId].Queue, &sample, 0);
+                        MegaStream_Recv(&DacStreamEntries[DacStreamId].Stream, &sample, 1);
                         if (Driver_DetectedMod == MEGAMOD_OPNA) {
                             Driver_FmOutopna(DacStreamPort, DacStreamCommand, sample);
                         } else {

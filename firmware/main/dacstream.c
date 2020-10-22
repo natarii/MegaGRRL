@@ -31,15 +31,11 @@ StaticEventGroup_t DacStream_FillStatusBuf;
 bool DacStream_Setup() {
     ESP_LOGI(TAG, "Setting up");
 
-    ESP_LOGI(TAG, "Setting up DacStreamEntry queues");
+    ESP_LOGI(TAG, "Setting up DacStreamEntry streams");
     for (uint8_t i=0; i<DACSTREAM_PRE_COUNT; i++) {
         DacStreamEntries[i].SlotFree = true;
         DacStreamEntries[i].Seq = 0;
-        DacStreamEntries[i].Queue = xQueueCreateStatic(DACSTREAM_BUF_SIZE, sizeof(uint8_t), &Driver_PcmBuf[i*DACSTREAM_BUF_SIZE], &DacStreamEntries[i].StaticQueue);
-        if (DacStreamEntries[i].Queue == NULL) {
-            ESP_LOGE(TAG, "Fail to create queue for entry %d !!", i);
-            return false;
-        }
+        MegaStream_Create(&DacStreamEntries[i].Stream, &Driver_PcmBuf[i*DACSTREAM_BUF_SIZE], DACSTREAM_BUF_SIZE);
     }
 
     ESP_LOGI(TAG, "Creating find thread status event group");
@@ -184,7 +180,7 @@ void DacStream_FindTask() {
                             //reset
                             DacStreamEntries[FreeSlot].ReadOffset = 0;
                             DacStreamEntries[FreeSlot].BytesFilled = 0;
-                            xQueueReset(DacStreamEntries[FreeSlot].Queue);
+                            MegaStream_Reset(&DacStreamEntries[FreeSlot].Stream);
                             DacStreamEntries[FreeSlot].SlotFree = false;
                             DacStream_FoundAny = true;
                             break;
@@ -208,7 +204,7 @@ void DacStream_FindTask() {
                             DacStreamEntries[FreeSlot].LengthMode = 0; //always for fast starts
                             DacStreamEntries[FreeSlot].ReadOffset = 0;
                             DacStreamEntries[FreeSlot].BytesFilled = 0;
-                            xQueueReset(DacStreamEntries[FreeSlot].Queue);
+                            MegaStream_Reset(&DacStreamEntries[FreeSlot].Stream);
                             DacStreamEntries[FreeSlot].SlotFree = false;
                             DacStream_FoundAny = true;
                             break;
@@ -251,7 +247,7 @@ bool DacStream_FillTask_DoPre(uint8_t idx) { //returns whether or not it had to 
     bool ret = false;
     xSemaphoreTake(DacStream_Mutex, pdMS_TO_TICKS(1000));
     if (!DacStreamEntries[idx].SlotFree) {
-        if (uxQueueSpacesAvailable(DacStreamEntries[idx].Queue) > DACSTREAM_BUF_SIZE/3 && DacStreamEntries[idx].ReadOffset < DacStreamEntries[idx].DataLength) {
+        if (MegaStream_Free(&DacStreamEntries[idx].Stream) > DACSTREAM_BUF_SIZE/3 && DacStreamEntries[idx].ReadOffset < DacStreamEntries[idx].DataLength) {
             UserLedMgr_DiskState[DISKSTATE_DACSTREAM_FILL] = true;
             UserLedMgr_Notify();
             uint32_t o = DacStream_GetDataOffset(DacStreamEntries[idx].DataBankId, DacStreamEntries[idx].DataStart + DacStreamEntries[idx].ReadOffset);
@@ -267,9 +263,9 @@ bool DacStream_FillTask_DoPre(uint8_t idx) { //returns whether or not it had to 
                 dsbufused = 0;
                 ret = true;
             }
-            uint32_t a = uxQueueSpacesAvailable(DacStreamEntries[idx].Queue);
+            uint32_t freespaces = MegaStream_Free(&DacStreamEntries[idx].Stream);
             //try to find a dead dacstream that has the data we need. has to be a dead one, any active ones might have data removed 
-            while (a && DacStreamEntries[idx].ReadOffset < DacStreamEntries[idx].DataLength) {
+            while (freespaces && DacStreamEntries[idx].ReadOffset < DacStreamEntries[idx].DataLength) {
                 if (dsbufused == DACSTREAM_BUF_SIZE) {
                     ESP_LOGD(TAG, "Read past buffer");
                     fread(&DacStream_FillBuf[0], 1, DACSTREAM_BUF_SIZE, DacStream_FillFile);
@@ -277,10 +273,17 @@ bool DacStream_FillTask_DoPre(uint8_t idx) { //returns whether or not it had to 
                     LastOffset += DACSTREAM_BUF_SIZE;
                     ret = true;
                 }
-                xQueueSendToBackFromISR(DacStreamEntries[idx].Queue, &DacStream_FillBuf[dsbufused], 0);
-                dsbufused++;
-                DacStreamEntries[idx].ReadOffset++;
-                a--;
+
+                //we want to write as much to the stream in one shot as we possibly can, so figure out how much we can do!
+                uint32_t streamremaining = DacStreamEntries[idx].DataLength - DacStreamEntries[idx].ReadOffset;
+                uint32_t dsbufremaining = DACSTREAM_BUF_SIZE - dsbufused;
+                uint32_t writesize = streamremaining;
+                if (dsbufremaining < writesize) writesize = dsbufremaining;
+                if (freespaces < writesize) writesize = freespaces;
+                MegaStream_Send(&DacStreamEntries[idx].Stream, &DacStream_FillBuf[dsbufused], writesize);
+                dsbufused += writesize;
+                DacStreamEntries[idx].ReadOffset += writesize;
+                freespaces -= writesize;
             }
             UserLedMgr_DiskState[DISKSTATE_DACSTREAM_FILL] = false;
             UserLedMgr_Notify();
@@ -387,8 +390,6 @@ bool DacStream_Stop() {
             //cleanup stuff
             for (uint8_t i=0; i<DACSTREAM_PRE_COUNT; i++) {
                 DacStreamEntries[i].SlotFree = true;
-                DacStreamEntries[i].Seq = 0;
-                xQueueReset(DacStreamEntries[i].Queue);
             }
             return true;
         } else {

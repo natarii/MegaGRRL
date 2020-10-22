@@ -8,6 +8,7 @@
 #include "mallocs.h"
 #include "esp_system.h"
 #include "vgm.h"
+#include "megastream.h"
 
 typedef struct {
     bool SlotFree;
@@ -22,8 +23,7 @@ typedef struct {
     uint32_t DataLength;
     uint32_t ReadOffset;
     uint32_t BytesFilled;
-    QueueHandle_t Queue;
-    StaticQueue_t StaticQueue;
+    MegaStreamContext_t Stream;
 } DacStreamEntry_t;
 
 enum {

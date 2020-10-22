@@ -8,6 +8,7 @@
 #include "freertos/queue.h"
 #include "freertos/event_groups.h"
 #include "mallocs.h"
+#include "megastream.h"
 
 typedef enum {
     MEGAMOD_NONE = 0xff,
@@ -33,17 +34,15 @@ typedef enum {
 #define DRIVER_EVENT_PCM_UNDERRUN           0x02 //status flag - this should never ever happen, this should throw up a big error if it is ever set
 #define DRIVER_EVENT_COMMAND_HALF           0x04 //status flag
 
-extern uint8_t *Driver_CommandQueueBuf;
+extern uint8_t *Driver_CommandStreamBuf;
 extern uint8_t Driver_PcmBuf[DACSTREAM_BUF_SIZE*DACSTREAM_PRE_COUNT];
 
 extern volatile MegaMod_t Driver_DetectedMod;
 
-extern QueueHandle_t Driver_CommandQueue;
-extern QueueHandle_t Driver_PcmQueue;
-extern StaticQueue_t Driver_CommandStaticQueue;
-extern StaticQueue_t Driver_PcmStaticQueue;
+extern MegaStreamContext_t Driver_CommandStream;
+extern MegaStreamContext_t Driver_PcmStream;
 extern EventGroupHandle_t Driver_CommandEvents;
-extern EventGroupHandle_t Driver_QueueEvents;
+extern EventGroupHandle_t Driver_StreamEvents;
 extern uint8_t DacStreamId;
 extern volatile uint32_t Driver_CpuPeriod;
 extern volatile uint32_t Driver_CpuUsageVgm;

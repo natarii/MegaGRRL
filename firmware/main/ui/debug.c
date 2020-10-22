@@ -52,8 +52,8 @@ static uint32_t map(uint32_t x, uint32_t in_min, uint32_t in_max, uint32_t out_m
 static void draw() {
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
 
-    uint16_t d = uxQueueMessagesWaiting(Driver_CommandQueue);
-    uint16_t p = uxQueueMessagesWaiting(Driver_PcmQueue);
+    uint16_t d = MegaStream_Used(&Driver_CommandStream);
+    uint16_t p = MegaStream_Used(&Driver_PcmStream);
     sprintf(drvbuf, "#00007f DrvBuf# %5d/%5d #00007f PCM# %5d/%5d", d, DRIVER_QUEUE_SIZE, p, DRIVER_QUEUE_SIZE);
     lv_label_set_static_text(driverbuflabel, drvbuf);
     lv_obj_set_size(driverbuf, map(d,0,DRIVER_QUEUE_SIZE,0,240), 1);
@@ -76,7 +76,7 @@ static void draw() {
 
     for (uint8_t i=0;i<DACSTREAM_PRE_COUNT;i++) {
         lv_obj_set_style(ds[i], (i==DacStreamId)?&bar_style:&bar_style_idle);
-        lv_obj_set_size(ds[i], map(uxQueueMessagesWaiting(DacStreamEntries[i].Queue), 0, DACSTREAM_BUF_SIZE, 0, 240), 1);
+        lv_obj_set_size(ds[i], map(MegaStream_Used(&DacStreamEntries[i].Stream), 0, DACSTREAM_BUF_SIZE, 0, 240), 1);
     }
 
     LcdDma_Mutex_Give();

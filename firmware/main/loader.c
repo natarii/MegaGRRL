@@ -98,7 +98,7 @@ void Loader_Main() {
             xEventGroupClearBits(Loader_Status, LOADER_STOP_REQUEST);
         }
         if (running) {
-            uint16_t spaces = uxQueueSpacesAvailable(Driver_CommandQueue);
+            uint16_t spaces = MegaStream_Free(&Driver_CommandStream);
             EventBits_t bbits = xEventGroupGetBits(Loader_BufStatus);
             if (spaces == 0 && !(bbits & LOADER_BUF_FULL)) {
                 xEventGroupSetBits(Loader_BufStatus, LOADER_BUF_FULL);
@@ -121,8 +121,8 @@ void Loader_Main() {
             if (!Loader_EndReached && (spaces > DRIVER_QUEUE_SIZE/16)) {
                 UserLedMgr_DiskState[DISKSTATE_VGM] = true;
                 UserLedMgr_Notify();
-                while (running && uxQueueSpacesAvailable(Driver_CommandQueue)) {
-                    if (uxQueueSpacesAvailable(Driver_CommandQueue) > (DRIVER_QUEUE_SIZE/3)) {
+                while (running && MegaStream_Free(&Driver_CommandStream) >= 11) { //11 is the biggest fixed-size vgm command, so make sure there's at least that much space
+                    if (MegaStream_Free(&Driver_CommandStream) > (DRIVER_QUEUE_SIZE/3)) {
                         if (!adjustedprio) {
                             ESP_LOGW(TAG, "Switching to high priority");
                             vTaskPrioritySet(Taskmgr_Handles[TASK_LOADER], LOADER_TASK_PRIO_HIGH);
@@ -131,114 +131,120 @@ void Loader_Main() {
                     }
                     uint8_t d = 0x00;
                     LOADER_BUF_READ(d);
-                    if (Loader_Pending == 0) {
-                        if (d == 0xe0) { //pcm seek
-                            uint32_t NewPos = 0;
-                            LOADER_BUF_READ4(NewPos);
-                            uint32_t NewOff = Loader_GetPcmOffset(NewPos);
-                            if (NewOff != (Loader_PcmOff+1)) {
-                                ESP_LOGD(TAG, "Pcm seeking to NewOff %d BufUsed %d PcmOff %d", NewOff, Loader_PcmBufUsed, Loader_PcmOff);
-                                if (NewOff <= Loader_PcmOff && Loader_PcmOff - NewOff <= Loader_PcmBufUsed) { //don't seek the file if we can just rewind the buffer. todo: possibly handle optimize handling skipping forward within the buf's range?
-                                    ESP_LOGD(TAG, "PCM buffer rewind");
-                                    Loader_PcmBufUsed -= Loader_PcmOff - NewOff;
-                                    Loader_PcmOff = NewOff;
-                                } else { //it's either ahead of our current position, or too far behind that it's not in the buffer
-                                    ESP_LOGD(TAG, "PCM actual read");
-                                    fseek(Loader_PcmFile, NewOff, SEEK_SET);
-                                    Loader_PcmOff = NewOff;
-                                    Loader_PcmBufUsed = FREAD_LOCAL_BUF;
-                                }
-                            }
-                            Loader_PcmPos = NewPos;
-                            continue;
-                        } else if (d == 0x67) { //datablock
-                            if (Loader_VgmDataBlockIndex == MAX_REALTIME_DATABLOCKS) {
-                                ESP_LOGE(TAG, "loader datablocks over !!");
-                                return;
-                            } else {
-                                //here are some hacks to wrap around VgmParseDataBlock not using our local buffer thing
-                                fseek(Loader_File, Loader_VgmFilePos, SEEK_SET); //destroys buf
-                                if (Loader_CurLoop == 0) { //only load datablocks on first loop through
-                                    VgmParseDataBlock(Loader_File, &Loader_VgmDataBlocks[Loader_VgmDataBlockIndex++]);
-                                } else {
-                                    //can't simply skip over the datablock because they're variable-length. use the last entry as a garbage can
-                                    VgmParseDataBlock(Loader_File, &Loader_VgmDataBlocks[MAX_REALTIME_DATABLOCKS]);
-                                }
-                                LOADER_BUF_SEEK_SET(ftell(Loader_File)); //fix buf
-
-                                //handle opna pcm datablocks, since they need to be uploaded
-                                if (Loader_VgmDataBlocks[Loader_VgmDataBlockIndex-1].Type == 0x81) {
-                                    ESP_LOGI(TAG, "Requesting OPNA PCM upload");
-                                    Clk_TempSet(0,Loader_FastOpnaUpload?12000000:8000000); //avoid timing issues / speed reduction if chip underclocked
-                                    Driver_Opna_PcmUploadId = Loader_VgmDataBlockIndex-1;
-                                    Driver_Opna_PcmUpload = true;
-                                    while (Driver_Opna_PcmUpload) {
-                                        vTaskDelay(pdMS_TO_TICKS(10));
-                                        //todo: timeout?
-                                    }
-                                    Clk_Restore(0);
-                                    ESP_LOGI(TAG, "Done");
-                                }
-                            }
-                            continue;
-                        } else if ((d&0xf0) == 0x80) { //pcm and wait
-                            if (Loader_PcmOff == 0) { //if this is the first sample being played, need to do an initial seek
-                                Loader_PcmOff = Loader_GetPcmOffset(Loader_PcmPos);
-                                fseek(Loader_PcmFile, Loader_PcmOff, SEEK_SET);
-                                Loader_PcmBufUsed = FREAD_LOCAL_BUF;
-                            }
-                            if (Loader_PcmBufUsed == FREAD_LOCAL_BUF) {
-                                fread(&Loader_PcmBuf[0], 1, FREAD_LOCAL_BUF, Loader_PcmFile); //todo: fix read past eof
-                                Loader_PcmBufUsed = 0;
-                            }
-                            xQueueSendToBackFromISR(Driver_PcmQueue, &Loader_PcmBuf[Loader_PcmBufUsed++], 0); //theoretically pcmqueue should never ever be full while there are still spaces in commandqueue
-                            Loader_PcmPos++;
-                            #ifdef PARANOID_THAT_THERE_MIGHT_BE_VGMS_THAT_PLAY_PCM_ACROSS_BLOCK_BOUNDARIES
-                            uint32_t NewOff = Loader_GetPcmOffset(Loader_PcmPos);
-                            if (NewOff != (Loader_PcmOff+1)) {
-                                ESP_LOGI(TAG, "pcm seeking to %d after sample load", NewOff);
+                    if (d == 0xe0) { //pcm seek
+                        uint32_t NewPos = 0;
+                        LOADER_BUF_READ4(NewPos);
+                        uint32_t NewOff = Loader_GetPcmOffset(NewPos);
+                        if (NewOff != (Loader_PcmOff+1)) {
+                            ESP_LOGD(TAG, "Pcm seeking to NewOff %d BufUsed %d PcmOff %d", NewOff, Loader_PcmBufUsed, Loader_PcmOff);
+                            if (NewOff <= Loader_PcmOff && Loader_PcmOff - NewOff <= Loader_PcmBufUsed) { //don't seek the file if we can just rewind the buffer. todo: possibly handle optimize handling skipping forward within the buf's range?
+                                ESP_LOGD(TAG, "PCM buffer rewind");
+                                Loader_PcmBufUsed -= Loader_PcmOff - NewOff;
+                                Loader_PcmOff = NewOff;
+                            } else { //it's either ahead of our current position, or too far behind that it's not in the buffer
+                                ESP_LOGD(TAG, "PCM actual read");
                                 fseek(Loader_PcmFile, NewOff, SEEK_SET);
                                 Loader_PcmOff = NewOff;
                                 Loader_PcmBufUsed = FREAD_LOCAL_BUF;
                             }
-                            #else
-                            Loader_PcmOff++;
-                            #endif
-                        } else if (d == 0x66) { //end of music, optionally loop
-                            ESP_LOGI(TAG, "reached end of music");
-                            if (Loader_VgmInfo->LoopOffset == 0 || (Loader_IgnoreZeroSampleLoops && Loader_VgmInfo->LoopSamples == 0)) { //there is no loop point at all
-                                ESP_LOGI(TAG, "no loop point");
-                                xQueueSendToBackFromISR(Driver_CommandQueue, &d, 0); //let driver figure out it's the end
-                                Loader_EndReached = true;
-                                break;
-                            }
-                            ESP_LOGI(TAG, "looping");
-                            if (Loader_VgmInfo->LoopSamples == 0) ESP_LOGW(TAG, "looping despite LoopSamples == 0 !!");
-                            Loader_CurLoop++; //still need to keep track of this so dacstream loads aren't duplicated
-                            xQueueSendToBackFromISR(Driver_CommandQueue, &d, 0); //let driver figure out it's the end
-                            LOADER_BUF_SEEK_SET(Loader_VgmInfo->LoopOffset);
-                            continue;
-                        } else if (d >= 0x90 && d <= 0x95) { //dacstream command
-                            if (!Loader_RequestedDacStreamFindStart) {
-                                DacStream_BeginFinding(&Loader_VgmDataBlocks, Loader_VgmDataBlockIndex, Loader_VgmFilePos-1);
-                                Loader_RequestedDacStreamFindStart = true;
-                            }
-                            if (VgmCommandIsFixedSize(d)) {
-                                Loader_Pending = VgmCommandLength(d) - 1;
-                            } else {
-                                ESP_LOGE(TAG, "non-fixed size command unimplemented !!");
-                            }
+                        }
+                        Loader_PcmPos = NewPos;
+                    } else if (d == 0x67) { //datablock
+                        if (Loader_VgmDataBlockIndex == MAX_REALTIME_DATABLOCKS) {
+                            ESP_LOGE(TAG, "loader datablocks over !!");
+                            return;
                         } else {
-                            if (VgmCommandIsFixedSize(d)) {
-                                Loader_Pending = VgmCommandLength(d) - 1;
+                            //here are some hacks to wrap around VgmParseDataBlock not using our local buffer thing
+                            fseek(Loader_File, Loader_VgmFilePos, SEEK_SET); //destroys buf
+                            if (Loader_CurLoop == 0) { //only load datablocks on first loop through
+                                VgmParseDataBlock(Loader_File, &Loader_VgmDataBlocks[Loader_VgmDataBlockIndex++]);
                             } else {
-                                ESP_LOGE(TAG, "non-fixed size command unimplemented !!");
+                                //can't simply skip over the datablock because they're variable-length. use the last entry as a garbage can
+                                VgmParseDataBlock(Loader_File, &Loader_VgmDataBlocks[MAX_REALTIME_DATABLOCKS]);
+                            }
+                            LOADER_BUF_SEEK_SET(ftell(Loader_File)); //fix buf
+
+                            //handle opna pcm datablocks, since they need to be uploaded
+                            if (Loader_VgmDataBlocks[Loader_VgmDataBlockIndex-1].Type == 0x81) {
+                                ESP_LOGI(TAG, "Requesting OPNA PCM upload");
+                                Clk_TempSet(0,Loader_FastOpnaUpload?12000000:8000000); //avoid timing issues / speed reduction if chip underclocked
+                                Driver_Opna_PcmUploadId = Loader_VgmDataBlockIndex-1;
+                                Driver_Opna_PcmUpload = true;
+                                while (Driver_Opna_PcmUpload) {
+                                    vTaskDelay(pdMS_TO_TICKS(10));
+                                    //todo: timeout?
+                                }
+                                Clk_Restore(0);
+                                ESP_LOGI(TAG, "Done");
                             }
                         }
-                    } else {
-                        Loader_Pending--;
+                    } else if (d == 0x68) {
+
+                    } else if ((d&0xf0) == 0x80) { //pcm and wait
+                        if (Loader_PcmOff == 0) { //if this is the first sample being played, need to do an initial seek
+                            Loader_PcmOff = Loader_GetPcmOffset(Loader_PcmPos);
+                            fseek(Loader_PcmFile, Loader_PcmOff, SEEK_SET);
+                            Loader_PcmBufUsed = FREAD_LOCAL_BUF;
+                        }
+                        if (Loader_PcmBufUsed == FREAD_LOCAL_BUF) {
+                            fread(&Loader_PcmBuf[0], 1, FREAD_LOCAL_BUF, Loader_PcmFile); //todo: fix read past eof
+                            Loader_PcmBufUsed = 0;
+                        }
+                        MegaStream_Send(&Driver_PcmStream, &Loader_PcmBuf[Loader_PcmBufUsed++], 1); //theoretically pcmqueue should never ever be full while there are still spaces in commandqueue
+                        Loader_PcmPos++;
+                        #ifdef PARANOID_THAT_THERE_MIGHT_BE_VGMS_THAT_PLAY_PCM_ACROSS_BLOCK_BOUNDARIES
+                        uint32_t NewOff = Loader_GetPcmOffset(Loader_PcmPos);
+                        if (NewOff != (Loader_PcmOff+1)) {
+                            ESP_LOGI(TAG, "pcm seeking to %d after sample load", NewOff);
+                            fseek(Loader_PcmFile, NewOff, SEEK_SET);
+                            Loader_PcmOff = NewOff;
+                            Loader_PcmBufUsed = FREAD_LOCAL_BUF;
+                        }
+                        #else
+                        Loader_PcmOff++;
+                        #endif
+                        MegaStream_Send(&Driver_CommandStream, &d, 1);
+                    } else if (d == 0x66) { //end of music, optionally loop
+                        ESP_LOGI(TAG, "reached end of music");
+                        if (Loader_VgmInfo->LoopOffset == 0 || (Loader_IgnoreZeroSampleLoops && Loader_VgmInfo->LoopSamples == 0)) { //there is no loop point at all
+                            ESP_LOGI(TAG, "no loop point");
+                            MegaStream_Send(&Driver_CommandStream, &d, 1); //let driver figure out it's the end
+                            Loader_EndReached = true;
+                            break;
+                        }
+                        ESP_LOGI(TAG, "looping");
+                        if (Loader_VgmInfo->LoopSamples == 0) ESP_LOGW(TAG, "looping despite LoopSamples == 0 !!");
+                        Loader_CurLoop++; //still need to keep track of this so dacstream loads aren't duplicated
+                        MegaStream_Send(&Driver_CommandStream, &d, 1);
+                        LOADER_BUF_SEEK_SET(Loader_VgmInfo->LoopOffset);
+                    } else if (d >= 0x90 && d <= 0x95) { //dacstream command
+                        if (!Loader_RequestedDacStreamFindStart) {
+                            DacStream_BeginFinding(&Loader_VgmDataBlocks, Loader_VgmDataBlockIndex, Loader_VgmFilePos-1);
+                            Loader_RequestedDacStreamFindStart = true;
+                        }
+                        MegaStream_Send(&Driver_CommandStream, &d, 1); //command
+                        uint8_t cmdlen = VgmCommandLength(d);
+                        for (uint8_t i=1;i<cmdlen;i++) { //command data
+                            LOADER_BUF_READ(d);
+                            MegaStream_Send(&Driver_CommandStream, &d, 1);
+                        }
+                    } else { //just a regular command
+                        MegaStream_Send(&Driver_CommandStream, &d, 1); //command
+                        uint8_t cmdlen = VgmCommandLength(d)-1; //it's really the command's attached data
+                        if (cmdlen == 0) continue; //don't bother with any of the below if there is no attached data
+
+                        //fill up the fread buf if necessary, so we can copy the whole command in one call
+                        if (Loader_VgmBufPos + cmdlen >= FREAD_LOCAL_BUF) {
+                            LOADER_BUF_FILL;
+                        }
+
+                        MegaStream_Send(&Driver_CommandStream, &Loader_VgmBuf[Loader_VgmBufPos], cmdlen);
+
+                        //fix up the buffer tracking vars that the LOADER_BUF_READ macro normally handles
+                        Loader_VgmBufPos += cmdlen;
+                        Loader_VgmFilePos += cmdlen;
+                        LOADER_BUF_CHECK;
                     }
-                    xQueueSendToBackFromISR(Driver_CommandQueue, &d, 0);
                 }
                 UserLedMgr_DiskState[DISKSTATE_VGM] = false;
                 UserLedMgr_Notify();
@@ -286,8 +292,9 @@ bool Loader_Stop() {
         Loader_VgmDataBlockIndex = 0;
         xEventGroupSetBits(Loader_BufStatus, LOADER_BUF_EMPTY);
         xEventGroupClearBits(Loader_BufStatus, 0xff & ~LOADER_BUF_EMPTY);
-        xQueueReset(Driver_CommandQueue);
-        xQueueReset(Driver_PcmQueue);
+        //resetting streams here is actually unsafe, but we're protected by player ensuring that driver is stopped before getting this far
+        MegaStream_Reset(&Driver_CommandStream);
+        MegaStream_Reset(&Driver_PcmStream);
         return true;
     } else {
         ESP_LOGE(TAG, "Loader stop request timeout !!");

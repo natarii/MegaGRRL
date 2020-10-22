@@ -233,7 +233,7 @@ static tinfl_status Player_Unvgz(char *FilePath, bool ReplaceOriginalFile) {
     fseek(reader, 10, SEEK_SET);
 
     tinfl_init(&decomp);
-    const void *next_in = Driver_CommandQueueBuf;
+    const void *next_in = Driver_CommandStreamBuf;
     void *next_out = Driver_PcmBuf;
     size_t avail_in = 0;
     size_t avail_out = 65536; // >= LZ dict size*2 && <= DACSTREAM_BUF_SIZE*DACSTREAM_PRE_COUNT}
@@ -244,11 +244,11 @@ static tinfl_status Player_Unvgz(char *FilePath, bool ReplaceOriginalFile) {
     for (;;) {
         if (!avail_in) {
             size_t rd = (in_remaining<32767)?in_remaining:32767; //power of 2 <= DRIVER_QUEUE_SIZE
-            if (fread(Driver_CommandQueueBuf, 1, rd, reader) != rd) {
+            if (fread(Driver_CommandStreamBuf, 1, rd, reader) != rd) {
                 ESP_LOGE(TAG, "read fail");
             }
             ESP_LOGD(TAG, "read chunk %d", rd);
-            next_in = Driver_CommandQueueBuf;
+            next_in = Driver_CommandStreamBuf;
             avail_in = rd;
             in_remaining -= rd;
         }
