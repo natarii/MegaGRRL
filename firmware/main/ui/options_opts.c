@@ -194,6 +194,7 @@ static void changevalue(bool inc) {
         case OPTION_TYPE_NUMERIC:
             switch (Options[Options_OptId].subtype) {
                 case OPTION_SUBTYPE_NONE:
+                case OPTION_SUBTYPE_BRIGHTNESS:
                     if (inc) {
                         if (*var < 255) {
                             *var += 1;
