@@ -44,6 +44,8 @@ uint8_t Driver_SrBuf[2] = {0xff & ~SR_BIT_IC,0x00};
 uint8_t Driver_SrBuf[2] = {0x00,0xff & ~SR_BIT_IC};
 #endif
 
+static portMUX_TYPE mux;
+
 MegaStreamContext_t Driver_CommandStream; //queue of incoming vgm data
 MegaStreamContext_t Driver_PcmStream; //queue of attached pcm data (if any)
 EventGroupHandle_t Driver_CommandEvents; //driver status flags
@@ -152,6 +154,8 @@ static uint32_t map(uint32_t x, uint32_t in_min, uint32_t in_max, uint32_t out_m
 
 bool Driver_Setup() {
     ESP_LOGI(TAG, "Setting up");
+
+    vPortCPUInitializeMutex(&mux);
 
     ESP_LOGI(TAG, "working around dram0 size - allocating commandstream buffer...");
     Driver_CommandStreamBuf = heap_caps_malloc(DRIVER_QUEUE_SIZE, MALLOC_CAP_8BIT);
@@ -273,11 +277,13 @@ void Driver_PsgOut(uint8_t Data) {
     Driver_Output();
     Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_PSG_CS; //!cs low
     Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR; //!wr low
+    portENTER_CRITICAL(&mux);
     Driver_Output();
     Driver_SleepClocks(clk, 36); //32, but with wiggle room. but not enough to push us into another write cycle...
     Driver_SrBuf[SR_CONTROL] |= SR_BIT_PSG_CS; //!cs high
     Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; //!wr high
     Driver_Output();
+    portEXIT_CRITICAL(&mux);
 
     //channel led stuff
     if (Driver_NoLeds) return;
