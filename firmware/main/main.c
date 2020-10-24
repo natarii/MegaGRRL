@@ -257,7 +257,10 @@ void app_main(void)
 
     //this is only in here because the chips use more power when not being clocked
     ESP_LOGI(TAG, "Bring up FM clock...");
+    Clk_CreateMutex();
     Clk_Set(CLK_FM, 7670453);
+
+    bootloader_random_enable(); //do this now. it also makes the i2s clock stuff start working...
 
     ESP_LOGI(TAG, "Setting up driver...");
     Driver_Setup();
@@ -315,8 +318,6 @@ void app_main(void)
     //it's also possible the ioexpander is very borked
     #endif
     #endif
-
-    bootloader_random_enable(); //can't use this if we ever use i2s or wireless!!
 
     ESP_LOGI(TAG, "Early LcdDma setup... let's hope this doesn't fail !!");
     LcdDma_Setup();

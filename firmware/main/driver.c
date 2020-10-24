@@ -263,7 +263,7 @@ void Driver_SleepClocks(uint32_t f, uint32_t clks) { //same dirty spin sleep, bu
 }
 
 void Driver_PsgOut(uint8_t Data) {
-    uint32_t clk = Clk_GetCh1();
+    uint32_t clk = Clk_GetCh(1);
     if (clk == 0) return;
     //data bus is reversed for the psg because it made pcb layout easier
     Driver_SrBuf[SR_DATABUS] = 0;
@@ -274,7 +274,7 @@ void Driver_PsgOut(uint8_t Data) {
     Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_PSG_CS; //!cs low
     Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR; //!wr low
     Driver_Output();
-    Driver_SleepClocks(Clk_GetCh1(), 36); //32, but with wiggle room. but not enough to push us into another write cycle...
+    Driver_SleepClocks(clk, 36); //32, but with wiggle room. but not enough to push us into another write cycle...
     Driver_SrBuf[SR_CONTROL] |= SR_BIT_PSG_CS; //!cs high
     Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; //!wr high
     Driver_Output();
