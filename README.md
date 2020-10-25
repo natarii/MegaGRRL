@@ -10,9 +10,14 @@ Originally, the MegaGRRL project started as only a portable, handheld player. Th
 This project is divided into several subdirectories:
   * **esp-idf-patches/** - ESP-IDF v3.3 SPI master driver patches, required for build
   * **firmware/** - Firmware for the ESP32
+  * **utils/** - Utilities, such as for packing firmware updates
 
 ## Updating firmware
 To update to the latest firmware after your player is up and running, download the latest .mgu file for your hardware version (desktop or portable) from the [Releases page](https://git.agiri.ninja/natalie/megagrrl/-/releases) and copy it to the SD card. Launch the update from MegaGRRL's file browser.
+
+A script is included at `utils/megapacker.pl` to generate .mgu files from self-built .bin files. The simplest case would be to pack a new app image (i.e. built without FWUPDATE defined):
+
+   - `perl utils/megapacker.pl --app=firmware/build/megagrrl.bin --outfile=megagrrl.mgu`
 
 ## Compiling and initial flash
 0. If you are on Windows and flashing a MegaGRRL Desktop, a simplified guide is available [here](https://git.agiri.ninja/snippets/3). Otherwise, proceed with the instructions below.
