@@ -101,7 +101,7 @@ uint32_t DacStream_GetBlockSize(uint8_t BankType, uint16_t BlockId) {
 }
 
 uint8_t d = 0;
-uint32_t DacStream_Seq = 1;
+IRAM_ATTR uint32_t DacStream_Seq = 1;
 uint32_t DacStream_CurSampleRate = 0;
 uint8_t DacStream_CurDataBank = 0;
 uint16_t DacStream_CurDataBlock = 0;
@@ -242,7 +242,7 @@ void DacStream_FindTask() {
 }
 
 static uint8_t DacStream_FillBuf[DACSTREAM_BUF_SIZE];
-static uint32_t LastOffset = 0xffffffff;
+static IRAM_ATTR uint32_t LastOffset = 0xffffffff;
 bool DacStream_FillTask_DoPre(uint8_t idx) { //returns whether or not it had to hit the card
     bool ret = false;
     xSemaphoreTake(DacStream_Mutex, pdMS_TO_TICKS(1000));

@@ -29,10 +29,10 @@ static IRAM_ATTR lv_obj_t *ds[DACSTREAM_PRE_COUNT];
 static char tasklabel_buf[(50*TASK_COUNT)+50];
 static TaskStatus_t taskstatus[TASK_COUNT+6]; //6 = IDLE0, IDLE1, Tmr Svc, ipc0, ipc1, esp_timer
 static const char *taskblacklist[6] = { "IDLE0", "IDLE1", "Tmr Svc", "ipc0", "ipc1", "esp_timer" };
-static uint32_t timer = 0;
-static uint32_t taskstimer = 0;
-static uint32_t tasklastruntime[TASK_COUNT+6];
-static uint32_t tasklasttrt = 0;
+static IRAM_ATTR uint32_t timer = 0;
+static IRAM_ATTR uint32_t taskstimer = 0;
+static IRAM_ATTR uint32_t tasklastruntime[TASK_COUNT+6];
+static IRAM_ATTR uint32_t tasklasttrt = 0;
 static char heapbuf[100] = "";
 static char drvbuf[100] = "";
 static char samplebuf1[50] = "";

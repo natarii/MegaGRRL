@@ -20,8 +20,8 @@ typedef enum {
 
 extern volatile uint8_t ChannelMgr_States[6+4];
 extern uint8_t ChannelMgr_States_Old[6+4];
-extern volatile uint32_t ChannelMgr_PcmAccu;
-extern volatile uint32_t ChannelMgr_PcmCount;
+extern volatile IRAM_ATTR uint32_t ChannelMgr_PcmAccu;
+extern volatile IRAM_ATTR uint32_t ChannelMgr_PcmCount;
 
 bool ChannelMgr_Setup();
 void ChannelMgr_Main();

@@ -8,7 +8,7 @@ static const char* TAG = "ClkMgr";
 
 static const uint8_t Clk_GPIOs[2] = {PIN_CLK_FM,PIN_CLK_PSG};
 static bool Clk_ffinstalled = false;
-static uint32_t clk[2] = {0,0};
+static IRAM_ATTR uint32_t clk[2] = {0,0};
 static int16_t mult[2] = {0,0};
 static bool init_ledc[2] = {false, false};
 static bool init_i2s = false;

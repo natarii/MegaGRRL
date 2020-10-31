@@ -10,10 +10,10 @@ static const char* TAG = "ChannelMgr";
 
 volatile uint8_t ChannelMgr_States[6+4];
 ChannelLedState_t ChannelMgr_LedStates[6+4];
-uint32_t ChannelMgr_BrTime[6+4];
+IRAM_ATTR uint32_t ChannelMgr_BrTime[6+4];
 uint8_t ChannelMgr_States_Old[6+4];
-volatile uint32_t ChannelMgr_PcmAccu;
-volatile uint32_t ChannelMgr_PcmCount;
+volatile IRAM_ATTR uint32_t ChannelMgr_PcmAccu;
+volatile IRAM_ATTR uint32_t ChannelMgr_PcmCount;
 
 void ChannelMgr_Reset() {
     for (uint8_t i=0;i<6+4;i++) {

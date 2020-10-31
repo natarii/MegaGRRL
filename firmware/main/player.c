@@ -23,7 +23,7 @@ FILE *Player_PcmFile;
 FILE *Player_DsFindFile;
 FILE *Player_DsFillFile;
 VgmInfoStruct_t Player_Info;
-uint32_t notif = 0;
+IRAM_ATTR uint32_t notif = 0;
 
 volatile uint8_t Player_LoopCount = 2;
 volatile RepeatMode_t Player_RepeatMode = REPEAT_ALL;

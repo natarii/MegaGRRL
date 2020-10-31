@@ -25,7 +25,7 @@ volatile VgmDataBlockStruct_t Loader_VgmDataBlocks[MAX_REALTIME_DATABLOCKS+1];
 bool Loader_RequestedDacStreamFindStart = false;
 uint8_t Loader_VgmBuf[FREAD_LOCAL_BUF];
 uint16_t Loader_VgmBufPos = FREAD_LOCAL_BUF;
-uint32_t Loader_VgmFilePos = 0;
+IRAM_ATTR uint32_t Loader_VgmFilePos = 0;
 volatile bool Loader_IgnoreZeroSampleLoops = true;
 volatile bool Loader_FastOpnaUpload = false;
 
@@ -59,8 +59,8 @@ bool Loader_Setup() {
     return true;
 }
 
-uint32_t Loader_PcmPos = 0;
-uint32_t Loader_PcmOff = 0;
+IRAM_ATTR uint32_t Loader_PcmPos = 0;
+IRAM_ATTR uint32_t Loader_PcmOff = 0;
 uint32_t Loader_GetPcmOffset(uint32_t PcmPos) {
     uint32_t consumed = 0;
     for (uint8_t i=0;i<Loader_VgmDataBlockIndex;i++) {
@@ -74,12 +74,12 @@ uint32_t Loader_GetPcmOffset(uint32_t PcmPos) {
     return 0xffffffff;
 }
 
-uint32_t Loader_Pending = 0;
+IRAM_ATTR uint32_t Loader_Pending = 0;
 uint8_t running = false;
 bool Loader_EndReached = false;
 uint8_t Loader_PcmBuf[FREAD_LOCAL_BUF];
 uint16_t Loader_PcmBufUsed = FREAD_LOCAL_BUF;
-static uint32_t adjustedprio = false;
+static IRAM_ATTR uint32_t adjustedprio = false;
 void Loader_Main() {
     ESP_LOGI(TAG, "Task start");
     while (1) {

@@ -156,7 +156,7 @@ void Ui_StatusBar_SetExtract(bool extracting) {
     LcdDma_Mutex_Give();
 }
 
-uint32_t last = 0;
+IRAM_ATTR uint32_t last = 0;
 EventBits_t lastplayerevents = 0xff;
 bool lastforcemono = true;
 uint8_t statusbarmasks[2] = {0xff, 0xff};

@@ -53,9 +53,9 @@ EventGroupHandle_t Driver_StreamEvents; //queue status flags
 uint8_t *Driver_CommandStreamBuf;
 uint8_t Driver_PcmBuf[DACSTREAM_BUF_SIZE*DACSTREAM_PRE_COUNT];
 
-volatile uint32_t Driver_CpuPeriod = 0;
-volatile uint32_t Driver_CpuUsageVgm = 0;
-volatile uint32_t Driver_CpuUsageDs = 0;
+volatile IRAM_ATTR uint32_t Driver_CpuPeriod = 0;
+volatile IRAM_ATTR uint32_t Driver_CpuUsageVgm = 0;
+volatile IRAM_ATTR uint32_t Driver_CpuUsageDs = 0;
 
 volatile bool Driver_FixPsgFrequency = true;
 volatile bool Driver_FixPsgPeriodic = true;
@@ -81,33 +81,33 @@ spi_device_interface_config_t Driver_SpiDeviceConfig = {
 spi_device_handle_t Driver_SpiDevice;
 
 //vgm / 2612 pcm stuff
-uint32_t Driver_Sample = 0;     //current sample number
-uint32_t Driver_Sample_Ds = 0;  //current sample number for dacstreams
+IRAM_ATTR uint32_t Driver_Sample = 0;     //current sample number
+IRAM_ATTR uint32_t Driver_Sample_Ds = 0;  //current sample number for dacstreams
 uint64_t Driver_Cycle = 0;      //current cycle number
 uint64_t Driver_Cycle_Ds = 0;   //current cycle number for dacstreams
-uint32_t Driver_Cc = 0;         //current cycle from the api - just keep it off the stack
-uint32_t Driver_LastCc = 0;     //copy of the above var
-uint32_t Driver_NextSample = 0; //sample number at which the next command needs to be run
+IRAM_ATTR uint32_t Driver_Cc = 0;         //current cycle from the api - just keep it off the stack
+IRAM_ATTR uint32_t Driver_LastCc = 0;     //copy of the above var
+IRAM_ATTR uint32_t Driver_NextSample = 0; //sample number at which the next command needs to be run
 uint8_t Driver_FmAlgo[6] = {0,0,0,0,0,0};
 uint8_t Driver_PsgLastChannel = 0;
 volatile bool Driver_FirstWait = true;
 uint8_t Driver_FmPans[6] = {0b11000000,0b11000000,0b11000000,0b11000000,0b11000000,0b11000000};
-uint32_t Driver_PauseSample = 0; //sample no before stop
-uint32_t Driver_PauseSample_Ds = 0; //sample no before stop for dacstreams
+IRAM_ATTR uint32_t Driver_PauseSample = 0; //sample no before stop
+IRAM_ATTR uint32_t Driver_PauseSample_Ds = 0; //sample no before stop for dacstreams
 uint8_t Driver_PsgAttenuation[4] = {0b10011111, 0b10111111, 0b11011111, 0b11111111};
 bool Driver_NoLeds = false;
 
 //dacstream specific
-uint32_t DacStreamSeq = 0;              //sequence no of the current stream
-uint32_t DacStreamLastSeqPlayed = 0;    //last seq successfully played
+IRAM_ATTR uint32_t DacStreamSeq = 0;              //sequence no of the current stream
+IRAM_ATTR uint32_t DacStreamLastSeqPlayed = 0;    //last seq successfully played
 uint8_t DacStreamId = 0;                //index of the currently playing dacstream. should maybe consider using a pointer to the queue instead of keeping this around
 bool DacStreamActive = false;           //actively playing a stream?
-uint32_t DacStreamSampleRate = 0;       //stream current sample rate
+IRAM_ATTR uint32_t DacStreamSampleRate = 0;       //stream current sample rate
 uint8_t DacStreamPort = 0;              //chip port to write to
 uint8_t DacStreamCommand = 0;           //chip command to use
-uint32_t DacStreamSamplesPlayed = 0;    //how many samples played so far
+IRAM_ATTR uint32_t DacStreamSamplesPlayed = 0;    //how many samples played so far
 uint8_t DacStreamLengthMode = 0;
-uint32_t DacStreamDataLength = 0;
+IRAM_ATTR uint32_t DacStreamDataLength = 0;
 bool DacStreamFailed = false;
 
 volatile uint8_t Driver_FmMask = 0b01111111;
@@ -119,11 +119,11 @@ uint8_t Driver_Opna_RhythmConfig[6] = {0b11000000,0b11000000,0b11000000,0b110000
 uint8_t Driver_Opna_SsgConfig = 0b00111111; //todo verify in emu
 uint8_t Driver_Opna_SsgLevel[3] = {0,0,0}; //todo verify in emu
 
-uint32_t Driver_PsgCh3Freq = 0;
+IRAM_ATTR uint32_t Driver_PsgCh3Freq = 0;
 bool Driver_PsgNoisePeriodic = false;
 bool Driver_PsgNoiseSourceCh3 = false;
 
-volatile uint32_t Driver_Opna_PcmUploadId = 0;
+volatile IRAM_ATTR uint32_t Driver_Opna_PcmUploadId = 0;
 volatile bool Driver_Opna_PcmUpload = false;
 FILE *Driver_Opna_PcmUploadFile = NULL;
 volatile int16_t Driver_SpeedMult = 0;
@@ -1167,7 +1167,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
     return true;
 }
 
-uint32_t Driver_BusyStart = 0;
+IRAM_ATTR uint32_t Driver_BusyStart = 0;
 //uint32_t Driver_BusyEnd = 0;
 void Driver_Main() {
     //driver task. never pet watchdog or come up for air at all - nothing else is running on CPU1.
