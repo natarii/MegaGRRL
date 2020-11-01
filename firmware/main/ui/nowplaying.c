@@ -584,6 +584,8 @@ void drawopts() {
         Ui_SoftBar_Update(1, true, LV_SYMBOL_LEFT" Back", false);
         if (selectedopt == 4 || selectedopt == 5) { //links
             Ui_SoftBar_Update(2, true, LV_SYMBOL_RIGHT" Go", false);
+        } else if (selectedopt == 3) {
+            Ui_SoftBar_Update(2, Pitch_Get()!=0?true:false, LV_SYMBOL_REFRESH" Reset", false);
         } else {
             Ui_SoftBar_Update(2, false, LV_SYMBOL_CLOSE" N/A", false);
         }
@@ -776,6 +778,9 @@ void Ui_NowPlaying_Key(KeyEvent_t event) {
                         Ui_Screen = UISCREEN_MUTING;
                     } else if (selectedopt == 5) {
                         Ui_Screen = UISCREEN_OPTIONS_CATS;
+                    } else if (selectedopt == 3) {
+                        Pitch_Adjust(0);
+                        Ui_SoftBar_Update(2, false, LV_SYMBOL_REFRESH" Reset", false);
                     } else {
                         //do nothing
                     }
