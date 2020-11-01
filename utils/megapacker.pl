@@ -159,7 +159,7 @@ sub parse_app_desc {
 		$esp_time,
 		$esp_date,
 		$esp_idf_ver,
-		@esp_app_elf_sha256[0..15],
+		@esp_app_elf_sha256[0..31],
 		@esp_reserv2[0..19]
 	) = unpack(
 		'V' .	#    uint32_t magic_word;        /*!< Magic word ESP_APP_DESC_MAGIC_WORD */
@@ -187,7 +187,7 @@ sub parse_app_desc {
 	print("\ttime -> $esp_time\n");
 	print("\tdate -> $esp_date\n");
 	print("\tidf_ver -> $esp_idf_ver\n");
-	print("\tapp_elf_sha256 -> ", (map { sprintf('%x', $_) } @esp_app_elf_sha256), "\n\n");
+	print("\tapp_elf_sha256 -> ", (map { sprintf('%02x', $_) } @esp_app_elf_sha256), "\n\n");
 
 	return($esp_version); # a lot of work just to get the version :D
 }
