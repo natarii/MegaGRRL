@@ -152,7 +152,12 @@ void Loader_Main() {
                     } else if (d == 0x67) { //datablock
                         if (Loader_VgmDataBlockIndex == MAX_REALTIME_DATABLOCKS) {
                             ESP_LOGE(TAG, "loader datablocks over !!");
-                            return;
+                            Loader_EndReached = true;
+                            running = false;
+                            xEventGroupClearBits(Loader_Status, LOADER_RUNNING);
+                            xEventGroupSetBits(Loader_Status, LOADER_STOPPED);
+                            xEventGroupSetBits(Loader_BufStatus, LOADER_BUF_OK);
+                            xEventGroupClearBits(Loader_BufStatus, 0xff ^ LOADER_BUF_OK);
                         } else {
                             //here are some hacks to wrap around VgmParseDataBlock not using our local buffer thing
                             fseek(Loader_File, Loader_VgmFilePos, SEEK_SET); //destroys buf

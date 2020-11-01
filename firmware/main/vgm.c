@@ -141,6 +141,10 @@ bool VgmParseDataBlock(FILE *f, VgmDataBlockStruct_t *block) {
     fread(&block->StartAddress,4,1,f);
     seekoff = 8;
     ESP_LOGI(TAG, "Parsed OPNA ADPCM datablock: rom size %d, offset %d, adpcm data size %d", block->RomSize, block->StartAddress, block->Size-8);
+  } else if (block->Type == 0xc1) {
+    fread(&block->StartAddress,4,1,f);
+    seekoff = 4;
+    ESP_LOGI(TAG, "Parsed RF5C164 datablock: offset %d, size %d", block->StartAddress, block->Size-4);
   } else {
     seekoff = 0;
     ESP_LOGW(TAG, "Found unsupported datablock");
