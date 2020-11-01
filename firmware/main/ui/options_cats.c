@@ -20,7 +20,8 @@ static IRAM_ATTR lv_obj_t *header;
 
 static UiScreen_t lastscreen = UISCREEN_MAINMENU;
 
-
+static lv_style_t linestyle;
+static IRAM_ATTR lv_obj_t *listdiv;
 
 void redrawoptcats();
 
@@ -57,6 +58,16 @@ void Ui_Options_Cats_Setup(lv_obj_t *uiscreen) {
     y += 20;
     lv_label_set_style(header, LV_LABEL_STYLE_MAIN, &headerstyle);
     lv_label_set_static_text(header, "Settings...");
+
+    lv_style_copy(&linestyle, &lv_style_plain);
+    linestyle.line.color = LV_COLOR_MAKE(255,255,255);
+    linestyle.line.width = 1;
+    listdiv = lv_line_create(container, NULL);
+    lv_line_set_style(listdiv, LV_LINE_STYLE_MAIN, &linestyle);
+    static const lv_point_t divpoints[2] = {{0,0},{240,0}};
+    lv_line_set_points(listdiv, divpoints, 2);
+    lv_obj_set_pos(listdiv, 0, y);
+    y += 1;
 
     for (uint8_t i=0;i<OPTION_CATEGORY_COUNT;i++) {
         optioncatlines[i] = lv_cont_create(container, NULL);
