@@ -428,7 +428,7 @@ static void newtrack() { //gd3, pls position, loop count/samples
     } else {
         elapsedmins = elapsedsecs = 0;
     }
-    if (Player_LoopCount == 255) {
+    if (Player_Info.LoopOffset && loopsamples && Player_LoopCount == 255) {
         sprintf(timebuf, "%02d:%02d / inf.", elapsedmins, elapsedsecs);
     } else {
         totalwithloops = (looppoint + (loopsamples * Player_LoopCount))/44100;
@@ -490,7 +490,7 @@ static void do_tick() {
         elapsedsecs = (Driver_Sample/44100)%60;
     }
     if (lastelapsedmins != elapsedmins || lastelapsedsecs != elapsedsecs) {
-        if (Player_LoopCount == 255) {
+        if (Player_Info.LoopOffset && Player_Info.LoopSamples && Player_LoopCount == 255) {
             sprintf(timebuf, "%02d:%02d / inf.", elapsedmins, elapsedsecs);
         } else {
             sprintf(timebuf, "%02d:%02d / %02d:%02d", elapsedmins, elapsedsecs, totalmins, totalsecs);
