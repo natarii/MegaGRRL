@@ -90,8 +90,10 @@ static void dumppls() {
 }
 
 void Ui_ShuffleAll_Setup(lv_obj_t *uiscreen) {
-    Queue_Shuffle = true;
-    OptionsMgr_Touch();
+    if (!Queue_Shuffle) {
+        Queue_Shuffle = true;
+        OptionsMgr_Touch();
+    }
 
     ESP_LOGI(TAG, "request player stop");
     xTaskNotify(Taskmgr_Handles[TASK_PLAYER], PLAYER_NOTIFY_STOP_RUNNING, eSetValueWithoutOverwrite);
