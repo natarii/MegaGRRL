@@ -14,19 +14,31 @@ static const char* TAG = "DacStream";
 
 volatile DacStreamEntry_t DacStreamEntries[DACSTREAM_PRE_COUNT];
 
-uint8_t DacStream_CurLoop = 0;
+static uint8_t DacStream_CurLoop = 0;
 
-StaticSemaphore_t DacStream_MutexBuf;
-SemaphoreHandle_t DacStream_Mutex = NULL;
-volatile uint8_t DacStream_VgmDataBlockIndex = 0;
+static StaticSemaphore_t DacStream_MutexBuf;
+static SemaphoreHandle_t DacStream_Mutex = NULL;
+static volatile uint8_t DacStream_VgmDataBlockIndex = 0;
 FILE *DacStream_FindFile;
 FILE *DacStream_FillFile;
-VgmInfoStruct_t *DacStream_VgmInfo;
+static VgmInfoStruct_t *DacStream_VgmInfo;
 volatile static VgmDataBlockStruct_t DacStream_VgmDataBlocks[MAX_REALTIME_DATABLOCKS+1];
 EventGroupHandle_t DacStream_FindStatus;
-StaticEventGroup_t DacStream_FindStatusBuf;
+static StaticEventGroup_t DacStream_FindStatusBuf;
 EventGroupHandle_t DacStream_FillStatus;
-StaticEventGroup_t DacStream_FillStatusBuf;
+static StaticEventGroup_t DacStream_FillStatusBuf;
+static uint8_t DsFind_VgmBuf[FREAD_LOCAL_BUF];
+static uint16_t DsFind_VgmBufPos = FREAD_LOCAL_BUF;
+static IRAM_ATTR uint32_t DsFind_VgmFilePos = 0;
+
+#define DSFIND_BUF_FILL fseek(DacStream_FindFile, DsFind_VgmFilePos, SEEK_SET); fread(&DsFind_VgmBuf[0], 1, sizeof(DsFind_VgmBuf), DacStream_FindFile); DsFind_VgmBufPos = 0; //todo fix read past eof
+#define DSFIND_BUF_CHECK if (DsFind_VgmBufPos >= sizeof(DsFind_VgmBuf)) {DSFIND_BUF_FILL;}
+#define DSFIND_BUF_SEEK_SET(offset) DsFind_VgmFilePos = offset; fseek(DacStream_FindFile, offset, SEEK_SET); DSFIND_BUF_FILL;
+#define DSFIND_BUF_SEEK_REL(offset) DsFind_VgmFilePos += offset; DsFind_VgmBufPos += offset; DSFIND_BUF_CHECK;
+#define DSFIND_BUF_READ(var) var = DsFind_VgmBuf[DsFind_VgmBufPos]; DsFind_VgmBufPos++; DsFind_VgmFilePos++; DSFIND_BUF_CHECK;
+#define DSFIND_BUF_READ4(var) if (sizeof(DsFind_VgmBuf)-DsFind_VgmBufPos < 4) {DSFIND_BUF_FILL;} var = *(uint32_t*)&DsFind_VgmBuf[DsFind_VgmBufPos]; DsFind_VgmBufPos += 4; DsFind_VgmFilePos += 4; DSFIND_BUF_CHECK;
+#define DSFIND_BUF_READ2(var) if (sizeof(DsFind_VgmBuf)-DsFind_VgmBufPos < 2) {DSFIND_BUF_FILL;} var = *(uint16_t*)&DsFind_VgmBuf[DsFind_VgmBufPos]; DsFind_VgmBufPos += 2; DsFind_VgmFilePos += 2; DSFIND_BUF_CHECK;
+
 
 bool DacStream_Setup() {
     ESP_LOGI(TAG, "Setting up");
@@ -100,17 +112,16 @@ uint32_t DacStream_GetBlockSize(uint8_t BankType, uint16_t BlockId) {
     return 0xffffffff;
 }
 
-uint8_t d = 0;
-IRAM_ATTR uint32_t DacStream_Seq = 1;
-uint32_t DacStream_CurSampleRate = 0;
-uint8_t DacStream_CurDataBank = 0;
-uint16_t DacStream_CurDataBlock = 0;
-uint8_t DacStream_CurChipCommand = 0;
-uint8_t DacStream_CurChipPort = 0;
-uint8_t garbageary[10];
+static uint8_t d = 0;
+static IRAM_ATTR uint32_t DacStream_Seq = 1;
+static uint32_t DacStream_CurSampleRate = 0;
+static uint8_t DacStream_CurDataBank = 0;
+static uint16_t DacStream_CurDataBlock = 0;
+static uint8_t DacStream_CurChipCommand = 0;
+static uint8_t DacStream_CurChipPort = 0;
 
-bool DacStream_FindRunning = false;
-bool DacStream_FoundAny = false;
+static bool DacStream_FindRunning = false;
+static bool DacStream_FoundAny = false;
 void DacStream_FindTask() {
     ESP_LOGI(TAG, "Find task start");
 
@@ -143,7 +154,7 @@ void DacStream_FindTask() {
                 UserLedMgr_DiskState[DISKSTATE_DACSTREAM_FIND] = true;
                 UserLedMgr_Notify();
                 while (xTaskGetTickCount() - start <= pdMS_TO_TICKS(50)) {
-                    fread(&d,1,1,DacStream_FindFile);
+                    DSFIND_BUF_READ(d)
                     if (!VgmCommandIsFixedSize(d)) {
                         if (d == 0x67) { //datablock
                             if (DacStream_CurLoop == 0) { //only load datablocks on first loop through
@@ -156,21 +167,21 @@ void DacStream_FindTask() {
                         }
                     } else {
                         if (d == 0x90) { //dacstream setup
-                            fread(&garbageary[0],2,1,DacStream_FindFile); //skip stream id and chip type
-                            fread(&DacStream_CurChipPort,1,1,DacStream_FindFile);
-                            fread(&DacStream_CurChipCommand,1,1,DacStream_FindFile);
+                            DSFIND_BUF_SEEK_REL(2) //skip stream id and chip type
+                            DSFIND_BUF_READ(DacStream_CurChipPort)
+                            DSFIND_BUF_READ(DacStream_CurChipCommand)
                         } else if (d == 0x91) { //dacstream set data
-                            fread(&garbageary[0],1,1,DacStream_FindFile); //skip stream id
-                            fread(&DacStream_CurDataBank,1,1,DacStream_FindFile);
-                            fread(&garbageary[0],2,1,DacStream_FindFile); //skip step size and step base
+                            DSFIND_BUF_SEEK_REL(1) //skip stream id
+                            DSFIND_BUF_READ(DacStream_CurDataBank)
+                            DSFIND_BUF_SEEK_REL(2) //skip step size and step base
                         } else if (d == 0x92) { //set sample rate
-                            fread(&garbageary[0],1,1,DacStream_FindFile); //skip stream id
-                            fread(&DacStream_CurSampleRate,4,1,DacStream_FindFile);
+                            DSFIND_BUF_SEEK_REL(1) //skip stream id
+                            DSFIND_BUF_READ4(DacStream_CurSampleRate)
                         } else if (d == 0x93) { //start
-                            fread(&garbageary[0],1,1,DacStream_FindFile); //skip stream id
-                            fread(&DacStreamEntries[FreeSlot].DataStart,4,1,DacStream_FindFile); //todo: figure out what to do with -1
-                            fread(&DacStreamEntries[FreeSlot].LengthMode,1,1,DacStream_FindFile);
-                            fread(&DacStreamEntries[FreeSlot].DataLength,4,1,DacStream_FindFile);
+                            DSFIND_BUF_SEEK_REL(1) //skip stream id
+                            DSFIND_BUF_READ4(DacStreamEntries[FreeSlot].DataStart) //todo: figure out what to do with -1
+                            DSFIND_BUF_READ(DacStreamEntries[FreeSlot].LengthMode)
+                            DSFIND_BUF_READ4(DacStreamEntries[FreeSlot].DataLength)
                             //assign other attributes
                             DacStreamEntries[FreeSlot].DataBankId = DacStream_CurDataBank;
                             DacStreamEntries[FreeSlot].ChipCommand = DacStream_CurChipCommand;
@@ -185,15 +196,15 @@ void DacStream_FindTask() {
                             DacStream_FoundAny = true;
                             break;
                         } else if (d == 0x94) { //stop
-                            fread(&garbageary[0],1,1,DacStream_FindFile); //skip stream id
+                            DSFIND_BUF_SEEK_REL(1) //skip stream id
                         } else if (d == 0x95) { //fast start
                             uint8_t sid;
-                            fread(&sid,1,1,DacStream_FindFile);
-                            fread(&DacStream_CurDataBlock,2,1,DacStream_FindFile);
+                            DSFIND_BUF_READ(sid)
+                            DSFIND_BUF_READ2(DacStream_CurDataBlock)
                             DacStreamEntries[FreeSlot].DataLength = DacStream_GetBlockSize(DacStream_CurDataBank, DacStream_CurDataBlock);
                             DacStreamEntries[FreeSlot].DataStart = DacStream_GetBlockOffset(DacStream_CurDataBank, DacStream_CurDataBlock);
                             uint8_t flags;
-                            fread(&flags,1,1,DacStream_FindFile);
+                            DSFIND_BUF_READ(flags)
                             //assign other attributes
                             DacStreamEntries[FreeSlot].DataBankId = DacStream_CurDataBank;
                             DacStreamEntries[FreeSlot].ChipCommand = DacStream_CurChipCommand;
@@ -218,7 +229,7 @@ void DacStream_FindTask() {
                                 }
                                 ESP_LOGI(TAG, "looping");
                                 DacStream_CurLoop++; //still need to keep track of this so dacstream loads aren't duplicated
-                                fseek(DacStream_FindFile, DacStream_VgmInfo->LoopOffset, SEEK_SET);
+                                DSFIND_BUF_SEEK_SET(DacStream_VgmInfo->LoopOffset)
                                 continue;
                             } else { //none were found, so just die
                                 ESP_LOGI(TAG, "Find task reached end of music without finding any starts");
@@ -227,8 +238,7 @@ void DacStream_FindTask() {
                             }
                         } else {
                             //unimplemented command
-                            //the largest fixed size command is 10 bytes (excl command byte) so we don't have to worry about it
-                            fread(&garbageary[0],VgmCommandLength(d)-1,1,DacStream_FindFile);
+                            DSFIND_BUF_SEEK_REL((VgmCommandLength(d)-1))
                         }
                     }
                 }
@@ -293,7 +303,7 @@ bool DacStream_FillTask_DoPre(uint8_t idx) { //returns whether or not it had to 
     return ret;
 }
 
-bool DacStream_FillRunning = false;
+static bool DacStream_FillRunning = false;
 void DacStream_FillTask() {
     ESP_LOGI(TAG, "Fill task start");
 
@@ -362,7 +372,7 @@ bool DacStream_BeginFinding(VgmDataBlockStruct_t *SourceBlocks, uint8_t SourceBl
     memcpy(&DacStream_VgmDataBlocks[0], SourceBlocks, sizeof(VgmDataBlockStruct_t)*SourceBlockCount);
     DacStream_VgmDataBlockIndex = SourceBlockCount;
     ESP_LOGI(TAG, "Seek to start offset");
-    fseek(DacStream_FindFile, StartOffset, SEEK_SET);
+    DSFIND_BUF_SEEK_SET(StartOffset)
     ESP_LOGI(TAG, "Requesting find task start");
     xEventGroupSetBits(DacStream_FindStatus, DACSTREAM_START_REQUEST);
     ESP_LOGI(TAG, "Wait for find task start...");
