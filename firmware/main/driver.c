@@ -129,6 +129,8 @@ FILE *Driver_Opna_PcmUploadFile = NULL;
 volatile int16_t Driver_SpeedMult = 0;
 
 static uint8_t TLs[4*6];
+static uint8_t RhythmTL = 0;
+static uint8_t AdpcmLevel = 0;
 static const uint8_t OperatorMap[4] = {0,2,1,3};
 static IRAM_ATTR uint32_t FadePos = 0;
 static IRAM_ATTR uint32_t FadeStart = 0;
@@ -625,6 +627,38 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
     }
 }
 
+static uint8_t FadeAdpcmLevel(uint8_t tl) {
+    int32_t ltl = tl;
+    ESP_LOGW(TAG, "before %d", ltl);
+    ltl -= map(FadePos, 0, 44100*Driver_FadeLength, 0, 0x5f);
+    if (ltl < 0) ltl = 0;
+    ESP_LOGW(TAG, "after %d", ltl);
+    return ltl;
+}
+
+static uint8_t FilterAdpcmLevelWrite(uint8_t cmd2) {
+    AdpcmLevel = cmd2;
+    if (FadeActive) {
+        return FadeAdpcmLevel(cmd2);
+    }
+    return cmd2;
+}
+static uint8_t FadeRhythmTL(uint8_t tl) {
+    int32_t ltl = tl;
+    ltl = tl & 0b00111111;
+    ltl -= map(FadePos, 0, 44100*Driver_FadeLength, 0, 0x50);
+    if (ltl < 0) ltl = 0;
+    return ltl;
+}
+
+static uint8_t FilterRhythmTLWrite(uint8_t cmd2) {
+    RhythmTL = cmd2 & 0b00111111;
+    if (FadeActive) {
+        return FadeRhythmTL(cmd2);
+    }
+    return cmd2;
+}
+
 static uint8_t FadeTL(uint8_t tl) {
     uint32_t ltl = tl;
     ltl = tl & 0b01111111;
@@ -741,6 +775,8 @@ static void FadeTick() {
         for (uint8_t ch=0;ch<3;ch++) {
             Driver_FmOutopna(0, 0x08+ch, FilterSsgLevelWrite(0x08+ch, Driver_Opna_SsgLevel[ch]));
         }
+        Driver_FmOutopna(0, 0x11, FadeRhythmTL(RhythmTL));
+        Driver_FmOutopna(1, 0x0b, FadeAdpcmLevel(AdpcmLevel));
     }
 
     if (Driver_DetectedMod == MEGAMOD_NONE || Driver_DetectedMod == MEGAMOD_OPLLPSG) {
@@ -988,6 +1024,8 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
                 ChannelMgr_PcmCount = 1;
             } else if (cmd[1] == 0x0c || cmd[1] == 0x0d) { //limit
                 nw = true;
+            } else if (cmd[1] == 0x0b) { //level
+                cmd[2] = FilterAdpcmLevelWrite(cmd[2]);
             }
         }
         if (cmd[1] >= 0xb4 && cmd[1] <= 0xb6) { //pan, AMS, PMS
@@ -1011,6 +1049,8 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
                 ChannelMgr_PcmAccu = 127;
                 ChannelMgr_PcmCount = 1;
             }
+        } else if (cmd[0] == 0x56 && cmd[1] == 0x11) { //rhythm TL
+            cmd[2] = FilterRhythmTLWrite(cmd[2]);
         } else if ((cmd[0] == 0x56 || cmd[0] == 0x55 || cmd[0] == 0xa0) && cmd[1] >= 0x08 && cmd[1] <= 0x0a) {
             Driver_Opna_SsgLevel[cmd[1] - 0x08] = cmd[2];
             
@@ -1192,6 +1232,8 @@ void Driver_Main() {
             Driver_CurLoop = 0;
             memset(&Driver_FmAlgo[0], 0, sizeof(Driver_FmAlgo));
             memset(&TLs[0], 0, sizeof(TLs));
+            RhythmTL = 0; //TODO: verify
+            AdpcmLevel = 0; //TODO: verify
             Driver_DacEn = 0;
             Driver_PsgLastChannel = 0; //psg can't really be reset, so technically this is kinda wrong? but it's consistent.
             Driver_FirstWait = true;
