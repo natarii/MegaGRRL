@@ -311,12 +311,8 @@ void Clk_TempSet(uint8_t ch, uint32_t freq) { //NO MULT
 }
 
 void Clk_Restore(uint8_t ch) {
-    takemutex();
-
     lockout[ch] = false;
     Clk_Set(ch, clk[ch]);
-
-    givemutex();
 }
 
 uint32_t Clk_GetCh(uint8_t ch) {
