@@ -170,7 +170,7 @@ void Loader_Main() {
                             LOADER_BUF_SEEK_SET(ftell(Loader_File)); //fix buf
 
                             //handle opna pcm datablocks, since they need to be uploaded
-                            if (Loader_VgmDataBlocks[Loader_VgmDataBlockIndex-1].Type == 0x81) {
+                            if (Loader_VgmDataBlocks[Loader_VgmDataBlockIndex-1].Type == 0x81 && Loader_VgmDataBlocks[Loader_VgmDataBlockIndex-1].Size > 8) {
                                 ESP_LOGI(TAG, "Requesting OPNA PCM upload");
                                 Clk_TempSet(0,Loader_FastOpnaUpload?12000000:8000000); //avoid timing issues / speed reduction if chip underclocked
                                 Driver_Opna_PcmUploadId = Loader_VgmDataBlockIndex-1;
