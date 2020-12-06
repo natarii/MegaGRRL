@@ -363,6 +363,14 @@ static IRAM_ATTR uint32_t totalsecs;
 static IRAM_ATTR uint32_t elapsedmins;
 static IRAM_ATTR uint32_t elapsedsecs;
 
+static void calc_length() {
+    totalwithloops = (looppoint + (loopsamples * Player_LoopCount)) / 44100;
+    if (Driver_FadeEnabled && loopsamples) totalwithloops += Driver_FadeLength;
+    totalmins = totalwithloops/60;
+    totalsecs = totalwithloops%60;
+    loopcount = (Player_Info.LoopOffset && loopsamples)?Player_LoopCount:1;
+}
+
 static void newtrack() { //gd3, pls position, loop count/samples
     //title
     if (strlen(Player_Gd3_Title) == 0) { //no title in gd3
@@ -431,10 +439,7 @@ static void newtrack() { //gd3, pls position, loop count/samples
     if (Player_Info.LoopOffset && loopsamples && Player_LoopCount == 255) {
         sprintf(timebuf, "%02d:%02d / inf.", elapsedmins, elapsedsecs);
     } else {
-        totalwithloops = (looppoint + (loopsamples * Player_LoopCount))/44100;
-        totalmins = totalwithloops/60;
-        totalsecs = totalwithloops%60;
-        loopcount = (Player_Info.LoopOffset && loopsamples)?Player_LoopCount:1;
+        calc_length();
         sprintf(timebuf, "%02d:%02d / %02d:%02d", elapsedmins, elapsedsecs, totalmins, totalsecs);
     }
     lv_label_set_static_text(text_time, timebuf);
@@ -478,10 +483,7 @@ static void newtrack() { //gd3, pls position, loop count/samples
 
 static void do_tick() {
     //recalc these every tick now, since loopcount can change under our feet
-    totalwithloops = (looppoint + (loopsamples * Player_LoopCount))/44100;
-    totalmins = totalwithloops/60;
-    totalsecs = totalwithloops%60;
-    loopcount = (Player_Info.LoopOffset && loopsamples)?Player_LoopCount:1;
+    calc_length();
 
     if (Driver_FirstWait) {
         elapsedmins = 0;
