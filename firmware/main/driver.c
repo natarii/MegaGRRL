@@ -639,10 +639,8 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
 
 static uint8_t FadeAdpcmLevel(uint8_t tl) {
     int32_t ltl = tl;
-    ESP_LOGW(TAG, "before %d", ltl);
     ltl -= map(FadePos, 0, 44100*Driver_FadeLength, 0, 0x5f);
     if (ltl < 0) ltl = 0;
-    ESP_LOGW(TAG, "after %d", ltl);
     return ltl;
 }
 
