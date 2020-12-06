@@ -443,6 +443,7 @@ static void newtrack() { //gd3, pls position, loop count/samples
     if (totalsamples) {
         uint32_t tracklength = map(looppoint/100, 0, totalsamples/100, 0, 220);
         uint32_t looplength = map(loopsamples/100, 0, totalsamples/100, 0, 220);
+        if (looplength == 0) looplength = 1; //make sure very short loops are still visible
         lv_obj_set_size(bar_track, tracklength, 10);
         lv_obj_set_size(bar_trackloop, looplength, 10);
         lv_obj_set_pos(bar_trackloop, 10+tracklength, 128);
