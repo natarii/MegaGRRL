@@ -28,6 +28,7 @@ uint16_t Loader_VgmBufPos = FREAD_LOCAL_BUF;
 IRAM_ATTR uint32_t Loader_VgmFilePos = 0;
 volatile bool Loader_IgnoreZeroSampleLoops = true;
 volatile bool Loader_FastOpnaUpload = false;
+bool Loader_HitLoop = false;
 
 //local buffer thingie. big speedup
 #define LOADER_BUF_FILL fseek(Loader_File, Loader_VgmFilePos, SEEK_SET); fread(&Loader_VgmBuf[0], 1, sizeof(Loader_VgmBuf), Loader_File); Loader_VgmBufPos = 0; //todo fix read past eof
@@ -106,13 +107,14 @@ void Loader_Main() {
             } else if (spaces == DRIVER_QUEUE_SIZE) {
                 xEventGroupSetBits(Loader_BufStatus, LOADER_BUF_EMPTY);
                 xEventGroupClearBits(Loader_BufStatus, 0xff ^ LOADER_BUF_EMPTY);
-            } else if (spaces < (DRIVER_QUEUE_SIZE-(DRIVER_QUEUE_SIZE/4)) || Loader_EndReached) {
+            } else if (spaces < (DRIVER_QUEUE_SIZE-(DRIVER_QUEUE_SIZE/4)) || Loader_EndReached || Loader_HitLoop) {
                 xEventGroupSetBits(Loader_BufStatus, LOADER_BUF_OK);
                 xEventGroupClearBits(Loader_BufStatus, 0xff ^ LOADER_BUF_OK);
             } else {
                 xEventGroupSetBits(Loader_BufStatus, LOADER_BUF_LOW);
                 xEventGroupClearBits(Loader_BufStatus, 0xff ^ LOADER_BUF_LOW);
             }
+            if (Loader_HitLoop) Loader_HitLoop = false;
             if (adjustedprio) {
                 vTaskPrioritySet(Taskmgr_Handles[TASK_LOADER], LOADER_TASK_PRIO_NORM);
                 ESP_LOGW(TAG, "Returning to normal priority");
@@ -219,9 +221,11 @@ void Loader_Main() {
                         }
                         ESP_LOGI(TAG, "looping");
                         if (Loader_VgmInfo->LoopSamples == 0) ESP_LOGW(TAG, "looping despite LoopSamples == 0 !!");
+                        if (Loader_CurLoop == 0) Loader_HitLoop = true;
                         Loader_CurLoop++; //still need to keep track of this so dacstream loads aren't duplicated
                         MegaStream_Send(&Driver_CommandStream, &d, 1);
                         LOADER_BUF_SEEK_SET(Loader_VgmInfo->LoopOffset);
+                        break;
                     } else if (d >= 0x90 && d <= 0x95) { //dacstream command
                         if (!Loader_RequestedDacStreamFindStart) {
                             DacStream_BeginFinding(&Loader_VgmDataBlocks, Loader_VgmDataBlockIndex, Loader_VgmFilePos-1);
