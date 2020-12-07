@@ -1215,6 +1215,8 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
                 if (Loader_VgmInfo->LoopSamples == 0) ESP_LOGW(TAG, "looping despite LoopSamples == 0 !!");
             }
         }
+    } else if (cmd[0] == 0x31) {
+        //ignore AY-3-8910 stereo mask
     } else {
         ESP_LOGE(TAG, "driver unknown command %02x !!", cmd[0]);
         return false;
