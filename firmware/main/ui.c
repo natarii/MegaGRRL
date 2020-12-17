@@ -21,6 +21,7 @@
 #include "ui/fwupdate.h"
 #include "ui/debug.h"
 #include "ui/shuffleall.h"
+#include "ui/modal.h"
 
 static const char* TAG = "Ui";
 
@@ -42,6 +43,8 @@ lv_style_t hlinestyle;
 static lv_point_t hpoints[4];
 
 static const lv_label_long_mode_t scrolltypeLUT[SCROLLTYPE_COUNT] = {LV_LABEL_LONG_SROLL, LV_LABEL_LONG_SROLL_CIRC, LV_LABEL_LONG_DOT};
+
+static bool modal_visible = false;
 
 lv_label_long_mode_t Ui_GetScrollType() {
     return scrolltypeLUT[Ui_ScrollType];
@@ -124,6 +127,8 @@ void Ui_Main() {
                     ESP_LOGI(TAG, "Disabling screenshot key");
                     Ui_ScreenshotEnabled = false;
                 }
+            } else if (modal_visible) {
+                Ui_Modal_Key(event);
             } else {
                 switch (Ui_Screen) {
                     case UISCREEN_FILEBROWSER:
@@ -162,6 +167,24 @@ void Ui_Main() {
                 if (Ui_Screen != Ui_Screen_Last) break;
             }
         }
+
+        bool new_modal_visible = modal_is_visible();
+        if (!modal_visible) {
+            if (new_modal_visible) {
+                ESP_LOGI(TAG, "Creating modal window");
+                Ui_Modal_Setup(uiscreen);
+            }
+        } else {
+            if (!new_modal_visible) {
+                ESP_LOGI(TAG, "Destroying modal window");
+                Ui_Modal_Destroy();
+            } else if (modal_is_updated()) {
+                ESP_LOGI(TAG, "Redrawing modal window");
+                modal_update(true);
+            }
+        }
+        modal_visible = new_modal_visible;
+
         if (Ui_Screen != Ui_Screen_Last) {
             UiScreen_t scr = Ui_Screen;
             ESP_LOGI(TAG, "screen %d -> %d", Ui_Screen_Last, Ui_Screen);

@@ -7,10 +7,11 @@
 static const char* TAG = "Ui_SoftBar";
 
 static IRAM_ATTR lv_obj_t *container;
-IRAM_ATTR lv_obj_t *softbarlabels[3];
+static IRAM_ATTR lv_obj_t *softbarlabels[3];
+static IRAM_ATTR lv_obj_t *softbarlabels_modal[3];
 static IRAM_ATTR lv_obj_t *line[2];
-lv_style_t softbarstyle;
-lv_style_t softbarstyle_disbl;
+static lv_style_t softbarstyle;
+static lv_style_t softbarstyle_disbl;
 
 bool Ui_SoftBar_Setup(lv_obj_t *uiscreen) {
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
@@ -49,6 +50,14 @@ bool Ui_SoftBar_Setup(lv_obj_t *uiscreen) {
         lv_label_set_align(softbarlabels[i], LV_LABEL_ALIGN_LEFT);
         lv_label_set_text(softbarlabels[i], "");
         lv_obj_set_pos(softbarlabels[i], ((240/3)*i)+3, 6);
+
+        softbarlabels_modal[i] = lv_label_create(container, NULL);
+        lv_obj_set_style(softbarlabels_modal[i], &softbarstyle);
+        lv_label_set_long_mode(softbarlabels_modal[i], LV_LABEL_LONG_EXPAND);
+        lv_label_set_align(softbarlabels_modal[i], LV_LABEL_ALIGN_LEFT);
+        lv_label_set_text(softbarlabels_modal[i], "");
+        lv_obj_set_pos(softbarlabels_modal[i], ((240/3)*i)+3, 6);
+        lv_obj_set_hidden(softbarlabels_modal[i], true);
     }
 
     LcdDma_Mutex_Give();
@@ -61,6 +70,24 @@ bool Ui_SoftBar_Update(uint8_t id, bool enabled, char *text, bool HandleMutex) {
     lv_obj_set_style(softbarlabels[id], enabled?&softbarstyle:&softbarstyle_disbl);
     lv_label_set_text(softbarlabels[id], text);
     if (HandleMutex) LcdDma_Mutex_Give();
-    
+
     return true;
+}
+
+bool Ui_SoftBar_UpdateModal(uint8_t id, bool enabled, char *text, bool HandleMutex) {
+    if (HandleMutex) LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    lv_obj_set_style(softbarlabels_modal[id], enabled?&softbarstyle:&softbarstyle_disbl);
+    lv_label_set_text(softbarlabels_modal[id], text);
+    if (HandleMutex) LcdDma_Mutex_Give();
+
+    return true;
+}
+
+void Ui_SoftBar_ShowModal(bool show, bool HandleMutex) {
+    if (HandleMutex) LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    for (uint8_t i=0;i<3;i++) {
+        lv_obj_set_hidden(softbarlabels[i], show);
+        lv_obj_set_hidden(softbarlabels_modal[i], !show);
+    }
+    if (HandleMutex) LcdDma_Mutex_Give();
 }
