@@ -20,7 +20,7 @@ static uint32_t map(uint32_t x, uint32_t in_min, uint32_t in_max, uint32_t out_m
 }
 
 void UserLedMgr_Reset() {
-    memset(&UserLedMgr_States[0], 0, sizeof(UserLedMgr_States));
+    memset((uint8_t *)&UserLedMgr_States[0], 0, sizeof(UserLedMgr_States));
 }
 
 bool UserLedMgr_Setup() {
@@ -34,7 +34,6 @@ void UserLedMgr_Main() {
         xTaskNotifyWait(0,0xffffffff, NULL, pdMS_TO_TICKS(50));
 
         bool set = false;
-        uint8_t tmp = 0;
         EventBits_t playerevents;
         for (uint8_t led=0;led<3;led++) {
             switch (UserLedMgr_Source[led]) {

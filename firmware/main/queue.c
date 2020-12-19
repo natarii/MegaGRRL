@@ -36,7 +36,7 @@ void QueueLoadM3u(char *M3uPath, char *M3uFilename, uint32_t pos, bool CountComm
     if (QueueM3uFile) fclose(QueueM3uFile);
     QueueM3uFile = fopen(&QueueM3uFilename[0], "r");
     while (!feof(QueueM3uFile)) {
-        uint32_t pos = ftell(QueueM3uFile); //might be faster to add up strlens rather than ftell?
+        pos = ftell(QueueM3uFile); //might be faster to add up strlens rather than ftell?
         if (fgets(&QueueLine[0], 255, QueueM3uFile) == NULL) break;
         if (QueueLine[0] != 0 && QueueLine[0] != 0x0d && QueueLine[0] != 0x0a) {
             if ((QueueLine[0] == '#' && CountComments) || QueueLine[0] != '#') {
@@ -100,11 +100,11 @@ bool QueuePrev() {
     return true;
 }
 
-volatile char *qse_last_filename = NULL;
+volatile const char *qse_last_filename = NULL;
 
 void QueueSetupEntry(bool ReturnComments, bool ProcessShuffle) {
     if (QueueSource == QUEUE_SOURCE_M3U) {
-        char *fn = (ProcessShuffle&&Queue_Shuffle)?cachefilename_shuf:cachefilename;
+        const char *fn = (ProcessShuffle&&Queue_Shuffle)?cachefilename_shuf:cachefilename;
         if (cachefile && fn != qse_last_filename) {
             fclose(cachefile);
             cachefile = NULL;

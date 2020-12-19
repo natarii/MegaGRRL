@@ -224,7 +224,7 @@ void fwupdate_flash() {
         LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
         lv_ta_add_text(fwupdate_ta, "Backing up...\n");
         LcdDma_Mutex_Give();
-        esp_partition_t *partition;
+        const esp_partition_t *partition;
         partition = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_0, NULL);
         if (partition == NULL) ESP_LOGE(TAG, "no part found !!");
         uint8_t *upd;
@@ -244,7 +244,7 @@ void fwupdate_flash() {
         if (ret != ESP_OK) {
             ESP_LOGE(TAG, "ota begin fail %s", esp_err_to_name(ret));
         }
-        if (updatehandle == NULL) ESP_LOGE(TAG, "update handle bad");
+        if (!updatehandle) ESP_LOGE(TAG, "update handle bad");
         f = fopen(fwupdate_file, "r");
         fseek(f,22+newfirmware.ver_length+newfirmware.app_size, SEEK_SET);
         uint32_t remaining = newfirmware.updater_size;
@@ -284,7 +284,7 @@ void fwupdate_flash() {
         lv_img_set_src(fwupdate_lcd, &img_lcdhappy);
         LcdDma_Mutex_Give();
         vTaskDelay(pdMS_TO_TICKS(3000));
-        esp_partition_t *factory;
+        const esp_partition_t *factory;
         factory = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_0, NULL);
         esp_ota_set_boot_partition(factory);
         esp_restart();

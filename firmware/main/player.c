@@ -296,7 +296,7 @@ static tinfl_status Player_Unvgz(char *FilePath, bool ReplaceOriginalFile) {
 }
 
 bool Player_StartTrack(char *FilePath) {
-    char *OpenFilePath = FilePath;
+    const char *OpenFilePath = FilePath;
 
     ESP_LOGI(TAG, "Checking file type of %s", FilePath);
     FILE *test = fopen(FilePath, "r");

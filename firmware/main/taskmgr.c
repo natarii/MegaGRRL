@@ -14,7 +14,7 @@
 #include "userled.h"
 #include "options.h"
 
-static const char* TAG = "Taskmgr";
+//static const char* TAG = "Taskmgr";
 
 TaskHandle_t Taskmgr_Handles[TASK_COUNT];
 

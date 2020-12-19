@@ -122,11 +122,11 @@ bool LedDrv_Update() {
         led_pwm[led_channel_assignment[i]] = led_curve_lut[LedDrv_States[i]];
     }
 
-    bool ret = LedDrv_WritePwmValues(0, &led_pwm[0]);
+    bool ret = LedDrv_WritePwmValues(0, (uint8_t *)&led_pwm[0]);
     if (!ret) {
         return false;
     }
-    ret = LedDrv_WritePwmValues(1, &led_pwm[8]);
+    ret = LedDrv_WritePwmValues(1, (uint8_t *)&led_pwm[8]);
     return ret;
 }
 
@@ -138,7 +138,7 @@ bool LedDrv_Setup() {
         return false;
     }
 
-    memset(&LedDrv_States[0], 0, sizeof(LedDrv_States));
+    memset((void *)&LedDrv_States[0], 0, sizeof(LedDrv_States));
 
     ESP_LOGI(TAG, "Resetting...");
     if (!LedDrv_Reset()) {

@@ -16,7 +16,7 @@
 
 #include "softbar.h"
 
-static const char* TAG = "Ui_MainMenu";
+//static const char* TAG = "Ui_MainMenu";
 
 LV_IMG_DECLARE(img_library);
 LV_IMG_DECLARE(img_player);

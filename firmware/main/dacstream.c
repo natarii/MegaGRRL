@@ -31,14 +31,49 @@ static uint8_t DsFind_VgmBuf[FREAD_LOCAL_BUF];
 static uint16_t DsFind_VgmBufPos = FREAD_LOCAL_BUF;
 static IRAM_ATTR uint32_t DsFind_VgmFilePos = 0;
 
-#define DSFIND_BUF_FILL fseek(DacStream_FindFile, DsFind_VgmFilePos, SEEK_SET); fread(&DsFind_VgmBuf[0], 1, sizeof(DsFind_VgmBuf), DacStream_FindFile); DsFind_VgmBufPos = 0; //todo fix read past eof
-#define DSFIND_BUF_CHECK if (DsFind_VgmBufPos >= sizeof(DsFind_VgmBuf)) {DSFIND_BUF_FILL;}
-#define DSFIND_BUF_SEEK_SET(offset) DsFind_VgmFilePos = offset; fseek(DacStream_FindFile, offset, SEEK_SET); DSFIND_BUF_FILL;
-#define DSFIND_BUF_SEEK_REL(offset) DsFind_VgmFilePos += offset; DsFind_VgmBufPos += offset; DSFIND_BUF_CHECK;
-#define DSFIND_BUF_READ(var) var = DsFind_VgmBuf[DsFind_VgmBufPos]; DsFind_VgmBufPos++; DsFind_VgmFilePos++; DSFIND_BUF_CHECK;
-#define DSFIND_BUF_READ4(var) if (sizeof(DsFind_VgmBuf)-DsFind_VgmBufPos < 4) {DSFIND_BUF_FILL;} var = *(uint32_t*)&DsFind_VgmBuf[DsFind_VgmBufPos]; DsFind_VgmBufPos += 4; DsFind_VgmFilePos += 4; DSFIND_BUF_CHECK;
-#define DSFIND_BUF_READ2(var) if (sizeof(DsFind_VgmBuf)-DsFind_VgmBufPos < 2) {DSFIND_BUF_FILL;} var = *(uint16_t*)&DsFind_VgmBuf[DsFind_VgmBufPos]; DsFind_VgmBufPos += 2; DsFind_VgmFilePos += 2; DSFIND_BUF_CHECK;
-
+#define DSFIND_BUF_FILL \
+    fseek(DacStream_FindFile, DsFind_VgmFilePos, SEEK_SET); \
+    fread(&DsFind_VgmBuf[0], 1, sizeof(DsFind_VgmBuf), DacStream_FindFile); \
+    DsFind_VgmBufPos = 0; //todo fix read past eof
+#define DSFIND_BUF_CHECK \
+    if (DsFind_VgmBufPos >= sizeof(DsFind_VgmBuf)) { \
+        DSFIND_BUF_FILL; \
+    }
+#define DSFIND_BUF_SEEK_SET(offset) \
+    DsFind_VgmFilePos = offset; \
+    fseek(DacStream_FindFile, offset, SEEK_SET); \
+    DSFIND_BUF_FILL;
+#define DSFIND_BUF_SEEK_REL(offset) \
+    DsFind_VgmFilePos += offset; \
+    DsFind_VgmBufPos += offset; \
+    DSFIND_BUF_CHECK;
+#define DSFIND_BUF_READ(var) \
+    var = DsFind_VgmBuf[DsFind_VgmBufPos]; \
+    DsFind_VgmBufPos++; \
+    DsFind_VgmFilePos++; \
+    DSFIND_BUF_CHECK;
+#define DSFIND_BUF_READ4(var) \
+    if (sizeof(DsFind_VgmBuf)-DsFind_VgmBufPos < 4) { \
+        DSFIND_BUF_FILL; \
+    } \
+    _Pragma("GCC diagnostic push") \
+    _Pragma("GCC diagnostic ignored \"-Wstrict-aliasing\"") \
+    var = *(uint32_t*)&DsFind_VgmBuf[DsFind_VgmBufPos]; \
+    _Pragma("GCC diagnostic pop") \
+    DsFind_VgmBufPos += 4; \
+    DsFind_VgmFilePos += 4; \
+    DSFIND_BUF_CHECK;
+#define DSFIND_BUF_READ2(var) \
+    if (sizeof(DsFind_VgmBuf)-DsFind_VgmBufPos < 2) { \
+        DSFIND_BUF_FILL; \
+    } \
+    _Pragma("GCC diagnostic push") \
+    _Pragma("GCC diagnostic ignored \"-Wstrict-aliasing\"") \
+    var = *(uint16_t*)&DsFind_VgmBuf[DsFind_VgmBufPos]; \
+    _Pragma("GCC diagnostic pop") \
+    DsFind_VgmBufPos += 2; \
+    DsFind_VgmFilePos += 2; \
+    DSFIND_BUF_CHECK;
 
 bool DacStream_Setup() {
     ESP_LOGI(TAG, "Setting up");
@@ -47,7 +82,7 @@ bool DacStream_Setup() {
     for (uint8_t i=0; i<DACSTREAM_PRE_COUNT; i++) {
         DacStreamEntries[i].SlotFree = true;
         DacStreamEntries[i].Seq = 0;
-        MegaStream_Create(&DacStreamEntries[i].Stream, &Driver_PcmBuf[i*DACSTREAM_BUF_SIZE], DACSTREAM_BUF_SIZE);
+        MegaStream_Create((MegaStreamContext_t *)&DacStreamEntries[i].Stream, &Driver_PcmBuf[i*DACSTREAM_BUF_SIZE], DACSTREAM_BUF_SIZE);
     }
 
     ESP_LOGI(TAG, "Creating find thread status event group");
@@ -158,10 +193,10 @@ void DacStream_FindTask() {
                     if (!VgmCommandIsFixedSize(d)) {
                         if (d == 0x67) { //datablock
                             if (DacStream_CurLoop == 0) { //only load datablocks on first loop through
-                                VgmParseDataBlock(DacStream_FindFile, &DacStream_VgmDataBlocks[DacStream_VgmDataBlockIndex++]);
+                                VgmParseDataBlock(DacStream_FindFile, (VgmDataBlockStruct_t *)&DacStream_VgmDataBlocks[DacStream_VgmDataBlockIndex++]);
                             } else {
                                 //can't simply skip over the datablock because they're variable-length. use the last entry as a garbage can
-                                VgmParseDataBlock(DacStream_FindFile, &DacStream_VgmDataBlocks[MAX_REALTIME_DATABLOCKS]);
+                                VgmParseDataBlock(DacStream_FindFile, (VgmDataBlockStruct_t *)&DacStream_VgmDataBlocks[MAX_REALTIME_DATABLOCKS]);
                             }
                             //todo: bounds check
                         }
@@ -191,20 +226,18 @@ void DacStream_FindTask() {
                             //reset
                             DacStreamEntries[FreeSlot].ReadOffset = 0;
                             DacStreamEntries[FreeSlot].BytesFilled = 0;
-                            MegaStream_Reset(&DacStreamEntries[FreeSlot].Stream);
+                            MegaStream_Reset((MegaStreamContext_t *)&DacStreamEntries[FreeSlot].Stream);
                             DacStreamEntries[FreeSlot].SlotFree = false;
                             DacStream_FoundAny = true;
                             break;
                         } else if (d == 0x94) { //stop
                             DSFIND_BUF_SEEK_REL(1) //skip stream id
                         } else if (d == 0x95) { //fast start
-                            uint8_t sid;
-                            DSFIND_BUF_READ(sid)
+                            DSFIND_BUF_SEEK_REL(1) //skip stream id
                             DSFIND_BUF_READ2(DacStream_CurDataBlock)
                             DacStreamEntries[FreeSlot].DataLength = DacStream_GetBlockSize(DacStream_CurDataBank, DacStream_CurDataBlock);
                             DacStreamEntries[FreeSlot].DataStart = DacStream_GetBlockOffset(DacStream_CurDataBank, DacStream_CurDataBlock);
-                            uint8_t flags;
-                            DSFIND_BUF_READ(flags)
+                            DSFIND_BUF_SEEK_REL(1) //skip flags
                             //assign other attributes
                             DacStreamEntries[FreeSlot].DataBankId = DacStream_CurDataBank;
                             DacStreamEntries[FreeSlot].ChipCommand = DacStream_CurChipCommand;
@@ -215,7 +248,7 @@ void DacStream_FindTask() {
                             DacStreamEntries[FreeSlot].LengthMode = 0; //always for fast starts
                             DacStreamEntries[FreeSlot].ReadOffset = 0;
                             DacStreamEntries[FreeSlot].BytesFilled = 0;
-                            MegaStream_Reset(&DacStreamEntries[FreeSlot].Stream);
+                            MegaStream_Reset((MegaStreamContext_t *)&DacStreamEntries[FreeSlot].Stream);
                             DacStreamEntries[FreeSlot].SlotFree = false;
                             DacStream_FoundAny = true;
                             break;
@@ -257,7 +290,7 @@ bool DacStream_FillTask_DoPre(uint8_t idx) { //returns whether or not it had to 
     bool ret = false;
     xSemaphoreTake(DacStream_Mutex, pdMS_TO_TICKS(1000));
     if (!DacStreamEntries[idx].SlotFree) {
-        if (MegaStream_Free(&DacStreamEntries[idx].Stream) > DACSTREAM_BUF_SIZE/3 && DacStreamEntries[idx].ReadOffset < DacStreamEntries[idx].DataLength) {
+        if (MegaStream_Free((MegaStreamContext_t *)&DacStreamEntries[idx].Stream) > DACSTREAM_BUF_SIZE/3 && DacStreamEntries[idx].ReadOffset < DacStreamEntries[idx].DataLength) {
             UserLedMgr_DiskState[DISKSTATE_DACSTREAM_FILL] = true;
             UserLedMgr_Notify();
             uint32_t o = DacStream_GetDataOffset(DacStreamEntries[idx].DataBankId, DacStreamEntries[idx].DataStart + DacStreamEntries[idx].ReadOffset);
@@ -273,7 +306,7 @@ bool DacStream_FillTask_DoPre(uint8_t idx) { //returns whether or not it had to 
                 dsbufused = 0;
                 ret = true;
             }
-            uint32_t freespaces = MegaStream_Free(&DacStreamEntries[idx].Stream);
+            uint32_t freespaces = MegaStream_Free((MegaStreamContext_t *)&DacStreamEntries[idx].Stream);
             //try to find a dead dacstream that has the data we need. has to be a dead one, any active ones might have data removed 
             while (freespaces && DacStreamEntries[idx].ReadOffset < DacStreamEntries[idx].DataLength) {
                 if (dsbufused == DACSTREAM_BUF_SIZE) {
@@ -290,7 +323,7 @@ bool DacStream_FillTask_DoPre(uint8_t idx) { //returns whether or not it had to 
                 uint32_t writesize = streamremaining;
                 if (dsbufremaining < writesize) writesize = dsbufremaining;
                 if (freespaces < writesize) writesize = freespaces;
-                MegaStream_Send(&DacStreamEntries[idx].Stream, &DacStream_FillBuf[dsbufused], writesize);
+                MegaStream_Send((MegaStreamContext_t *)&DacStreamEntries[idx].Stream, &DacStream_FillBuf[dsbufused], writesize);
                 dsbufused += writesize;
                 DacStreamEntries[idx].ReadOffset += writesize;
                 freespaces -= writesize;
@@ -329,7 +362,7 @@ void DacStream_FillTask() {
             bool ret = DacStream_FillTask_DoPre(idx);
             if (++idx == DACSTREAM_PRE_COUNT) idx = 0;
             if (!ret) { //if we didn't hit the card, that pre was basically "free", so go ahead with the next one right away
-                bool ret = DacStream_FillTask_DoPre(idx);
+                DacStream_FillTask_DoPre(idx);
                 if (++idx == DACSTREAM_PRE_COUNT) idx = 0;
             }
             vTaskDelay(pdMS_TO_TICKS(10));
@@ -369,7 +402,7 @@ bool DacStream_BeginFinding(VgmDataBlockStruct_t *SourceBlocks, uint8_t SourceBl
         return false;
     }
     ESP_LOGI(TAG, "Copying datablock array");
-    memcpy(&DacStream_VgmDataBlocks[0], SourceBlocks, sizeof(VgmDataBlockStruct_t)*SourceBlockCount);
+    memcpy((VgmDataBlockStruct_t *)&DacStream_VgmDataBlocks[0], SourceBlocks, sizeof(VgmDataBlockStruct_t)*SourceBlockCount);
     DacStream_VgmDataBlockIndex = SourceBlockCount;
     ESP_LOGI(TAG, "Seek to start offset");
     DSFIND_BUF_SEEK_SET(StartOffset)

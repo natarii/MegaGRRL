@@ -181,7 +181,7 @@ void checkcore() {
     LcdDma_AltMode = true;
     LcdDma_Mutex_Give();
     ESP_LOGI(TAG, "looking for core...");
-    esp_partition_t *corepart;
+    const esp_partition_t *corepart;
     corepart = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_COREDUMP, NULL);
     if (corepart) {
         uint8_t *core;
@@ -237,7 +237,7 @@ void checkcore() {
 
 void app_main(void)
 {
-    uint8_t r = rtc_get_reset_reason(0);
+    //uint8_t r = rtc_get_reset_reason(0);
 
     #ifdef FWUPDATE
     ESP_LOGI(TAG, "MegaGRRL OS Updater");
@@ -499,7 +499,7 @@ void app_main(void)
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_ta_add_text(textarea, "Locating OS partition\n");
     LcdDma_Mutex_Give();
-    esp_partition_t *partition;
+    const esp_partition_t *partition;
     partition = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_1, NULL);
     uint8_t *app;
     spi_flash_mmap_handle_t mmaphandle;

@@ -6,7 +6,7 @@
 #include "modal.h"
 #include "softbar.h"
 
-static const char* TAG = "Ui_Modal";
+//static const char* TAG = "Ui_Modal";
 
 static bool visible = false;
 static volatile bool updated = false;
@@ -56,12 +56,12 @@ void Ui_Modal_Key(KeyEvent_t event) {
 
 void modal_update(bool HandleMutex) {
     if (HandleMutex) LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
-    lv_label_set_static_text(titletext, newtitle);
+    lv_label_set_static_text(titletext, (const char *)newtitle);
     lv_obj_set_pos(titletext, 5, 3);
-    lv_label_set_static_text(bodytext, newtext);
+    lv_label_set_static_text(bodytext, (const char *)newtext);
     lv_obj_align(bodytext, titletext, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 1);
     lv_cont_set_fit4(textcontainer, LV_FIT_NONE, LV_FIT_NONE, LV_FIT_NONE, LV_FIT_TIGHT);
-    Ui_SoftBar_UpdateModal(2, true, newbutton, false);
+    Ui_SoftBar_UpdateModal(2, true, (char *)newbutton, false);
     if (HandleMutex) LcdDma_Mutex_Give();
 }
 

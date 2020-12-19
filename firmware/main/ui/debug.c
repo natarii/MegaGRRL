@@ -41,12 +41,13 @@ static IRAM_ATTR lv_obj_t *samplelabel1;
 static IRAM_ATTR lv_obj_t *samplelabel2;
 static bool fast = false;
 
-static int comp(const TaskStatus_t *a, const TaskStatus_t *b) {
-    return strcmp(a->pcTaskName, b->pcTaskName);
+static int comp(const void *a, const void *b) {
+    const TaskStatus_t *tsa = a, *tsb = b;
+    return strcmp(tsa->pcTaskName, tsb->pcTaskName);
 }
 
 static uint32_t map(uint32_t x, uint32_t in_min, uint32_t in_max, uint32_t out_min, uint32_t out_max) {
-  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
 static void draw() {
@@ -76,7 +77,7 @@ static void draw() {
 
     for (uint8_t i=0;i<DACSTREAM_PRE_COUNT;i++) {
         lv_obj_set_style(ds[i], (i==DacStreamId)?&bar_style:&bar_style_idle);
-        lv_obj_set_size(ds[i], map(MegaStream_Used(&DacStreamEntries[i].Stream), 0, DACSTREAM_BUF_SIZE, 0, 240), 1);
+        lv_obj_set_size(ds[i], map(MegaStream_Used((MegaStreamContext_t *)&DacStreamEntries[i].Stream), 0, DACSTREAM_BUF_SIZE, 0, 240), 1);
     }
 
     LcdDma_Mutex_Give();
@@ -90,7 +91,7 @@ static void drawtasks() {
 
     uint32_t trt;
     uxTaskGetSystemState(&taskstatus[0], TASK_COUNT+6, &trt);
-    qsort(taskstatus, TASK_COUNT+6, sizeof(TaskStatus_t), comp); //todo fix warning
+    qsort(taskstatus, TASK_COUNT+6, sizeof(TaskStatus_t), comp);
     for (uint8_t i=0;i<TASK_COUNT+6;i++) {
         uint8_t blacklisted = false;
         for (uint8_t q=0;q<6;q++) {

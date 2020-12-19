@@ -459,13 +459,13 @@ void redrawopts() {
     sprintf(&headertext[13], "%s (Pg. %d/%d)", OptionCatNames[Options_Cat], (Options_Sel/5)+1, pages);
     lv_label_set_static_text(header, headertext);
 
-    displayvalue(&defaultvalue_buf, true);
-    lv_label_set_static_text(optiondefault_val, &defaultvalue_buf);
+    displayvalue((char *)&defaultvalue_buf, true);
+    lv_label_set_static_text(optiondefault_val, (char *)&defaultvalue_buf);
 }
 
 void redrawopt() {
-    displayvalue(&currentvalue_buf, false);
-    lv_label_set_static_text(optionvalue_val, &currentvalue_buf);
+    displayvalue((char *)&currentvalue_buf, false);
+    lv_label_set_static_text(optionvalue_val, (char *)&currentvalue_buf);
 }
 
 void Ui_Options_Opts_Key(KeyEvent_t event) {
