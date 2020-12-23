@@ -70,11 +70,12 @@ void Ui_FileBrowser_InvalidateDirEntry() {
     direntry_invalidated = true;
 }
 
-static int comp(const uint32_t *offset1, const uint32_t *offset2) {
-    char *s1 = direntry_cache + *offset1;
-    char *s2 = direntry_cache + *offset2;
-    unsigned char t1 = direntry_cache[*offset1-1];
-    unsigned char t2 = direntry_cache[*offset2-1];
+static int comp(const void *offset1, const void *offset2) {
+    const uint32_t *o1 = offset1, *o2 = offset2;
+    char *s1 = direntry_cache + *o1;
+    char *s2 = direntry_cache + *o2;
+    unsigned char t1 = direntry_cache[*o1-1];
+    unsigned char t2 = direntry_cache[*o2-1];
     if (Ui_FileBrowser_DirsBeforeFiles) if (t1 != t2) return t2-t1; //cheezy, but should be fine
     if (Ui_FileBrowser_SortDir == SORT_ASCENDING) {
         return strcasecmp(s1, s2);
@@ -83,10 +84,10 @@ static int comp(const uint32_t *offset1, const uint32_t *offset2) {
     }
 }
 
-void cachedir(char *path) {
-    ESP_LOGI(TAG, "generating dir cache for %s...", path);
+void cachedir(char *dir_name) {
+    ESP_LOGI(TAG, "generating dir cache for %s...", dir_name);
     uint32_t s = xthal_get_ccount();
-    dir = opendir(path);
+    dir = opendir(dir_name);
     uint32_t off = 0;
     direntry_count = 0;
     while ((ent=readdir(dir))!=NULL) {
@@ -522,7 +523,6 @@ void m3u2m3u() {
 }
 
 void openselection() {
-    uint16_t c = 0;
     char *name = direntry_cache + direntry_offset[diroffset + selectedfile];
     unsigned char type = direntry_cache[direntry_offset[diroffset + selectedfile]-1];
     if (type == DT_DIR) {

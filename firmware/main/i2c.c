@@ -86,7 +86,6 @@ uint8_t I2cMgr_Clear() {
         ets_delay_us(4);
     }
     ets_delay_us(10000);
-    bool fail = false;
     if (!gpio_get_level(PIN_I2C_DATA)) {
         ESP_LOGE(TAG, "I2C SDA appears to be stuck low");
         return 1;

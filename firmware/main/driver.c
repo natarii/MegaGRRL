@@ -471,7 +471,7 @@ void Driver_FmOutopna(uint8_t Port, uint8_t Register, uint8_t Value) {
             ChannelMgr_States[6+3] |= CHSTATE_PARAM; //implicit noise update too, todo only do this if noise is enabled on that ch
         } else if (Port == 0 && Register == 0x06) { //noise period
             ChannelMgr_States[6+3] |= CHSTATE_PARAM;
-        } else if (Port == 0 && Register >= 0x00 && Register <= 0x05) { //coarse/fine tune
+        } else if (Port == 0 && Register <= 0x05) { //coarse/fine tune
             ch = Register/2;
             ChannelMgr_States[6+ch] |= CHSTATE_PARAM;
         } //todo 0x08/0x0c env freq, 0x0d env wave. will need tracking of if channels have envgen enabled
@@ -750,7 +750,7 @@ static uint8_t FadeSsgLevel(uint8_t level) {
 }
 
 static uint8_t FilterSsgLevelWrite(uint8_t cmd1, uint8_t cmd2) { //handles fades and channel muting config - channel muting handled ONLY to stop level change popping and SSGPCM!!
-    uint8_t ch = cmd1 - 0x08;
+    //uint8_t ch = cmd1 - 0x08;
     if (FadeActive) {
         cmd2 = FadeSsgLevel(cmd2);
     }
@@ -1124,10 +1124,13 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
         }
         Driver_FmOut(1, cmd[1], cmd[2]);
     } else if (cmd[0] == 0x61) { //16bit wait
+        _Pragma("GCC diagnostic push")
+        _Pragma("GCC diagnostic ignored \"-Wstrict-aliasing\"")
         Driver_NextSample += *(uint16_t*)&cmd[1];
         if (Driver_FirstWait && *(uint16_t*)&cmd[1] > 0) {
             Driver_SetFirstWait();
         }
+        _Pragma("GCC diagnostic pop")
     } else if (cmd[0] == 0x62) { //60Hz wait
         Driver_NextSample += 735;
         if (Driver_FirstWait) Driver_SetFirstWait();
@@ -1169,14 +1172,17 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
             Driver_Cycle_Ds = 0;
             DacStreamLengthMode = DacStreamEntries[DacStreamId].LengthMode;
             DacStreamDataLength = DacStreamEntries[DacStreamId].DataLength;
-            ESP_LOGD(TAG, "playing %d q size %d rate %d LM %d len %d", DacStreamSeq, MegaStream_Used(&DacStreamEntries[DacStreamId].Stream), DacStreamSampleRate, DacStreamLengthMode, DacStreamDataLength);
+            ESP_LOGD(TAG, "playing %d q size %d rate %d LM %d len %d", DacStreamSeq, MegaStream_Used((MegaStreamContext_t *)&DacStreamEntries[DacStreamId].Stream), DacStreamSampleRate, DacStreamLengthMode, DacStreamDataLength);
             DacStreamActive = true;
         }
     } else if (cmd[0] == 0x94) { //dac stream stop
         DacStreamActive = false;
     } else if (cmd[0] == 0x92) { //set sample rate
         if (DacStreamActive) {
+            _Pragma("GCC diagnostic push")
+            _Pragma("GCC diagnostic ignored \"-Wstrict-aliasing\"")
             DacStreamSampleRate = *(uint32_t*)&cmd[2];
+            _Pragma("GCC diagnostic pop")
             ESP_LOGD(TAG, "Dacstream samplerate updated to %d", DacStreamSampleRate);
             //TODO: handle the math for updating the current sample number, if sample rate changes mid-stream
         } else {
@@ -1259,7 +1265,7 @@ void Driver_Main() {
                 Driver_PsgAttenuation[i] = 0b10011111 | (i<<5);
             }
             Driver_UpdateMuting();
-            memset(&ChannelMgr_States[0], 0, 6+4);
+            memset((void *)&ChannelMgr_States[0], 0, 6+4);
             DacLastValue = 0;
             DacTouched = false;
 
@@ -1396,12 +1402,12 @@ void Driver_Main() {
                 //can't just go by bytes played because some play modes are based on time
                 //decide whether those are worth implementing
                 Driver_BusyStart = xthal_get_ccount();
-                if (MegaStream_Used(&DacStreamEntries[DacStreamId].Stream)) {
+                if (MegaStream_Used((MegaStreamContext_t *)&DacStreamEntries[DacStreamId].Stream)) {
                     Driver_Cycle_Ds += diff;
                     Driver_Sample_Ds = Driver_Cycle_Ds / (DRIVER_CLOCK_RATE/DacStreamSampleRate);
                     if (Driver_Sample_Ds > DacStreamSamplesPlayed) {
                         uint8_t sample;
-                        MegaStream_Recv(&DacStreamEntries[DacStreamId].Stream, &sample, 1);
+                        MegaStream_Recv((MegaStreamContext_t *)&DacStreamEntries[DacStreamId].Stream, &sample, 1);
                         if (Driver_DetectedMod == MEGAMOD_OPNA) {
                             Driver_FmOutopna(DacStreamPort, DacStreamCommand, sample);
                         } else {

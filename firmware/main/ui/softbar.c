@@ -4,7 +4,7 @@
 #include "lvgl.h"
 #include "../lcddma.h"
 
-static const char* TAG = "Ui_SoftBar";
+//static const char* TAG = "Ui_SoftBar";
 
 static IRAM_ATTR lv_obj_t *container;
 static IRAM_ATTR lv_obj_t *softbarlabels[3];
@@ -36,10 +36,10 @@ bool Ui_SoftBar_Setup(lv_obj_t *uiscreen) {
     //lv_cont_set_fit(container, false, false);
     
     static lv_point_t points[] = {{0,0}, {0,34}};
-    for (uint8_t i=1;i<=2;i++) {
+    for (uint8_t i=0;i<=1;i++) {
         line[i] = lv_line_create(container, NULL);
         lv_line_set_points(line[i], points, 2);
-        lv_obj_set_pos(line[i], ((240/3)*i)-1, 0);
+        lv_obj_set_pos(line[i], ((240/3)*(i+1))-1, 0);
         lv_line_set_style(line[i], LV_LINE_STYLE_MAIN, &softbarstyle);
     }
 

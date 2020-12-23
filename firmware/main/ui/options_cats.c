@@ -103,7 +103,6 @@ void Ui_Options_Cats_Destroy() {
 
 void redrawoptcats() {
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
-    uint8_t cur = 0;
     for (uint8_t i=0;i<OPTION_CATEGORY_COUNT;i++) {
         if (Options_Cat != i) {
             lv_obj_set_style(optioncatlines[i], &optioncatstyle_normal);

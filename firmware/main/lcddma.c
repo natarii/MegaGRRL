@@ -32,11 +32,11 @@ static uint8_t ss_id = 0;
 static FILE *ss_file;
 
 void LcdDma_PostTransferCallback(spi_transaction_t *t) {
-    if (/*!LcdDma_AltMode && */(uint8_t)t->user & 1<<1) lv_disp_flush_ready(disp);
+    if (/*!LcdDma_AltMode && */(uint8_t)(uintptr_t)t->user & 1<<1) lv_disp_flush_ready((lv_disp_drv_t *)disp);
 }
 
 void LcdDma_PreTransferCallback(spi_transaction_t *t) {
-    gpio_set_level(PIN_DISP_DC, (uint8_t)t->user); //no need to mask off the end of sequence bit - gpio driver just does "if (level)"
+    gpio_set_level(PIN_DISP_DC, (uint8_t)(uintptr_t)t->user); //no need to mask off the end of sequence bit - gpio driver just does "if (level)"
 }
 
 spi_device_interface_config_t LcdDma_SpiDeviceConfig = {
@@ -145,7 +145,7 @@ static void LcdDma_Lvgl_Flush(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv
         if (waiting) {
             fwrite(ss_buf, 1, waiting, ss_file);
         }
-        lv_disp_flush_ready(disp);
+        lv_disp_flush_ready((lv_disp_drv_t *)disp);
         return;
     }
 
@@ -184,7 +184,7 @@ static void LcdDma_Lvgl_Flush(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv
     spi_device_queue_trans(LcdDma_SpiDevice, &LcdDma_Flush_Txs[4], portMAX_DELAY);
     LcdDma_Flush_Txs[5].tx_buffer = (uint8_t *)color_p;
     LcdDma_Flush_Txs[5].length = pix<<4;
-    LcdDma_Flush_Txs[5].user = 0b11; //bit 1 used as end of sequence flag, checked in post-transfer callback
+    LcdDma_Flush_Txs[5].user = (void *)0b11; //bit 1 used as end of sequence flag, checked in post-transfer callback
     spi_device_queue_trans(LcdDma_SpiDevice, &LcdDma_Flush_Txs[5], portMAX_DELAY);
 
     ESP_LOGD(TAG, "Tx buf%d %d bytes", ((void *)color_p >= (void *)&LcdDma_Lvgl_Buf[0] && (void *)color_p < (void *)&LcdDma_Lvgl_Buf[LV_VDB_SIZE_IN_BYTES])?1:2, pix<<1);
@@ -196,8 +196,8 @@ static void LcdDma_Lvgl_Flush(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv
         esp_err_t err;
         do {
             err = spi_device_get_trans_result(LcdDma_SpiDevice, &check, pdMS_TO_TICKS(1000));
-        } while (err != ESP_OK || ((uint8_t)check->user & 1<<1) == 0);
-        lv_disp_flush_ready(disp);
+        } while (err != ESP_OK || ((uint8_t)(uintptr_t)check->user & 1<<1) == 0);
+        lv_disp_flush_ready((lv_disp_drv_t *)disp);
         ESP_LOGD(TAG, "Alt mode flush successful");
     }
 }
@@ -284,11 +284,11 @@ void LcdDma_Main() {
             //these two draws should be identical, since there is no lv_tick_inc in between
             LcdDma_Screenshot = false;
             lv_obj_invalidate(lv_scr_act());
-            lv_refr_now(disp);
+            lv_refr_now((lv_disp_t *)disp);
             LcdDma_Screenshot = true;
             ss_start();
             lv_obj_invalidate(lv_scr_act());
-            lv_refr_now(disp);
+            lv_refr_now((lv_disp_t *)disp);
             ss_finish();
             LcdDma_Screenshot = false;
         } else {

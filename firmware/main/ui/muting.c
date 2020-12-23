@@ -58,20 +58,20 @@ void Ui_Muting_Destroy() {
     LcdDma_Mutex_Give();
 }
 
-bool ch_en(uint8_t ch_sel) {
-    if (ch_sel <= 6) {
-        return (Driver_FmMask & (1<<ch_sel)) > 0;
+bool ch_en(uint8_t ch) {
+    if (ch <= 6) {
+        return (Driver_FmMask & (1<<ch)) > 0;
     } else {
-        return (Driver_PsgMask & (1<<(ch_sel-7))) > 0;
+        return (Driver_PsgMask & (1<<(ch-7))) > 0;
     }
 }
 
-void ch_set(uint8_t ch_sel, bool en) {
+void ch_set(uint8_t ch, bool en) {
     if (ch_sel <= 6) {
-        Driver_FmMask = ((Driver_FmMask&~(1<<ch_sel)) | ((en?1:0)<<ch_sel));
+        Driver_FmMask = ((Driver_FmMask&~(1<<ch)) | ((en?1:0)<<ch));
     } else {
         ch_sel -= 7;
-        Driver_PsgMask = ((Driver_PsgMask&~(1<<ch_sel)) | ((en?1:0)<<ch_sel));
+        Driver_PsgMask = ((Driver_PsgMask&~(1<<ch)) | ((en?1:0)<<ch));
     }
 }
 
@@ -84,7 +84,7 @@ void drawlist() {
         lv_label_set_static_text(ch_status[i], ch_en(i)?unmuted:muted);
     }
     
-    Ui_SoftBar_Update(2, true, ch_en(ch_sel)?mute:unmute, false);
+    Ui_SoftBar_Update(2, true, (char *)(ch_en(ch_sel)?mute:unmute), false);
 
     LcdDma_Mutex_Give();
 }

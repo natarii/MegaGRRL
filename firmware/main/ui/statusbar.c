@@ -11,9 +11,7 @@
 #include "../player.h"
 #include "../queue.h"
 
-static const char* TAG = "Ui_StatusBar";
-
-
+//static const char* TAG = "Ui_StatusBar";
 
 static IRAM_ATTR lv_obj_t *container;
 #if defined HWVER_PORTABLE

@@ -9,7 +9,9 @@
 #include "hal.h"
 
 static const char* TAG = "BatteryMgr";
+#if defined HWVER_PORTABLE
 static esp_adc_cal_characteristics_t *BatteryMgr_AdcChars;
+#endif
 uint16_t BatteryMgr_Voltage = 0;
 
 bool BatteryMgr_Setup() {

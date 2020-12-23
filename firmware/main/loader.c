@@ -31,12 +31,38 @@ volatile bool Loader_FastOpnaUpload = false;
 bool Loader_HitLoop = false;
 
 //local buffer thingie. big speedup
-#define LOADER_BUF_FILL fseek(Loader_File, Loader_VgmFilePos, SEEK_SET); fread(&Loader_VgmBuf[0], 1, sizeof(Loader_VgmBuf), Loader_File); Loader_VgmBufPos = 0; //todo fix read past eof
-#define LOADER_BUF_CHECK if (Loader_VgmBufPos >= sizeof(Loader_VgmBuf)) {LOADER_BUF_FILL;}
-#define LOADER_BUF_SEEK_SET(offset) Loader_VgmFilePos = offset; fseek(Loader_File, offset, SEEK_SET); LOADER_BUF_FILL;
-#define LOADER_BUF_SEEK_REL(offset) Loader_VgmFilePos += offset; Loader_VgmBufPos += offset; LOADER_BUF_CHECK;
-#define LOADER_BUF_READ(var) var = Loader_VgmBuf[Loader_VgmBufPos]; Loader_VgmBufPos++; Loader_VgmFilePos++; LOADER_BUF_CHECK;
-#define LOADER_BUF_READ4(var) if (sizeof(Loader_VgmBuf)-Loader_VgmBufPos < 4) {LOADER_BUF_FILL;} var = *(uint32_t*)&Loader_VgmBuf[Loader_VgmBufPos]; Loader_VgmBufPos += 4; Loader_VgmFilePos += 4; LOADER_BUF_CHECK;
+#define LOADER_BUF_FILL \
+    fseek(Loader_File, Loader_VgmFilePos, SEEK_SET); \
+    fread(&Loader_VgmBuf[0], 1, sizeof(Loader_VgmBuf), Loader_File); \
+    Loader_VgmBufPos = 0; //todo fix read past eof
+#define LOADER_BUF_CHECK \
+    if (Loader_VgmBufPos >= sizeof(Loader_VgmBuf)) { \
+        LOADER_BUF_FILL; \
+    }
+#define LOADER_BUF_SEEK_SET(offset) \
+    Loader_VgmFilePos = offset; \
+    fseek(Loader_File, offset, SEEK_SET); \
+    LOADER_BUF_FILL;
+#define LOADER_BUF_SEEK_REL(offset) \
+    Loader_VgmFilePos += offset; \
+    Loader_VgmBufPos += offset; \
+    LOADER_BUF_CHECK;
+#define LOADER_BUF_READ(var) \
+    var = Loader_VgmBuf[Loader_VgmBufPos]; \
+    Loader_VgmBufPos++; \
+    Loader_VgmFilePos++; \
+    LOADER_BUF_CHECK;
+#define LOADER_BUF_READ4(var) \
+    if (sizeof(Loader_VgmBuf)-Loader_VgmBufPos < 4) { \
+        LOADER_BUF_FILL; \
+    } \
+    _Pragma("GCC diagnostic push") \
+    _Pragma("GCC diagnostic ignored \"-Wstrict-aliasing\"") \
+    var = *(uint32_t*)&Loader_VgmBuf[Loader_VgmBufPos]; \
+    _Pragma("GCC diagnostic pop") \
+    Loader_VgmBufPos += 4; \
+    Loader_VgmFilePos += 4; \
+    LOADER_BUF_CHECK;
 
 bool Loader_Setup() {
     ESP_LOGI(TAG, "Setting up");
@@ -164,10 +190,10 @@ void Loader_Main() {
                             //here are some hacks to wrap around VgmParseDataBlock not using our local buffer thing
                             fseek(Loader_File, Loader_VgmFilePos, SEEK_SET); //destroys buf
                             if (Loader_CurLoop == 0) { //only load datablocks on first loop through
-                                VgmParseDataBlock(Loader_File, &Loader_VgmDataBlocks[Loader_VgmDataBlockIndex++]);
+                                VgmParseDataBlock(Loader_File, (VgmDataBlockStruct_t *)&Loader_VgmDataBlocks[Loader_VgmDataBlockIndex++]);
                             } else {
                                 //can't simply skip over the datablock because they're variable-length. use the last entry as a garbage can
-                                VgmParseDataBlock(Loader_File, &Loader_VgmDataBlocks[MAX_REALTIME_DATABLOCKS]);
+                                VgmParseDataBlock(Loader_File, (VgmDataBlockStruct_t *)&Loader_VgmDataBlocks[MAX_REALTIME_DATABLOCKS]);
                             }
                             LOADER_BUF_SEEK_SET(ftell(Loader_File)); //fix buf
 
@@ -228,7 +254,7 @@ void Loader_Main() {
                         break;
                     } else if (d >= 0x90 && d <= 0x95) { //dacstream command
                         if (!Loader_RequestedDacStreamFindStart) {
-                            DacStream_BeginFinding(&Loader_VgmDataBlocks, Loader_VgmDataBlockIndex, Loader_VgmFilePos-1);
+                            DacStream_BeginFinding((VgmDataBlockStruct_t *)&Loader_VgmDataBlocks, Loader_VgmDataBlockIndex, Loader_VgmFilePos-1);
                             Loader_RequestedDacStreamFindStart = true;
                         }
                         MegaStream_Send(&Driver_CommandStream, &d, 1); //command
