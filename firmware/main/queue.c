@@ -17,9 +17,8 @@ static FILE *QueueM3uFile = NULL;
 static FILE *cachefile = NULL;
 static char QueueLine[256];
 volatile bool Queue_Shuffle = false;
-#define QUEUE_CACHE_VER 1
-static const char cachefilename[] = "/sd/.mega/m3ucache.bin";
-static const char cachefilename_shuf[] = "/sd/.mega/m3ushufl.bin";
+#define QUEUE_CACHE_VER 2
+static const char cachefilename[] = "/sd/.mega/m3ucach2.bin";
 
 void QueueLoadM3u(char *M3uPath, char *M3uFilename, uint32_t pos, bool CountComments, bool ShufflePreserveCurrentEntry) { //make sure to never call this while player is running! it fucks with the fileptr, temp vars, and queue position!
     CountComments = false; //needs to either be handled properly, or deleted. just doing this for now...
@@ -57,7 +56,6 @@ void QueueLoadM3u(char *M3uPath, char *M3uFilename, uint32_t pos, bool CountComm
     if (cachefile) fclose(cachefile);
     cachefile = fopen(cachefilename, "w");
     fwrite(Driver_PcmBuf, 1, 5 + (QueueLength*4), cachefile);
-    fclose(cachefile);
 
     //shuffle and write out the shuffled one
     ESP_LOGI(TAG, "Shuffling");
@@ -75,12 +73,10 @@ void QueueLoadM3u(char *M3uPath, char *M3uFilename, uint32_t pos, bool CountComm
         }
     }
     ESP_LOGI(TAG, "Writing shuffled playlist cache");
-    cachefile = fopen(cachefilename_shuf, "w");
     fwrite(Driver_PcmBuf, 1, 5 + (QueueLength*4), cachefile);
-    fclose(cachefile);
+    fclose(cachefile); //could leave it open, but then it's never properly written to the card
+    cachefile = fopen(cachefilename, "r");
     ESP_LOGI(TAG, "Done");
-
-    cachefile = NULL;
 
     if (QueuePosition > QueueLength-1) {
         ESP_LOGE(TAG, "QueueLoadM3u() got bad queue pos %d, len %d", QueuePosition, QueueLength);
@@ -100,24 +96,14 @@ bool QueuePrev() {
     return true;
 }
 
-volatile const char *qse_last_filename = NULL;
 
 void QueueSetupEntry(bool ReturnComments, bool ProcessShuffle) {
     if (QueueSource == QUEUE_SOURCE_M3U) {
-        const char *fn = (ProcessShuffle&&Queue_Shuffle)?cachefilename_shuf:cachefilename;
-        if (cachefile && fn != qse_last_filename) {
-            fclose(cachefile);
-            cachefile = NULL;
-        }
-        if (!cachefile) {
-            ESP_LOGI(TAG, "need to reopen queue cache");
-            cachefile = fopen(fn, "r");
-        }
-        qse_last_filename = fn;
-        fseek(cachefile, 5 + (QueuePosition*4), SEEK_SET); //ver and entry count + file offset
-        uint32_t off = 0;
+        uint32_t off = 5 + (QueuePosition*4);
+        //note here: queue length is stored in the file, but we don't actually need to use it, we can use the one in mem
+        if (ProcessShuffle && Queue_Shuffle) off += (5+(QueueLength*4)); //skip to the second half if we're shufflin'
+        fseek(cachefile, off, SEEK_SET); //ver and entry count + file offset
         fread(&off, 4, 1, cachefile);
-        //fclose(cachefile);
         ESP_LOGD(TAG, "Entry at m3u file offset %d", off);
         if (QueueM3uFile == NULL) QueueM3uFile = fopen(&QueueM3uFilename[0], "r");
         fseek(QueueM3uFile, off, SEEK_SET);
