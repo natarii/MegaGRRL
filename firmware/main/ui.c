@@ -22,6 +22,7 @@
 #include "ui/debug.h"
 #include "ui/shuffleall.h"
 #include "ui/modal.h"
+#include "ui/easteregg.h"
 
 static const char* TAG = "Ui";
 
@@ -49,6 +50,10 @@ static bool modal_visible = false;
 lv_label_long_mode_t Ui_GetScrollType() {
     return scrolltypeLUT[Ui_ScrollType];
 }
+
+static uint8_t key_hist[10] = {0,0,0,0,0,0,0,0,0,0};
+static uint8_t key_hist_idx = 0;
+static const uint8_t key_easteregg[10] = {KEY_UP, KEY_UP, KEY_DOWN, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_LEFT, KEY_RIGHT, KEY_B, KEY_A};
 
 bool Ui_EarlySetup() {
     ESP_LOGI(TAG, "Doing early setup...");
@@ -115,6 +120,10 @@ void Ui_Main() {
         while (uxQueueMessagesWaiting(Ui_KeyQueue)) {
             KeyEvent_t event;
             xQueueReceive(Ui_KeyQueue, &event, 0);
+            if (event.State == KEY_EVENT_PRESS) {
+                key_hist[key_hist_idx++] = event.Key;
+                if (key_hist_idx == 10) key_hist_idx = 0;
+            }
             if (Ui_ScreenshotEnabled && event.Key == KEY_A) {
                 if (event.State & KEY_EVENT_DOWN) {
                     ESP_LOGI(TAG, "Taking screenshot");
@@ -161,6 +170,9 @@ void Ui_Main() {
                     case UISCREEN_SHUFFLEALL:
                         Ui_ShuffleAll_Key(event);
                         break;
+                    case UISCREEN_EASTEREGG:
+                        Ui_EasterEgg_Key(event);
+                        break;
                     default:
                         break;
                 }
@@ -184,6 +196,17 @@ void Ui_Main() {
             }
         }
         modal_visible = new_modal_visible;
+
+        bool matched_egg = true;
+        for (uint8_t i=0;i<10;i++) {
+            uint8_t check = (key_hist_idx+i)%10;
+            if (key_hist[check] != key_easteregg[i]) matched_egg = false;
+        }
+
+        if (matched_egg) {
+            memset(key_hist, 0, 10);
+            Ui_Screen = UISCREEN_EASTEREGG;
+        }
 
         if (Ui_Screen != Ui_Screen_Last) {
             UiScreen_t scr = Ui_Screen;
@@ -222,6 +245,9 @@ void Ui_Main() {
                 case UISCREEN_SHUFFLEALL:
                     Ui_ShuffleAll_Destroy();
                     break;
+                case UISCREEN_EASTEREGG:
+                    Ui_EasterEgg_Destroy();
+                    break;
                 default:
                     break;
             }
@@ -256,6 +282,9 @@ void Ui_Main() {
                     break;
                 case UISCREEN_SHUFFLEALL:
                     Ui_ShuffleAll_Setup(uiscreen);
+                    break;
+                case UISCREEN_EASTEREGG:
+                    Ui_EasterEgg_Setup(uiscreen);
                     break;
                 default:
                     break;
