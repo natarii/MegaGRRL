@@ -175,7 +175,7 @@ void Ui_ShuffleAll_Setup(lv_obj_t *uiscreen) {
         temppath = malloc(264);
         if (path == NULL || temppath == NULL) {
             ESP_LOGE(TAG, "out of heap in shuffle all");
-            return false;
+            return;
         }
         strcpy(path, "/sd");
         ESP_LOGI(TAG, "start dumping playlist");

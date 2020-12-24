@@ -15,13 +15,13 @@ void Gd3ParseDescriptor(FILE *f, VgmInfoStruct_t *info, Gd3Descriptor_t *desc) {
         fread(&magic, 4, 1, f);
         if (magic != 0x20336447) {
             ESP_LOGE(TAG, "Bad magic !!");
-            return false;
+            return;
         }
 
         fread(&desc->version, 4, 1, f);
         if (desc->version != 0x00000100) {
             ESP_LOGE(TAG, "Bad version !!");
-            return false;
+            return;
         }
 
         //skip size

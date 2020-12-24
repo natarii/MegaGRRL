@@ -165,7 +165,7 @@ void Player_Main() {
                     ESP_LOGI(TAG, "Wait for driver to resume...");
                     if ((xEventGroupWaitBits(Driver_CommandEvents, DRIVER_EVENT_RUNNING, false, false, pdMS_TO_TICKS(3000)) & DRIVER_EVENT_RUNNING) == 0) {
                         ESP_LOGE(TAG, "Driver resume timeout !!");
-                        return false;
+                        return;
                     }
                 }
                 xEventGroupClearBits(Player_Status, PLAYER_STATUS_PAUSED);
