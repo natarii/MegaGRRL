@@ -20,7 +20,7 @@ volatile bool Queue_Shuffle = false;
 #define QUEUE_CACHE_VER 2
 static const char cachefilename[] = "/sd/.mega/m3ucach2.bin";
 
-void QueueLoadM3u(char *M3uPath, char *M3uFilename, uint32_t pos, bool CountComments, bool ShufflePreserveCurrentEntry) { //make sure to never call this while player is running! it fucks with the fileptr, temp vars, and queue position!
+void QueueLoadM3u(const char *M3uPath, const char *M3uFilename, uint32_t pos, bool CountComments, bool ShufflePreserveCurrentEntry) { //make sure to never call this while player is running! it fucks with the fileptr, temp vars, and queue position!
     CountComments = false; //needs to either be handled properly, or deleted. just doing this for now...
     ESP_LOGI(TAG, "QueueLoadM3u() starting");
 

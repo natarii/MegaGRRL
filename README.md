@@ -8,7 +8,7 @@ MegaGRRL is a system comprised of ESP32-powered hardware to interface with origi
 Originally, the MegaGRRL project started as only a portable, handheld player. This was expanded later on to include a desktop hardware version. The firmware in this repository works on both hardware versions with minimal changes. However, the PCB and enclosure files in this repo are for the portable version only, and the files for the desktop version should be obtained from the [MegaGRRL Desktop repository](https://git.agiri.ninja/natalie/MegaGRRL_Desktop).
 
 This project is divided into several subdirectories:
-  * **esp-idf-patches/** - ESP-IDF v3.3 SPI master driver patches, required for build
+  * **esp-idf-patches/** - ESP-IDF v3.3.4 SPI master driver patches, required for build
   * **firmware/** - Firmware for the ESP32
   * **utils/** - Utilities, such as for packing firmware updates
 
@@ -21,7 +21,7 @@ A script is included at `utils/megapacker.pl` to generate .mgu files from self-b
 
 ## Compiling and initial flash
 0. If you are on Windows and flashing a MegaGRRL Desktop, a simplified guide is available [here](https://git.agiri.ninja/snippets/3). Otherwise, proceed with the instructions below.
-1. Set up ESP-IDF v3.3 following the [Espressif documentation](https://docs.espressif.com/projects/esp-idf/en/v3.3/get-started/index.html).
+1. Set up ESP-IDF v3.3.4 following the [Espressif documentation](https://docs.espressif.com/projects/esp-idf/en/v3.3.4/get-started/index.html).
 2. Clone the repo
    - `cd ~`
    - `git clone https://git.agiri.ninja/natalie/megagrrl`

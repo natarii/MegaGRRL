@@ -33,7 +33,7 @@ bool KeyMgr_Setup() {
 void KeyMgr_SendEvent(uint8_t key, uint8_t state) {
     if (KeyMgr_TargetQueue == NULL) {
         ESP_LOGW(TAG, "Warning: Sending key event when no target queue is set !!");
-        return false;
+        return;
     }
     KeyEvent_t KeyEvent;
     KeyEvent.Key = key;
@@ -41,7 +41,7 @@ void KeyMgr_SendEvent(uint8_t key, uint8_t state) {
     BaseType_t ret = xQueueSend(KeyMgr_TargetQueue, &KeyEvent, 0);
     if (ret == errQUEUE_FULL) {
         ESP_LOGW(TAG, "Warning: Target queue for key events is full, event will be dropped !!");
-        return false;
+        return;
     }
     if (KeyMgr_TargetTask != NULL && (state & KEY_EVENT_PRESS)) xTaskNotify(KeyMgr_TargetTask, 0, eNoAction);
 }

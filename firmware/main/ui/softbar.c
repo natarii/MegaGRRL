@@ -65,7 +65,7 @@ bool Ui_SoftBar_Setup(lv_obj_t *uiscreen) {
     return true;
 }
 
-bool Ui_SoftBar_Update(uint8_t id, bool enabled, char *text, bool HandleMutex) {
+bool Ui_SoftBar_Update(uint8_t id, bool enabled, const char *text, bool HandleMutex) {
     if (HandleMutex) LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_obj_set_style(softbarlabels[id], enabled?&softbarstyle:&softbarstyle_disbl);
     lv_label_set_text(softbarlabels[id], text);
@@ -74,7 +74,7 @@ bool Ui_SoftBar_Update(uint8_t id, bool enabled, char *text, bool HandleMutex) {
     return true;
 }
 
-bool Ui_SoftBar_UpdateModal(uint8_t id, bool enabled, char *text, bool HandleMutex) {
+bool Ui_SoftBar_UpdateModal(uint8_t id, bool enabled, const char *text, bool HandleMutex) {
     if (HandleMutex) LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_obj_set_style(softbarlabels_modal[id], enabled?&softbarstyle:&softbarstyle_disbl);
     lv_label_set_text(softbarlabels_modal[id], text);

@@ -18,6 +18,6 @@ void Hspi_Setup() {
     esp_err_t ret = spi_bus_initialize(HSPI_HOST, &HspiBusConfig, 1);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Spi bus init fail !! 0x%x", ret);
-        return false;
+        return;
     }
 }

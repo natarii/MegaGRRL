@@ -185,7 +185,7 @@ bool LedDrv_Setup() {
 void LedDrv_UpdateBrightness() {
     if (!I2cMgr_Seize(false, pdMS_TO_TICKS(1000))) {
         ESP_LOGE(TAG, "Couldn't seize bus !!");
-        return false;
+        return;
     }
 
     LedDrv_WriteRegister(0, 0x0a, LedDrv_Brightness);
