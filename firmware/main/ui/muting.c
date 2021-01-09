@@ -67,10 +67,10 @@ bool ch_en(uint8_t ch) {
 }
 
 void ch_set(uint8_t ch, bool en) {
-    if (ch_sel <= 6) {
+    if (ch <= 6) {
         Driver_FmMask = ((Driver_FmMask&~(1<<ch)) | ((en?1:0)<<ch));
     } else {
-        ch_sel -= 7;
+        ch -= 7;
         Driver_PsgMask = ((Driver_PsgMask&~(1<<ch)) | ((en?1:0)<<ch));
     }
 }
