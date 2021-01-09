@@ -1276,7 +1276,7 @@ void Driver_Main() {
             commandeventbits &= ~DRIVER_EVENT_START_REQUEST;
             commandeventbits |= DRIVER_EVENT_RUNNING;
         } else if (commandeventbits & DRIVER_EVENT_UPDATE_MUTING) {
-            ESP_LOGI(TAG, "updating muting upon request");
+            ESP_LOGD(TAG, "updating muting upon request");
             Driver_UpdateMuting();
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_UPDATE_MUTING);
             commandeventbits &= ~DRIVER_EVENT_UPDATE_MUTING;
