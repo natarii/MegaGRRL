@@ -95,7 +95,7 @@ void ChannelMgr_Main() {
         LedDrv_States[6+4] = avg;
         if (!I2cMgr_Seize(false, pdMS_TO_TICKS(1000))) {
             ESP_LOGE(TAG, "Couldn't seize bus !!");
-            return false;
+            return;
         }
         LedDrv_Update();
         I2cMgr_Release(false);

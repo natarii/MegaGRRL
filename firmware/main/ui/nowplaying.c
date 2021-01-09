@@ -66,7 +66,7 @@ static IRAM_ATTR lv_obj_t *broken_vgm_time_warning;
 static uint8_t selectedopt = 0;
 static bool optionsopen = false;
 static lv_style_t textstyle_sm_sel;
-static char loopcountbuf[3] = {0,0,0};
+static char loopcountbuf[4] = {0};
 static char pitchbuf[10] = "";
 static const char *loading = "Nothing playing...";
 static const char *broken_vgm_time_warning_text = " Playback time unavailable  due to broken VGM file";
