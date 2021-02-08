@@ -143,6 +143,8 @@ static uint8_t Driver_CurLoop = 0;
 
 static uint8_t DacLastValue = 0;
 static bool DacTouched = false;
+static uint16_t opn2_last_addr = 0xffff;
+static uint8_t opn2_regs_dedup[256*2];
 
 #define min(a,b) ((a) < (b) ? (a) : (b)) //sigh.
 
@@ -348,6 +350,14 @@ void Driver_ResetChips() {
         Driver_SrBuf[SR_CONTROL] |= SR_BIT_IC;
         Driver_Output();
         Driver_Sleep(1000);
+        opn2_last_addr = 0xffff;
+        memset(opn2_regs_dedup, 0, sizeof(opn2_regs_dedup));
+        opn2_regs_dedup[0xb4] = 0b11000000;
+        opn2_regs_dedup[0xb5] = 0b11000000;
+        opn2_regs_dedup[0xb6] = 0b11000000;
+        opn2_regs_dedup[0x1b4] = 0b11000000;
+        opn2_regs_dedup[0x1b5] = 0b11000000;
+        opn2_regs_dedup[0x1b6] = 0b11000000;
 }
 
 void Driver_FmOutopl3(uint8_t Port, uint8_t Register, uint8_t Value) {
@@ -532,27 +542,65 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
         }
     }
 
-    if (Port == 0) {
-        Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_A1; //clear A1
-    } else if (Port == 1) {
-        Driver_SrBuf[SR_CONTROL] |= SR_BIT_A1; //set A1
+    //these regs can be written to either bank. for dedup purposes, force them all to the first bank.
+    if (Port) {
+        switch (Register) {
+            case 0x22:
+            case 0x24:
+            case 0x25:
+            case 0x26:
+            case 0x27:
+            case 0x28:
+            case 0x2a:
+            case 0x2b:
+                Port = 0;
+                break;
+            default:
+                break;
+        }
     }
-    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_A0; //clear A0
-    Driver_Output();
-    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_FM_CS; // /cs low
-    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR; // /wr low
-    Driver_SrBuf[SR_DATABUS] = Register;
-    Driver_Output();
-    Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; // /wr high
-    Driver_Output();
-    Driver_SrBuf[SR_CONTROL] |= SR_BIT_A0; //set A0
-    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR; // /wr low
-    Driver_SrBuf[SR_DATABUS] = Value;
-    Driver_Output();
-    Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; // /wr high
-    Driver_SrBuf[SR_CONTROL] |= SR_BIT_FM_CS; // /cs high
-    Driver_Output();
-    Driver_Sleep(5);
+
+    //we must never deduplicate writes to the low bytes of frequency. this is regs A0~A2, and in Ch3 special mode also A8~AA.
+    //could explicitly check only those ranges, but it seemed that adding those checks was slowing it down further than just checking A0~AF and letting duplicate writes to the high byte go through
+    if (opn2_regs_dedup[(Port<<8)|Register] != Value || (Register >> 4) == 0xa) {
+        if (opn2_last_addr != ((Port<<8) | Register)) {
+            if (Port == 0) {
+                Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_A1; //clear A1
+            } else if (Port == 1) {
+                Driver_SrBuf[SR_CONTROL] |= SR_BIT_A1; //set A1
+            }
+            Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_A0; //clear A0
+            Driver_Output();
+            Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_FM_CS; // /cs low
+            Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR; // /wr low
+            Driver_SrBuf[SR_DATABUS] = Register;
+            Driver_Output();
+            Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; // /wr high
+            Driver_Output();
+            Driver_SrBuf[SR_CONTROL] |= SR_BIT_A0; //set A0
+            Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR; // /wr low
+            Driver_SrBuf[SR_DATABUS] = Value;
+            Driver_Output();
+            Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; // /wr high
+            Driver_SrBuf[SR_CONTROL] |= SR_BIT_FM_CS; // /cs high
+            Driver_Output();
+            Driver_Sleep(5);
+            opn2_last_addr = (Port<<8) | Register;
+        } else {
+            //no need to set A0, it is already set from the last write.
+            Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_FM_CS; // /cs low
+            Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR; // /wr low
+            Driver_SrBuf[SR_DATABUS] = Value;
+            Driver_Output();
+            Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; // /wr high
+            Driver_SrBuf[SR_CONTROL] |= SR_BIT_FM_CS; // /cs high
+            Driver_Output();
+            Driver_Sleep(5);
+        }
+        opn2_regs_dedup[(Port<<8)|Register] = Value;
+    } else {
+        return; //no led update
+    }
 
     //channel led stuff
     if (Driver_NoLeds) return;
