@@ -650,6 +650,13 @@ void drawopts() {
 }
 
 void Ui_NowPlaying_Key(KeyEvent_t event) {
+    if (!optionsopen && event.Key == KEY_RIGHT) {
+        if (event.State == (KEY_EVENT_PRESS | KEY_EVENT_REPEAT)) {
+            xTaskNotify(Taskmgr_Handles[TASK_PLAYER], PLAYER_NOTIFY_FASTFORWARD, eSetValueWithoutOverwrite);
+        } else if (event.State == KEY_EVENT_UP) {
+            if (QueueLength) xTaskNotify(Taskmgr_Handles[TASK_PLAYER], PLAYER_NOTIFY_NEXT, eSetValueWithoutOverwrite);
+        }
+    }
     if (event.State == KEY_EVENT_PRESS || (optionsopen && event.State & KEY_EVENT_PRESS)) {
         switch (event.Key) {
             case KEY_LEFT:
@@ -693,7 +700,7 @@ void Ui_NowPlaying_Key(KeyEvent_t event) {
                 break;
             case KEY_RIGHT:
                 if (!optionsopen) {
-                    if (QueueLength) xTaskNotify(Taskmgr_Handles[TASK_PLAYER], PLAYER_NOTIFY_NEXT, eSetValueWithoutOverwrite);
+                    //moved elsewhere, handled specially
                 } else {
                     if (selectedopt == 0) { //play mode
                         if (Player_RepeatMode < REPEAT_COUNT-1) {

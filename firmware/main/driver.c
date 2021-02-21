@@ -85,6 +85,7 @@ IRAM_ATTR uint32_t Driver_Sample = 0;     //current sample number
 IRAM_ATTR uint32_t Driver_Sample_Ds = 0;  //current sample number for dacstreams
 uint64_t Driver_Cycle = 0;      //current cycle number
 uint64_t Driver_Cycle_Ds = 0;   //current cycle number for dacstreams
+IRAM_ATTR int32_t Driver_Slip = 0; //originally intended as a sample counter, currently only used as a flag.
 IRAM_ATTR uint32_t Driver_Cc = 0;         //current cycle from the api - just keep it off the stack
 IRAM_ATTR uint32_t Driver_LastCc = 0;     //copy of the above var
 IRAM_ATTR uint32_t Driver_NextSample = 0; //sample number at which the next command needs to be run
@@ -522,7 +523,7 @@ void Driver_Opna_UploadByte(uint8_t pair) {
 
 void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
     if (Register == 0x2a) {
-        if (Driver_FirstWait) {
+        if (Driver_FirstWait || Driver_Slip) {
             DacTouched = true;
             DacLastValue = Value;
             return;
@@ -860,7 +861,7 @@ static uint8_t Driver_ProcessSsgControlWrite(uint8_t ssgreg) {
 void Driver_UpdateMuting() {
     if (Driver_DetectedMod == MEGAMOD_NONE) {
         if (Driver_MitigateVgmTrim) {
-            if (Driver_FirstWait) {
+            if (Driver_FirstWait || Driver_Slip) {
                 //force everything off no matter what
                 Driver_FmOut(0, 0xb4, Driver_FmPans[0] & 0b00111111);
                 Driver_FmOut(0, 0xb5, Driver_FmPans[1] & 0b00111111);
@@ -1114,7 +1115,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
     } else if (cmd[0] == 0x52) { //YM2612 port 0
         if (cmd[1] >= 0xb4 && cmd[1] <= 0xb6) { //pan, FMS, AMS
             Driver_FmPans[cmd[1]-0xb4] = cmd[2];
-            if (Driver_MitigateVgmTrim && Driver_FirstWait) cmd[2] &= 0b00111111; //if we haven't reached the first wait, disable both L and R
+            if ((Driver_MitigateVgmTrim && Driver_FirstWait) || Driver_Slip) cmd[2] &= 0b00111111; //if we haven't reached the first wait, disable both L and R
             cmd[2] &= (Driver_FmMask & (1<<(cmd[1]-0xb4)))?0b11111111:0b00111111;
             if (Driver_ForceMono && (cmd[2] & 0b11000000)) cmd[2] |= 0b11000000;
         }
@@ -1144,7 +1145,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
             } else { //otherwise apply muting masks as normal
                 cmd[2] &= (Driver_FmMask & (1<<(3+(cmd[1]-0xb4))))?0b11111111:0b00111111;
             }
-            if (Driver_MitigateVgmTrim && Driver_FirstWait) cmd[2] &= 0b00111111; //if we haven't reached the first wait, disable both L and R. do this after the muting logic
+            if ((Driver_MitigateVgmTrim && Driver_FirstWait) || Driver_Slip) cmd[2] &= 0b00111111; //if we haven't reached the first wait, disable both L and R. do this after the muting logic
             if (Driver_ForceMono && (cmd[2] & 0b11000000)) cmd[2] |= 0b11000000;
         }
         if ((cmd[1] >= 0x40 && cmd[1] <= 0x42) || (cmd[1] >= 0x48 && cmd[1] <= 0x4a) || (cmd[1] >= 0x44 && cmd[1] <= 0x46) || (cmd[1] >= 0x4c && cmd[1] <= 0x4e)) { //TL
@@ -1270,8 +1271,8 @@ void Driver_Main() {
     ESP_LOGI(TAG, "Task start");
     while (1) {
         Driver_Cc = xthal_get_ccount();
-        uint8_t commandeventbits = xEventGroupGetBits(Driver_CommandEvents);
-        uint8_t queueeventbits = xEventGroupGetBits(Driver_StreamEvents);
+        EventBits_t commandeventbits = xEventGroupGetBits(Driver_CommandEvents);
+        EventBits_t queueeventbits = xEventGroupGetBits(Driver_StreamEvents);
         if (commandeventbits & DRIVER_EVENT_START_REQUEST) {
             //reset all internal vars
             Driver_Cycle = 0;
@@ -1301,6 +1302,7 @@ void Driver_Main() {
             memset((void *)&ChannelMgr_States[0], 0, 6+4);
             DacLastValue = 0;
             DacTouched = false;
+            Driver_Slip = 0;
 
             //update status flags
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_FINISHED);
@@ -1368,6 +1370,15 @@ void Driver_Main() {
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_RESUME_REQUEST);
             commandeventbits &= ~DRIVER_EVENT_RESUME_REQUEST;
             commandeventbits |= DRIVER_EVENT_RUNNING;
+        } else if (commandeventbits & DRIVER_EVENT_FASTFORWARD) {
+            if (!Driver_Slip) {
+                Driver_Cycle += DRIVER_CLOCK_RATE*2;
+                Driver_Cycle_Ds += DRIVER_CLOCK_RATE*2;
+                Driver_Slip = 44100*2;
+                Driver_UpdateMuting();
+            }
+            xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_FASTFORWARD);
+            commandeventbits &= ~DRIVER_EVENT_FASTFORWARD;
         } else if (commandeventbits & DRIVER_EVENT_RUNNING) {
             uint64_t diff = (Driver_Cc - Driver_LastCc);
             diff *= (1000LL + Driver_SpeedMult);
@@ -1427,6 +1438,10 @@ void Driver_Main() {
             } else {
                 //not time for next sample yet
                 if (Driver_NextSample - Driver_Sample > 2000 && !DacStreamActive) vTaskDelay(2);
+                if (Driver_Slip) {
+                    Driver_Slip = 0;
+                    Driver_UpdateMuting();
+                }
             }
 
             //dacstream stuff

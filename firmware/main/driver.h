@@ -20,14 +20,16 @@ typedef enum {
 } MegaMod_t;
 
 //PlayEvents
-#define DRIVER_EVENT_START_REQUEST  0x01 //incoming request to begin playback
-#define DRIVER_EVENT_STOP_REQUEST   0x02 //incoming request to stop playback
-#define DRIVER_EVENT_RUNNING        0x04 //status flag
-#define DRIVER_EVENT_FINISHED       0x08 //status flag
-#define DRIVER_EVENT_RESET_REQUEST  0x20 //incoming request to reset chips - only driver has access to spi
-#define DRIVER_EVENT_RESET_ACK      0x10 //reset is finished
-#define DRIVER_EVENT_UPDATE_MUTING  0x40 //force muting update
-#define DRIVER_EVENT_RESUME_REQUEST 0x80 //unpause
+#define DRIVER_EVENT_START_REQUEST  (1<<0)  //incoming request to begin playback
+#define DRIVER_EVENT_STOP_REQUEST   (1<<1)  //incoming request to stop playback
+#define DRIVER_EVENT_RUNNING        (1<<2)  //status flag
+#define DRIVER_EVENT_FINISHED       (1<<3)  //status flag
+#define DRIVER_EVENT_RESET_REQUEST  (1<<4)  //incoming request to reset chips - only driver has access to spi
+#define DRIVER_EVENT_RESET_ACK      (1<<5)  //reset is finished
+#define DRIVER_EVENT_UPDATE_MUTING  (1<<6)  //force muting update
+#define DRIVER_EVENT_RESUME_REQUEST (1<<7)  //unpause
+#define DRIVER_EVENT_FASTFORWARD    (1<<8)
+#define DRIVER_EVENT_REWIND         (1<<9)
 
 //QueueEvents
 #define DRIVER_EVENT_COMMAND_UNDERRUN       0x01 //status flag

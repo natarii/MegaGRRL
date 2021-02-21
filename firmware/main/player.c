@@ -169,6 +169,8 @@ void Player_Main() {
                     }
                 }
                 xEventGroupClearBits(Player_Status, PLAYER_STATUS_PAUSED);
+            } else if (notif == PLAYER_NOTIFY_FASTFORWARD) {
+                xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_FASTFORWARD);
             }
         } else { //no incoming notification
 

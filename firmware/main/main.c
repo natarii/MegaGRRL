@@ -237,6 +237,7 @@ void checkcore() {
 
 void app_main(void)
 {
+    assert(configUSE_16_BIT_TICKS == 0);
     //uint8_t r = rtc_get_reset_reason(0);
 
     #ifdef FWUPDATE
