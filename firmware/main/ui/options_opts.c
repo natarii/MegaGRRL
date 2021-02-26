@@ -145,6 +145,9 @@ static void displayvalue(char *buf, bool def) {
                         case SCROLLTYPE_CIRCULAR:
                             strcpy(buf, "Circular");
                             break;
+                        case SCROLLTYPE_DOT:
+                            strcpy(buf, "Truncate");
+                            break;
                         default:
                             break;
                     }
