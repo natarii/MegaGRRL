@@ -145,6 +145,9 @@ static void displayvalue(char *buf, bool def) {
                         case SCROLLTYPE_CIRCULAR:
                             strcpy(buf, "Circular");
                             break;
+                        case SCROLLTYPE_DOT:
+                            strcpy(buf, "Truncate");
+                            break;
                         default:
                             break;
                     }
@@ -497,6 +500,11 @@ void Ui_Options_Opts_Key(KeyEvent_t event) {
         } else if (event.Key == KEY_B) {
             if (editing) {
                 *(uint8_t*)Options[Options_OptId].var = oldval;
+                if (Options[Options_OptId].subtype == OPTION_SUBTYPE_SCROLLTYPE) {
+                    //update it so they can see it now
+                    lv_label_set_long_mode(optiondesc, Ui_GetScrollType());
+                    lv_obj_set_width(optiondesc, 220);
+                }
                 if (Options[Options_OptId].cb != NULL) Options[Options_OptId].cb();
                 editing = false;
                 redrawopt();

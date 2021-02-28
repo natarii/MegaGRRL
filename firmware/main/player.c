@@ -14,7 +14,63 @@
 #include "ui/nowplaying.h"
 #include "rom/miniz.h"
 #include "ui/statusbar.h"
+#include "ui/modal.h"
+#include <rom/crc.h>
 
+static const uint32_t known_bad_vgms[] = {
+    //comix zone
+    0x81f1e23d,
+    0x7f5e11fd,
+    0x29407e83,
+    0x052db4cd,
+    0x967a81d3,
+    0xe567d242,
+    0x28971f44,
+    0xd6ae05f9,
+    0x1b2045f5,
+    0x44fc0038,
+    0x29b9149e,
+    0x30281872,
+    0x4db58dcc,
+    0xcf0a41a8,
+    0x47fb99a1,
+    0x356949c8,
+    0xa72f1849,
+    0xa2aa195e,
+    0x32693be7,
+    0x9beea872,
+    0x8e8c0fb2,
+    0x0c498b5c,
+    0xc2b4ba3b,
+    0x8d35a542,
+    0x89905f50,
+    //rocket knight adventures
+    0x6f25be56,
+    0x58b4cdd2,
+    0x68843b29,
+    0x3083ff1d,
+    0xcedda5c4,
+    0x5c2e3d41,
+    0x82d42a5d,
+    0xf1c6a7f7,
+    0xe9eb05e7,
+    0xe7f8fcb0,
+    0x8474914a,
+    0xef317aef,
+    0x92213d13,
+    0xb2202d10,
+    0x3d9ff883,
+    0x00ec2d1c,
+    0xa2b1fa83,
+    0x4a3a32a9,
+    0x92fbe00f,
+    0x718cb2cf,
+    0xbb55680c,
+    0x38166a76,
+    0x802e0781,
+    0x8990b4c1,
+    0x08b54cdd,
+};
 
 static const char* TAG = "Player";
 
@@ -350,6 +406,30 @@ bool Player_StartTrack(char *FilePath) {
     fseek(Player_VgmFile, 0, SEEK_SET);
     fseek(Player_DsFindFile, 0, SEEK_SET);
     VgmParseHeader(Player_VgmFile, &Player_Info);
+
+    //known bad vgm header checksum
+    fseek(Player_VgmFile, 0, SEEK_SET);
+    fread(Driver_PcmBuf, 1, Player_Info.DataOffset, Player_VgmFile);
+    uint32_t headercrc = 0;
+    headercrc = crc32_le(headercrc, Driver_PcmBuf, Player_Info.DataOffset);
+    uint32_t eof = Player_Info.EofOffset+4;
+    if (Player_Info.Gd3Offset && eof-Player_Info.Gd3Offset <= sizeof(Driver_PcmBuf)) {
+        fseek(Player_VgmFile, Player_Info.Gd3Offset, SEEK_SET);
+        fread(Driver_PcmBuf, 1, eof-Player_Info.Gd3Offset, Player_VgmFile);
+        headercrc = crc32_le(headercrc, Driver_PcmBuf, eof-Player_Info.Gd3Offset);
+    }
+    ESP_LOGI(TAG, "File header CRC = 0x%08x", headercrc);
+    bool bad = false;
+    for (uint32_t i=0;i<sizeof(known_bad_vgms)/sizeof(uint32_t);i++) {
+        if (headercrc == known_bad_vgms[i]) {
+            bad = true;
+            break;
+        }
+    }
+    if (bad) {
+        ESP_LOGW(TAG, "Known bad vgm - showing warning");
+        modal_show_simple(TAG, "Warning", "This file is known to be made incorrectly, and may produce loud audio artifacts. Please obtain an updated file for correct playback.", LV_SYMBOL_OK " OK");
+    }
 
     Gd3Descriptor_t desc;
     Gd3ParseDescriptor(Player_VgmFile, &Player_Info, &desc);
