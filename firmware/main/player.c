@@ -453,7 +453,7 @@ bool Player_StartTrack(char *FilePath) {
 
     ESP_LOGI(TAG, "vgm rate: %d", Player_Info.Rate);
 
-    //todo: improve this, check that the vgm is for the chips we have
+    //todo: improve this, check that the vgm is for the chips we have, more graceful handling of dual chip bit 30
     if (Driver_DetectedMod == MEGAMOD_NONE) {
         ESP_LOGI(TAG, "MegaMod: none");
         uint32_t PsgClock = 0;
@@ -462,6 +462,7 @@ bool Player_StartTrack(char *FilePath) {
         fread(&PsgClock, 4, 1, Player_VgmFile);
         fseek(Player_VgmFile, 0x2c, SEEK_SET);
         fread(&FmClock, 4, 1, Player_VgmFile);
+        FmClock &= ~(1<<31); //3438 bit, ffs...
         ESP_LOGI(TAG, "Clocks from vgm: psg %d, fm %d", PsgClock, FmClock);
 
         if (PsgClock == 0) PsgClock = 3579545;
