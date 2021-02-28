@@ -18,32 +18,34 @@
 #include <rom/crc.h>
 
 static const uint32_t known_bad_vgms[] = {
+    //these lists contain the full p2612 set for comix zone and rocket knight adventures
+    //tracks that actually play okay are commented, in case they don't get replaced
     //comix zone
     0x81f1e23d,
     0x7f5e11fd,
-    0x29407e83,
-    0x052db4cd,
-    0x967a81d3,
+    //0x29407e83, //options
+    //0x052db4cd, //introduction
+    //0x967a81d3, //e1p1-1
     0xe567d242,
     0x28971f44,
     0xd6ae05f9,
-    0x1b2045f5,
+    //0x1b2045f5, //e2p1-1
     0x44fc0038,
-    0x29b9149e,
-    0x30281872,
-    0x4db58dcc,
-    0xcf0a41a8,
-    0x47fb99a1,
-    0x356949c8,
-    0xa72f1849,
+    //0x29b9149e, //e2p1-3
+    //0x30281872, //e2p2-1
+    //0x4db58dcc, //e2p2-2
+    //0xcf0a41a8, //e3p1-1
+    //0x47fb99a1, //e3p1-2
+    //0x356949c8, //e3p1-3
+    //0xa72f1849, //e3p2-1
     0xa2aa195e,
     0x32693be7,
     0x9beea872,
     0x8e8c0fb2,
-    0x0c498b5c,
-    0xc2b4ba3b,
+    //0x0c498b5c, //ending
+    //0xc2b4ba3b, //results
     0x8d35a542,
-    0x89905f50,
+    //0x89905f50, //staff roll
     //rocket knight adventures
     0x6f25be56,
     0x58b4cdd2,
