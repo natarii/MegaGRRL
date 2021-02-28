@@ -60,8 +60,10 @@ void KeyMgr_Main() {
         for (uint8_t bit=0;bit<KEY_COUNT;bit++) {
             //handle new inputs
             if (avail) {
-                KeyStates[bit].RawState = (event.PORTA >> bit) & 1;
-                KeyStates[bit].RawStateTs = event.Timestamp;
+                if (((event.PORTA >> bit) & 1) != KeyStates[bit].RawState) {
+                    KeyStates[bit].RawState = (event.PORTA >> bit) & 1;
+                    KeyStates[bit].RawStateTs = event.Timestamp;
+                }
             }
 
             //debounce
@@ -74,7 +76,7 @@ void KeyMgr_Main() {
                 KeyMgr_SendEvent(bit, KEY_EVENT_DOWN);
                 KeyMgr_SendEvent(bit, KEY_EVENT_PRESS);
             } else if (!KeyStates[bit].RawState && KeyStates[bit].DebouncedState) { //up
-                if (now - KeyStates[bit].TsDown >= KEY_DEBOUNCE_TIME) {
+                if (now - KeyStates[bit].RawStateTs >= KEY_DEBOUNCE_TIME) {
                     KeyStates[bit].DebouncedState = 0;
                     KeyStates[bit].TsUp = now;
 
