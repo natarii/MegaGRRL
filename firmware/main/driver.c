@@ -1374,7 +1374,8 @@ void Driver_Main() {
             if (!Driver_Slip) {
                 Driver_Cycle += DRIVER_CLOCK_RATE*2;
                 Driver_Cycle_Ds += DRIVER_CLOCK_RATE*2;
-                Driver_Slip = 44100*2;
+                Driver_Slip = (1<<0);
+                if (DacStreamActive) Driver_Slip |= (1<<1);
                 Driver_UpdateMuting();
             }
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_FASTFORWARD);
@@ -1438,8 +1439,8 @@ void Driver_Main() {
             } else {
                 //not time for next sample yet
                 if (Driver_NextSample - Driver_Sample > 2000 && !DacStreamActive) vTaskDelay(2);
-                if (Driver_Slip) {
-                    Driver_Slip = 0;
+                if (Driver_Slip & (1<<0)) {
+                    Driver_Slip &= ~(1<<0);
                     Driver_UpdateMuting();
                 }
             }
@@ -1464,8 +1465,17 @@ void Driver_Main() {
                         DacStreamSamplesPlayed++;
                         if (DacStreamSamplesPlayed == DacStreamDataLength && (DacStreamLengthMode == 0 || DacStreamLengthMode == 1 || DacStreamLengthMode == 3)) {
                             DacStreamActive = false;
+                            if (Driver_Slip & (1<<1)) {
+                                Driver_Slip &= ~(1<<1);
+                                Driver_UpdateMuting();
+                            }
                         }
                         DacStreamFailed = false;
+                    } else {
+                        if (Driver_Slip & (1<<1)) {
+                            Driver_Slip &= ~(1<<1);
+                            Driver_UpdateMuting();
+                        }
                     }
                 } else {
                     if (!DacStreamFailed) {
@@ -1473,6 +1483,10 @@ void Driver_Main() {
                         DacStreamFailed = true;
                     }
                     //DacStreamActive = false;
+                    if (Driver_Slip & (1<<1)) {
+                        Driver_Slip &= ~(1<<1);
+                        Driver_UpdateMuting();
+                    }
                 }
                 Driver_CpuUsageDs += (xthal_get_ccount() - Driver_BusyStart);
             }
