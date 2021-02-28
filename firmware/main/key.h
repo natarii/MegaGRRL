@@ -50,7 +50,7 @@ typedef struct KeyEvent {
 #define KEY_COUNT   7
 #endif
 
-#define KEY_DEBOUNCE_TIME 30
+#define KEY_DEBOUNCE_TIME 50
 #define KEY_REPEAT_INTERVAL 100
 #define KEY_REPEAT_DELAY 750
 #define KEY_HOLD_DELAY 750
