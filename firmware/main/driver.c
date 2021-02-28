@@ -999,7 +999,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
                     uint8_t ch = (cmd[1]>>5)&0b00000011;
                     Driver_PsgAttenuation[ch] = cmd[1];
                     cmd[1] = FilterPsgAttenWrite(cmd[1]);
-                    if (Driver_MitigateVgmTrim && Driver_FirstWait) cmd[1] |= 0b00001111; //if we haven't reached the first wait, force full attenuation
+                    if ((Driver_MitigateVgmTrim && Driver_FirstWait) || Driver_Slip) cmd[1] |= 0b00001111; //if we haven't reached the first wait, force full attenuation
                     if (ch == 2) {
                         //when ch 3 atten is updated, we also need to write frequency again. this is due to the periodic noise fix.
                         //TODO: this would be better if it only does it if actually transitioning in or out of mute, rather than on every atten update
