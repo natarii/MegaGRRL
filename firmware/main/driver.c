@@ -532,7 +532,7 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
             int32_t sgn = Value;
             sgn -= 0x7f;
             sgn *= 1000;
-            int32_t sf = map(FadePos, 0, 44100*Driver_FadeLength, 0, 120);
+            int32_t sf = map(FadePos, 0, 44100*Driver_FadeLength, 0, 155);
             sf *= sf;
             sf += 1000;
             sgn /= sf;
