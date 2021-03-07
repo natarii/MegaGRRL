@@ -637,7 +637,6 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value, bool Internal) 
         if (ch > 5) ESP_LOGD(TAG, "freq write over, reg %02x value %02x", Register, Value);
         ChannelMgr_States[ch] |= CHSTATE_PARAM;
     } else if (Register == 0x2a) { //dac value
-        if (Internal && Value == 0) return; //avoid flash when writing default value
         if (Value >= 0x7f) {
             ChannelMgr_PcmAccu += Value - 0x7f;
         } else {
