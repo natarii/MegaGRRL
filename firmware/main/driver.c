@@ -897,7 +897,7 @@ static void opn2_psg_dump_dedup() {
     Driver_FmOut(0, 0xaa, opn2_regs_dedup[0xaa], true);
     Driver_FmOut(0, 0xac, opn2_regs_dedup[0xac], true);
     Driver_FmOut(0, 0xa8, opn2_regs_dedup[0xa8], true);
-    for (uint8_t i=0x22;i<=0x29;i++) {
+    for (uint8_t i=0x22;i<=0x2b;i++) {
         if (i == 0x28) continue; //KON is handled below
         if (i == 0x2a && opn2_regs_dedup[i] == 0) continue; //avoid DAC pop
         Driver_FmOut(0, i, opn2_regs_dedup[i], true);
