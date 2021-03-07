@@ -962,7 +962,9 @@ void Driver_UpdateMuting() {
 void Driver_SetFirstWait() {
     Driver_FirstWait = false;
     Driver_UpdateMuting();
-    opn2_psg_dump_dedup();
+    if (Driver_DetectedMod == MEGAMOD_NONE) {
+        opn2_psg_dump_dedup();
+    }
     Driver_Cycle = 0;
     Driver_ICycle = 0;
     Driver_LastCc = Driver_Cc = xthal_get_ccount();
