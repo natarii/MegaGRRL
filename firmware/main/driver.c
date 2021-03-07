@@ -59,7 +59,6 @@ volatile IRAM_ATTR uint32_t Driver_CpuUsageDs = 0;
 
 volatile bool Driver_FixPsgFrequency = true;
 volatile bool Driver_FixPsgPeriodic = true;
-volatile bool Driver_MitigateVgmTrim = true;
 
 volatile MegaMod_t Driver_DetectedMod = MEGAMOD_NONE;
 
@@ -823,12 +822,6 @@ static void FadeTick() {
 }
 
 void Driver_UpdateCh6Muting() {
-    if (Driver_MitigateVgmTrim) {
-        if (Driver_FirstWait) {
-            Driver_FmOut(1, 0xb6, Driver_FmPans[5] & 0b00111111);
-            return;
-        }
-    }
     uint8_t reg = Driver_FmPans[5] & (Driver_FmMask & (1<<(Driver_DacEn?6:5))?0b11111111:0b00111111);
     if (Driver_ForceMono && (reg & 0b11000000)) reg |= 0b11000000;
     Driver_FmOut(1, 0xb6, reg);
@@ -854,20 +847,18 @@ static uint8_t Driver_ProcessSsgControlWrite(uint8_t ssgreg) {
 
 void Driver_UpdateMuting() {
     if (Driver_DetectedMod == MEGAMOD_NONE) {
-        if (Driver_MitigateVgmTrim) {
-            if (Driver_FirstWait || Driver_Slip) {
-                //force everything off no matter what
-                Driver_FmOut(0, 0xb4, Driver_FmPans[0] & 0b00111111);
-                Driver_FmOut(0, 0xb5, Driver_FmPans[1] & 0b00111111);
-                Driver_FmOut(0, 0xb6, Driver_FmPans[2] & 0b00111111);
-                Driver_FmOut(1, 0xb4, Driver_FmPans[3] & 0b00111111);
-                Driver_FmOut(1, 0xb5, Driver_FmPans[4] & 0b00111111);
-                Driver_FmOut(1, 0xb6, Driver_FmPans[5] & 0b00111111);
-                for (uint8_t i=0;i<4;i++) {
-                    Driver_PsgOut(0b10011111 | (i<<5));
-                }
-                return;
+        if (Driver_Slip) {
+            //force everything off no matter what
+            Driver_FmOut(0, 0xb4, Driver_FmPans[0] & 0b00111111);
+            Driver_FmOut(0, 0xb5, Driver_FmPans[1] & 0b00111111);
+            Driver_FmOut(0, 0xb6, Driver_FmPans[2] & 0b00111111);
+            Driver_FmOut(1, 0xb4, Driver_FmPans[3] & 0b00111111);
+            Driver_FmOut(1, 0xb5, Driver_FmPans[4] & 0b00111111);
+            Driver_FmOut(1, 0xb6, Driver_FmPans[5] & 0b00111111);
+            for (uint8_t i=0;i<4;i++) {
+                Driver_PsgOut(0b10011111 | (i<<5));
             }
+            return;
         }
         for (uint8_t i=0;i<5;i++) {
             uint8_t mask = (Driver_FmMask & (1<<i))?0b11111111:0b00111111;
@@ -991,7 +982,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
                     uint8_t ch = (cmd[1]>>5)&0b00000011;
                     Driver_PsgAttenuation[ch] = cmd[1];
                     cmd[1] = FilterPsgAttenWrite(cmd[1]);
-                    if ((Driver_MitigateVgmTrim && Driver_FirstWait) || Driver_Slip) cmd[1] |= 0b00001111; //if we haven't reached the first wait, force full attenuation
+                    if (Driver_Slip) cmd[1] |= 0b00001111; //force full attenuation during slip
                     if (ch == 2) {
                         //when ch 3 atten is updated, we also need to write frequency again. this is due to the periodic noise fix.
                         //TODO: this would be better if it only does it if actually transitioning in or out of mute, rather than on every atten update
@@ -1107,7 +1098,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
     } else if (cmd[0] == 0x52) { //YM2612 port 0
         if (cmd[1] >= 0xb4 && cmd[1] <= 0xb6) { //pan, FMS, AMS
             Driver_FmPans[cmd[1]-0xb4] = cmd[2];
-            if ((Driver_MitigateVgmTrim && Driver_FirstWait) || Driver_Slip) cmd[2] &= 0b00111111; //if we haven't reached the first wait, disable both L and R
+            if (Driver_Slip) cmd[2] &= 0b00111111; //disable both L and R during slip
             cmd[2] &= (Driver_FmMask & (1<<(cmd[1]-0xb4)))?0b11111111:0b00111111;
             if (Driver_ForceMono && (cmd[2] & 0b11000000)) cmd[2] |= 0b11000000;
         }
@@ -1137,7 +1128,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
             } else { //otherwise apply muting masks as normal
                 cmd[2] &= (Driver_FmMask & (1<<(3+(cmd[1]-0xb4))))?0b11111111:0b00111111;
             }
-            if ((Driver_MitigateVgmTrim && Driver_FirstWait) || Driver_Slip) cmd[2] &= 0b00111111; //if we haven't reached the first wait, disable both L and R. do this after the muting logic
+            if (Driver_Slip) cmd[2] &= 0b00111111; //disable both L and R during slip. do this after the muting logic
             if (Driver_ForceMono && (cmd[2] & 0b11000000)) cmd[2] |= 0b11000000;
         }
         if ((cmd[1] >= 0x40 && cmd[1] <= 0x42) || (cmd[1] >= 0x48 && cmd[1] <= 0x4a) || (cmd[1] >= 0x44 && cmd[1] <= 0x46) || (cmd[1] >= 0x4c && cmd[1] <= 0x4e)) { //TL
