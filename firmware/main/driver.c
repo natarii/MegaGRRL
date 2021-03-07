@@ -519,6 +519,18 @@ void Driver_Opna_UploadByte(uint8_t pair) {
     Driver_Sleep(Loader_FastOpnaUpload?12:15);
 }
 
+uint8_t opn2_fade_pcm(uint8_t Value) {
+    int32_t sgn = Value;
+    sgn -= 0x7f;
+    sgn *= 1000;
+    int32_t sf = map(FadePos, 0, 44100*Driver_FadeLength, 0, 155);
+    sf *= sf;
+    sf += 1000;
+    sgn /= sf;
+    sgn += 0x7f;
+    return sgn;
+}
+
 void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value, bool Internal) {
     //these regs can be written to either bank. for dedup purposes, force them all to the first bank.
     if (Port) {
@@ -550,20 +562,6 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value, bool Internal) 
         if (Register >= 0xb7) return;
         opn2_regs_dedup[(Port<<8)|Register] = Value;
         return;
-    }
-
-    if (Register == 0x2a) {
-        if (FadeActive) {
-            int32_t sgn = Value;
-            sgn -= 0x7f;
-            sgn *= 1000;
-            int32_t sf = map(FadePos, 0, 44100*Driver_FadeLength, 0, 155);
-            sf *= sf;
-            sf += 1000;
-            sgn /= sf;
-            sgn += 0x7f;
-            Value = sgn;
-        }
     }
 
     //we must never deduplicate writes to the low bytes of frequency. this is regs A0~A2, and in Ch3 special mode also A8~AA.
@@ -1170,6 +1168,9 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
             ESP_LOGD(TAG, "algo write bank0");
             HandleAlgoWrite(0, cmd[1], cmd[2]);
         }
+        if (cmd[1] == 0x2a) {
+            if (FadeActive) cmd[2] = opn2_fade_pcm(cmd[2]);
+        }
         Driver_FmOut(0, cmd[1], cmd[2], false);
     } else if (cmd[0] == 0x53) { //YM2612 port 1
         if (cmd[1] >= 0xb4 && cmd[1] <= 0xb6) { //pan, FMS, AMS
@@ -1194,6 +1195,9 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
             ESP_LOGD(TAG, "algo write bank1");
             HandleAlgoWrite(1, cmd[1], cmd[2]);
         }
+        if (cmd[1] == 0x2a) { //can you even write 0x2a in bank 1???
+            if (FadeActive) cmd[2] = opn2_fade_pcm(cmd[2]);
+        }
         Driver_FmOut(1, cmd[1], cmd[2], false);
     } else if (cmd[0] == 0x61) { //16bit wait
         _Pragma("GCC diagnostic push")
@@ -1215,6 +1219,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
     } else if ((cmd[0] & 0xf0) == 0x80) { //YM2612 DAC + wait
         uint8_t sample;
         MegaStream_Recv(&Driver_PcmStream, &sample, 1);
+        if (FadeActive) sample = opn2_fade_pcm(sample);
         Driver_FmOut(0, 0x2a, sample, false);
         Driver_NextSample += cmd[0] & 0x0f;
         if (Driver_FirstWait && (cmd[0] & 0x0f) > 0) {
@@ -1498,6 +1503,7 @@ void Driver_Main() {
                         if (Driver_DetectedMod == MEGAMOD_OPNA) {
                             Driver_FmOutopna(DacStreamPort, DacStreamCommand, sample);
                         } else {
+                            if (FadeActive) sample = opn2_fade_pcm(sample);
                             Driver_FmOut(DacStreamPort, DacStreamCommand, sample, false);
                         }
                         DacStreamSamplesPlayed++;
