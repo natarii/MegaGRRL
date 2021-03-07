@@ -143,8 +143,6 @@ volatile uint8_t Driver_FadeLength = 3;
 
 static uint8_t Driver_CurLoop = 0;
 
-static uint8_t DacLastValue = 0;
-static bool DacTouched = false;
 static uint8_t opn2_regs_dedup[256*2];
 
 #define min(a,b) ((a) < (b) ? (a) : (b)) //sigh.
@@ -524,11 +522,6 @@ void Driver_Opna_UploadByte(uint8_t pair) {
 
 void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
     if (Register == 0x2a) {
-        if (Driver_FirstWait || Driver_Slip) {
-            DacTouched = true;
-            DacLastValue = Value;
-            return;
-        }
         if (FadeActive) {
             int32_t sgn = Value;
             sgn -= 0x7f;
@@ -926,9 +919,6 @@ void Driver_UpdateMuting() {
 void Driver_SetFirstWait() {
     Driver_FirstWait = false;
     Driver_UpdateMuting();
-    if (DacTouched) {
-        Driver_FmOut(0, 0x2a, DacLastValue);
-    }
     Driver_Cycle = 0;
     Driver_ICycle = 0;
     Driver_LastCc = Driver_Cc = xthal_get_ccount();
@@ -1303,8 +1293,6 @@ void Driver_Main() {
             }
             Driver_UpdateMuting();
             memset((void *)&ChannelMgr_States[0], 0, 6+4);
-            DacLastValue = 0;
-            DacTouched = false;
             Driver_Slip = 0;
 
             //update status flags
