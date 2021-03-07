@@ -142,7 +142,7 @@ volatile uint8_t Driver_FadeLength = 3;
 
 static uint8_t Driver_CurLoop = 0;
 
-static uint8_t opn2_regs_dedup[256*2];
+static uint8_t opn2_regs_dedup[256*2]; //note: this is what was actually written to the chip! AFTER all processing.
 
 #define min(a,b) ((a) < (b) ? (a) : (b)) //sigh.
 
@@ -519,21 +519,7 @@ void Driver_Opna_UploadByte(uint8_t pair) {
     Driver_Sleep(Loader_FastOpnaUpload?12:15);
 }
 
-void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
-    if (Register == 0x2a) {
-        if (FadeActive) {
-            int32_t sgn = Value;
-            sgn -= 0x7f;
-            sgn *= 1000;
-            int32_t sf = map(FadePos, 0, 44100*Driver_FadeLength, 0, 155);
-            sf *= sf;
-            sf += 1000;
-            sgn /= sf;
-            sgn += 0x7f;
-            Value = sgn;
-        }
-    }
-
+void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value, bool Internal) {
     //these regs can be written to either bank. for dedup purposes, force them all to the first bank.
     if (Port) {
         switch (Register) {
@@ -552,9 +538,37 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
         }
     }
 
+    //in firstwait or slip period? then update the dedup regs, but don't write to the chip or update LEDs
+    if (Driver_FirstWait || Driver_Slip) {
+        if (Register == 0x28) { //special KON handling
+            uint8_t ch = ((Value & 0b100)?3:0) + (Value & 0b11);
+            ESP_LOGD(TAG, "KON %d %01x", ch, Value >> 4);
+            opn2_regs_dedup[0xb7+ch] = Value;
+            if (Value & 0xf0) opn2_regs_dedup[0xb7+6+ch] |= Value;
+            return;
+        }
+        if (Register >= 0xb7) return;
+        opn2_regs_dedup[(Port<<8)|Register] = Value;
+        return;
+    }
+
+    if (Register == 0x2a) {
+        if (FadeActive) {
+            int32_t sgn = Value;
+            sgn -= 0x7f;
+            sgn *= 1000;
+            int32_t sf = map(FadePos, 0, 44100*Driver_FadeLength, 0, 155);
+            sf *= sf;
+            sf += 1000;
+            sgn /= sf;
+            sgn += 0x7f;
+            Value = sgn;
+        }
+    }
+
     //we must never deduplicate writes to the low bytes of frequency. this is regs A0~A2, and in Ch3 special mode also A8~AA.
     //could explicitly check only those ranges, but it seemed that adding those checks was slowing it down further than just checking A0~AF and letting duplicate writes to the high byte go through
-    if (opn2_regs_dedup[(Port<<8)|Register] != Value || (Register >> 4) == 0xa) {
+    if (opn2_regs_dedup[(Port<<8)|Register] != Value || (Register >> 4) == 0xa || Internal) {
         if (Port == 0) {
             Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_A1; //clear A1
         } else if (Port == 1) {
@@ -576,7 +590,7 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
         Driver_SrBuf[SR_CONTROL] |= SR_BIT_FM_CS; // /cs high
         Driver_Output();
         Driver_Sleep(5);
-        opn2_regs_dedup[(Port<<8)|Register] = Value;
+        opn2_regs_dedup[(Port<<8)|Register] = Value; //no need to do this on internal writes, but it would probably be slower to test every time
     } else {
         return; //no led update
     }
@@ -590,7 +604,6 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
         //Driver_FmAlgo[ch] = Value & 0b111; //now handled before we get here
         ChannelMgr_States[ch] |= CHSTATE_PARAM;
     } else if (Port == 0 && Register == 0x28) { //KON
-        if ((Value & 3) == 3) return; //ignore bogus writes
         uint8_t ch = ((Value & 0b100)?3:0) + (Value & 0b11);
         //uint8_t st = Value >> 4;
         uint8_t st = 0;
@@ -759,7 +772,7 @@ static void HandleAlgoWrite(uint8_t bank, uint8_t cmd1, uint8_t cmd2) {
             }
             ESP_LOGD(TAG, "fix write ch %d op %d tl %d REG 0x%02x BANK %d", ch, op, savedtl,  0x40+(ch%3)+(4*OperatorMap[op]), ch/3);
             if (Driver_DetectedMod == MEGAMOD_NONE) {
-                Driver_FmOut(ch/3, 0x40+(ch%3)+(4*OperatorMap[op]), savedtl);
+                Driver_FmOut(ch/3, 0x40+(ch%3)+(4*OperatorMap[op]), savedtl, false);
             } else if (Driver_DetectedMod == MEGAMOD_OPNA) {
                 Driver_FmOutopna(ch/3, 0x40+(ch%3)+(4*OperatorMap[op]), savedtl);
             }
@@ -797,7 +810,7 @@ static void FadeTick() {
                 if (scale) {
                     savedtl = FadeTL(savedtl);
                     if (Driver_DetectedMod == MEGAMOD_NONE) {
-                        Driver_FmOut(ch/3, 0x40+(ch%3)+(4*OperatorMap[op]), savedtl);
+                        Driver_FmOut(ch/3, 0x40+(ch%3)+(4*OperatorMap[op]), savedtl, false);
                     } else if (Driver_DetectedMod == MEGAMOD_OPNA) {
                         Driver_FmOutopna(ch/3, 0x40+(ch%3)+(4*OperatorMap[op]), savedtl);
                     }
@@ -824,7 +837,7 @@ static void FadeTick() {
 void Driver_UpdateCh6Muting() {
     uint8_t reg = Driver_FmPans[5] & (Driver_FmMask & (1<<(Driver_DacEn?6:5))?0b11111111:0b00111111);
     if (Driver_ForceMono && (reg & 0b11000000)) reg |= 0b11000000;
-    Driver_FmOut(1, 0xb6, reg);
+    Driver_FmOut(1, 0xb6, reg, false);
 }
 
 static uint8_t Driver_ProcessSsgControlWrite(uint8_t ssgreg) {
@@ -845,26 +858,64 @@ static uint8_t Driver_ProcessSsgControlWrite(uint8_t ssgreg) {
     return ssgreg;
 }
 
+static void opn2_psg_force_off() {
+    Driver_FmOut(0, 0xb4, Driver_FmPans[0] & 0b00111111, false);
+    Driver_FmOut(0, 0xb5, Driver_FmPans[1] & 0b00111111, false);
+    Driver_FmOut(0, 0xb6, Driver_FmPans[2] & 0b00111111, false);
+    Driver_FmOut(1, 0xb4, Driver_FmPans[3] & 0b00111111, false);
+    Driver_FmOut(1, 0xb5, Driver_FmPans[4] & 0b00111111, false);
+    Driver_FmOut(1, 0xb6, Driver_FmPans[5] & 0b00111111, false);
+    for (uint8_t i=0;i<4;i++) {
+        Driver_PsgOut(0b10011111 | (i<<5));
+    }
+}
+
+static void opn2_psg_dump_dedup() {
+    ESP_LOGD(TAG, "Dumping");
+    for (uint8_t i=0x30;i<=0x9e;i++) {
+        if ((i&3)==3) continue;
+        Driver_FmOut(0, i, opn2_regs_dedup[i], true);
+        Driver_FmOut(1, i, opn2_regs_dedup[0x100+i], true);
+    }
+    for (uint8_t i=0;i<3;i++) {
+        for (uint8_t b=0;b<2;b++) {
+            Driver_FmOut(b, 0xa4+i, opn2_regs_dedup[(0x100*b)+0xa4+i], true);
+            Driver_FmOut(b, 0xa0+i, opn2_regs_dedup[(0x100*b)+0xa0+i], true);
+        }
+    }
+    for (uint8_t i=0xb0;i<=0xb2;i++) {
+        Driver_FmOut(0, i, opn2_regs_dedup[i], true);
+        Driver_FmOut(1, i, opn2_regs_dedup[0x100+i], true);
+    }
+    for (uint8_t i=0xb4;i<=0xb6;i++) {
+        Driver_FmOut(0, i, opn2_regs_dedup[i], true);
+        Driver_FmOut(1, i, opn2_regs_dedup[0x100+i], true);
+    }
+    Driver_FmOut(0, 0xad, opn2_regs_dedup[0xad], true);
+    Driver_FmOut(0, 0xa9, opn2_regs_dedup[0xa9], true);
+    Driver_FmOut(0, 0xae, opn2_regs_dedup[0xae], true);
+    Driver_FmOut(0, 0xaa, opn2_regs_dedup[0xaa], true);
+    Driver_FmOut(0, 0xac, opn2_regs_dedup[0xac], true);
+    Driver_FmOut(0, 0xa8, opn2_regs_dedup[0xa8], true);
+    for (uint8_t i=0x22;i<=0x2b;i++) {
+        if (i == 0x28) continue;
+        Driver_FmOut(0, i, opn2_regs_dedup[i], true);
+    }
+    //special KON handling:
+    for (uint8_t i=0;i<6;i++) {
+        if (opn2_regs_dedup[0xb7+6+i] & 0xf0) Driver_FmOut(0, 0x28, opn2_regs_dedup[0xb7+6+i], true);
+        Driver_FmOut(0, 0x28, opn2_regs_dedup[0xb7+i], true);
+    }
+    ESP_LOGD(TAG, "Dumped");
+}
+
 void Driver_UpdateMuting() {
     if (Driver_DetectedMod == MEGAMOD_NONE) {
-        if (Driver_Slip) {
-            //force everything off no matter what
-            Driver_FmOut(0, 0xb4, Driver_FmPans[0] & 0b00111111);
-            Driver_FmOut(0, 0xb5, Driver_FmPans[1] & 0b00111111);
-            Driver_FmOut(0, 0xb6, Driver_FmPans[2] & 0b00111111);
-            Driver_FmOut(1, 0xb4, Driver_FmPans[3] & 0b00111111);
-            Driver_FmOut(1, 0xb5, Driver_FmPans[4] & 0b00111111);
-            Driver_FmOut(1, 0xb6, Driver_FmPans[5] & 0b00111111);
-            for (uint8_t i=0;i<4;i++) {
-                Driver_PsgOut(0b10011111 | (i<<5));
-            }
-            return;
-        }
         for (uint8_t i=0;i<5;i++) {
             uint8_t mask = (Driver_FmMask & (1<<i))?0b11111111:0b00111111;
             uint8_t reg = Driver_FmPans[i] & mask;
             if (Driver_ForceMono && (reg & 0b11000000)) reg |= 0b11000000;
-            Driver_FmOut((i<3)?0:1, 0xb4 + ((i<3)?i:(i-3)), reg);
+            Driver_FmOut((i<3)?0:1, 0xb4 + ((i<3)?i:(i-3)), reg, false);
         }
         Driver_UpdateCh6Muting();
         for (uint8_t i=0;i<4;i++) {
@@ -910,6 +961,7 @@ void Driver_UpdateMuting() {
 void Driver_SetFirstWait() {
     Driver_FirstWait = false;
     Driver_UpdateMuting();
+    opn2_psg_dump_dedup();
     Driver_Cycle = 0;
     Driver_ICycle = 0;
     Driver_LastCc = Driver_Cc = xthal_get_ccount();
@@ -1115,7 +1167,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
             ESP_LOGD(TAG, "algo write bank0");
             HandleAlgoWrite(0, cmd[1], cmd[2]);
         }
-        Driver_FmOut(0, cmd[1], cmd[2]);
+        Driver_FmOut(0, cmd[1], cmd[2], false);
     } else if (cmd[0] == 0x53) { //YM2612 port 1
         if (cmd[1] >= 0xb4 && cmd[1] <= 0xb6) { //pan, FMS, AMS
             Driver_FmPans[3+cmd[1]-0xb4] = cmd[2];
@@ -1139,7 +1191,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
             ESP_LOGD(TAG, "algo write bank1");
             HandleAlgoWrite(1, cmd[1], cmd[2]);
         }
-        Driver_FmOut(1, cmd[1], cmd[2]);
+        Driver_FmOut(1, cmd[1], cmd[2], false);
     } else if (cmd[0] == 0x61) { //16bit wait
         _Pragma("GCC diagnostic push")
         _Pragma("GCC diagnostic ignored \"-Wstrict-aliasing\"")
@@ -1160,7 +1212,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
     } else if ((cmd[0] & 0xf0) == 0x80) { //YM2612 DAC + wait
         uint8_t sample;
         MegaStream_Recv(&Driver_PcmStream, &sample, 1);
-        Driver_FmOut(0, 0x2a, sample);
+        Driver_FmOut(0, 0x2a, sample, false);
         Driver_NextSample += cmd[0] & 0x0f;
         if (Driver_FirstWait && (cmd[0] & 0x0f) > 0) {
             Driver_SetFirstWait();
@@ -1282,7 +1334,6 @@ void Driver_Main() {
             for (uint8_t i=0;i<4;i++) {
                 Driver_PsgAttenuation[i] = 0b10011111 | (i<<5);
             }
-            Driver_UpdateMuting();
             memset((void *)&ChannelMgr_States[0], 0, 6+4);
             Driver_Slip = 0;
 
@@ -1313,12 +1364,7 @@ void Driver_Main() {
             Driver_PauseSample_Ds = Driver_Sample_Ds;
             Driver_NoLeds = true;
             if (Driver_DetectedMod == MEGAMOD_NONE) {
-                Driver_FmOut(0, 0xb4, Driver_FmPans[0] & 0b00111111);
-                Driver_FmOut(0, 0xb5, Driver_FmPans[1] & 0b00111111);
-                Driver_FmOut(0, 0xb6, Driver_FmPans[2] & 0b00111111);
-                Driver_FmOut(1, 0xb4, Driver_FmPans[3] & 0b00111111);
-                Driver_FmOut(1, 0xb5, Driver_FmPans[4] & 0b00111111);
-                Driver_FmOut(1, 0xb6, Driver_FmPans[5] & 0b00111111);
+                opn2_psg_force_off();
             } else if (Driver_DetectedMod == MEGAMOD_OPNA) {
                 Driver_FmOutopna(0, 0xb4, Driver_FmPans[0] & 0b00111111);
                 Driver_FmOutopna(0, 0xb5, Driver_FmPans[1] & 0b00111111);
@@ -1330,7 +1376,7 @@ void Driver_Main() {
             if (Driver_DetectedMod == MEGAMOD_OPNA) {
                 Driver_FmOutopna(0, 0x07, Driver_Opna_SsgConfig | 0b00111111);
             }
-            if (Driver_DetectedMod == MEGAMOD_NONE || Driver_DetectedMod == MEGAMOD_OPLLPSG) {
+            if (Driver_DetectedMod == MEGAMOD_OPLLPSG) {
                 for (uint8_t i=0;i<4;i++) {
                     Driver_PsgOut(0b10011111 | (i<<5));
                 }
@@ -1354,11 +1400,11 @@ void Driver_Main() {
             commandeventbits |= DRIVER_EVENT_RUNNING;
         } else if (commandeventbits & DRIVER_EVENT_FASTFORWARD) {
             if (!Driver_Slip) {
+                opn2_psg_force_off();
                 Driver_Cycle += DRIVER_CLOCK_RATE*2;
                 Driver_Cycle_Ds += DRIVER_CLOCK_RATE*2;
                 Driver_Slip = (1<<0);
                 if (DacStreamActive) Driver_Slip |= (1<<1);
-                Driver_UpdateMuting();
             }
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_FASTFORWARD);
             commandeventbits &= ~DRIVER_EVENT_FASTFORWARD;
@@ -1430,6 +1476,7 @@ void Driver_Main() {
                 if (Driver_Slip & (1<<0)) {
                     Driver_Slip &= ~(1<<0);
                     Driver_UpdateMuting();
+                    opn2_psg_dump_dedup();
                 }
             }
 
@@ -1448,21 +1495,27 @@ void Driver_Main() {
                         if (Driver_DetectedMod == MEGAMOD_OPNA) {
                             Driver_FmOutopna(DacStreamPort, DacStreamCommand, sample);
                         } else {
-                            Driver_FmOut(DacStreamPort, DacStreamCommand, sample);
+                            Driver_FmOut(DacStreamPort, DacStreamCommand, sample, false);
                         }
                         DacStreamSamplesPlayed++;
                         if (DacStreamSamplesPlayed == DacStreamDataLength && (DacStreamLengthMode == 0 || DacStreamLengthMode == 1 || DacStreamLengthMode == 3)) {
                             DacStreamActive = false;
                             if (Driver_Slip & (1<<1)) {
                                 Driver_Slip &= ~(1<<1);
-                                Driver_UpdateMuting();
+                                if (!Driver_Slip) {
+                                    Driver_UpdateMuting();
+                                    opn2_psg_dump_dedup();
+                                }
                             }
                         }
                         DacStreamFailed = false;
                     } else {
                         if (Driver_Slip & (1<<1)) {
                             Driver_Slip &= ~(1<<1);
-                            Driver_UpdateMuting();
+                            if (!Driver_Slip) {
+                                Driver_UpdateMuting();
+                                opn2_psg_dump_dedup();
+                            }
                         }
                     }
                 } else {
@@ -1473,7 +1526,10 @@ void Driver_Main() {
                     //DacStreamActive = false;
                     if (Driver_Slip & (1<<1)) {
                         Driver_Slip &= ~(1<<1);
-                        Driver_UpdateMuting();
+                        if (!Driver_Slip) {
+                            Driver_UpdateMuting();
+                            opn2_psg_dump_dedup();
+                        }
                     }
                 }
                 Driver_CpuUsageDs += (xthal_get_ccount() - Driver_BusyStart);
