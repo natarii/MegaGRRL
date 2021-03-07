@@ -902,6 +902,7 @@ static void opn2_psg_dump_dedup() {
     }
     //special KON handling:
     for (uint8_t i=0;i<6;i++) {
+        if (i && (opn2_regs_dedup[0xb7+i] & 0x0f) == 0) continue; //prevent anything not already written to from messing with FM1
         if (opn2_regs_dedup[0xb7+6+i] & 0xf0) Driver_FmOut(0, 0x28, opn2_regs_dedup[0xb7+6+i], true);
         Driver_FmOut(0, 0x28, opn2_regs_dedup[0xb7+i], true);
     }
