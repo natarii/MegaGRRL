@@ -1403,7 +1403,7 @@ void Driver_Main() {
             commandeventbits |= DRIVER_EVENT_RUNNING;
         } else if (commandeventbits & DRIVER_EVENT_FASTFORWARD) {
             if (!Driver_Slip) {
-                opn2_psg_force_off();
+                if (Driver_DetectedMod == MEGAMOD_NONE) opn2_psg_force_off();
                 Driver_Cycle += DRIVER_CLOCK_RATE*2;
                 Driver_Cycle_Ds += DRIVER_CLOCK_RATE*2;
                 Driver_Slip = (1<<0);
@@ -1479,7 +1479,7 @@ void Driver_Main() {
                 if (Driver_Slip & (1<<0)) {
                     Driver_Slip &= ~(1<<0);
                     Driver_UpdateMuting();
-                    opn2_psg_dump_dedup();
+                    if (Driver_DetectedMod == MEGAMOD_NONE) opn2_psg_dump_dedup();
                 }
             }
 
@@ -1507,7 +1507,7 @@ void Driver_Main() {
                                 Driver_Slip &= ~(1<<1);
                                 if (!Driver_Slip) {
                                     Driver_UpdateMuting();
-                                    opn2_psg_dump_dedup();
+                                    if (Driver_DetectedMod == MEGAMOD_NONE) opn2_psg_dump_dedup();
                                 }
                             }
                         }
@@ -1517,7 +1517,7 @@ void Driver_Main() {
                             Driver_Slip &= ~(1<<1);
                             if (!Driver_Slip) {
                                 Driver_UpdateMuting();
-                                opn2_psg_dump_dedup();
+                                if (Driver_DetectedMod == MEGAMOD_NONE) opn2_psg_dump_dedup();
                             }
                         }
                     }
@@ -1531,7 +1531,7 @@ void Driver_Main() {
                         Driver_Slip &= ~(1<<1);
                         if (!Driver_Slip) {
                             Driver_UpdateMuting();
-                            opn2_psg_dump_dedup();
+                            if (Driver_DetectedMod == MEGAMOD_NONE) opn2_psg_dump_dedup();
                         }
                     }
                 }
