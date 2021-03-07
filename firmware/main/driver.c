@@ -89,6 +89,7 @@ IRAM_ATTR int32_t Driver_Slip = 0; //originally intended as a sample counter, cu
 IRAM_ATTR uint32_t Driver_Cc = 0;         //current cycle from the api - just keep it off the stack
 IRAM_ATTR uint32_t Driver_LastCc = 0;     //copy of the above var
 IRAM_ATTR uint32_t Driver_NextSample = 0; //sample number at which the next command needs to be run
+IRAM_ATTR uint32_t Driver_ICycle = 0;
 uint8_t Driver_FmAlgo[6] = {0,0,0,0,0,0};
 uint8_t Driver_PsgLastChannel = 0;
 volatile bool Driver_FirstWait = true;
@@ -929,6 +930,7 @@ void Driver_SetFirstWait() {
         Driver_FmOut(0, 0x2a, DacLastValue);
     }
     Driver_Cycle = 0;
+    Driver_ICycle = 0;
     Driver_LastCc = Driver_Cc = xthal_get_ccount();
 }
 
@@ -1276,6 +1278,7 @@ void Driver_Main() {
         if (commandeventbits & DRIVER_EVENT_START_REQUEST) {
             //reset all internal vars
             Driver_Cycle = 0;
+            Driver_ICycle = 0;
             Driver_LastCc = Driver_Cc;
             Driver_NextSample = 0;
             DacStreamActive = false;
@@ -1385,6 +1388,12 @@ void Driver_Main() {
             diff *= (1000LL + Driver_SpeedMult);
             diff /= 1000;
             Driver_Cycle += diff;
+            Driver_ICycle += diff;
+            if (Driver_ICycle >= 400000) {
+                uint32_t f = Driver_ICycle/400000;
+                Driver_Cycle -= 13*f;
+                Driver_ICycle -= 400000*f;
+            }
             Driver_LastCc = Driver_Cc;
             Driver_Sample = Driver_Cycle / DRIVER_CYCLES_PER_SAMPLE;
             if (FadeActive) {
