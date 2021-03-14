@@ -59,8 +59,11 @@ bool VgmParseHeader(FILE *f, VgmInfoStruct_t *info) {
     info->Version += (uint32_t)(tempver[i]>>4)*(uint32_t)pow(10,exp++);
   }
 
+  fseek(f, 0, SEEK_END);
+  size_t sz = ftell(f);
   fseek(f, 0x14, SEEK_SET);
   fread(&info->Gd3Offset, 4, 1, f);
+  if (info->Gd3Offset > sz) info->Gd3Offset = 0; //catch wacked out gd3 offset
   if (info->Gd3Offset > 0) info->Gd3Offset += 0x14;
   fread(&info->TotalSamples, 4, 1, f);
   fread(&info->LoopOffset, 4, 1, f);
