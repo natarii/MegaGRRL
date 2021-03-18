@@ -72,6 +72,8 @@ static const uint32_t known_bad_vgms[] = {
     0x802e0781,
     0x8990b4c1,
     0x08b54cdd,
+    //alisia dragoon opening
+    0xced29e07,
 };
 
 static const char* TAG = "Player";
