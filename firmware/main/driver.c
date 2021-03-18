@@ -143,6 +143,13 @@ volatile uint8_t Driver_FadeLength = 3;
 static uint8_t Driver_CurLoop = 0;
 
 static uint8_t opn2_regs_dedup[256*2]; //note: this is what was actually written to the chip! AFTER all processing.
+#define DEDUP_EXTRA_START (0xb7) //highest valid reg is b6
+#define DEDUP_LOC_KON (DEDUP_EXTRA_START+0)
+#define DEDUP_SIZE_KON (2*6) //two copies for each ch.
+#define DEDUP_LOC_HIFREQ_LATCH (DEDUP_LOC_KON+DEDUP_SIZE_KON)
+#define DEDUP_SIZE_HIFREQ_LATCH (1) //shared across all channels
+#define DEDUP_LOC_CH3HIFREQ_LATCH (DEDUP_LOC_HIFREQ_LATCH+DEDUP_SIZE_HIFREQ_LATCH)
+#define DEDUP_SIZE_CH3HIFREQ_LATCH (1)
 
 #define min(a,b) ((a) < (b) ? (a) : (b)) //sigh.
 
@@ -555,11 +562,25 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value, bool Internal) 
         if (Register == 0x28) { //special KON handling
             uint8_t ch = ((Value & 0b100)?3:0) + (Value & 0b11);
             ESP_LOGD(TAG, "KON %d %01x", ch, Value >> 4);
-            opn2_regs_dedup[0xb7+ch] = Value;
-            if (Value & 0xf0) opn2_regs_dedup[0xb7+6+ch] |= Value;
+            opn2_regs_dedup[DEDUP_LOC_KON+ch] = Value;
+            if (Value & 0xf0) opn2_regs_dedup[DEDUP_LOC_KON+6+ch] |= Value;
             return;
+        } else if (Register >= 0xa4 && Register <= 0xa6) { //freq hi, don't care which port or channel
+            ESP_LOGD(TAG, "freq hi latch %02x", Value);
+            opn2_regs_dedup[DEDUP_LOC_HIFREQ_LATCH] = Value;
+            return;
+        } else if (Register >= 0xa0 && Register <= 0xa2) { //freq lo
+            ESP_LOGD(TAG, "freq lo write %02x %02x", opn2_regs_dedup[DEDUP_LOC_HIFREQ_LATCH], Value);
+            opn2_regs_dedup[(Port<<8) + 0xa4 + (Register&0b11)] = opn2_regs_dedup[DEDUP_LOC_HIFREQ_LATCH];
+            //let below handle this reg
+        } else if (Port == 0 && Register >= 0xac && Register <= 0xae) { //ch3 special freq hi
+            opn2_regs_dedup[DEDUP_LOC_CH3HIFREQ_LATCH] = Value;
+            return;
+        } else if (Port == 0 && Register >= 0xa8 && Register <= 0xaa) { //ch3 special freq lo
+            opn2_regs_dedup[0xa8 + (Register&0b11)] = opn2_regs_dedup[DEDUP_LOC_CH3HIFREQ_LATCH];
+            //let below handle this reg
         }
-        if (Register >= 0xb7) return;
+        if (Register >= DEDUP_EXTRA_START) return;
         opn2_regs_dedup[(Port<<8)|Register] = Value;
         return;
     }
@@ -875,12 +896,17 @@ static void opn2_psg_dump_dedup() {
         Driver_FmOut(0, i, opn2_regs_dedup[i], true);
         Driver_FmOut(1, i, opn2_regs_dedup[0x100+i], true);
     }
+
+    //freq pairs
     for (uint8_t i=0;i<3;i++) {
         for (uint8_t b=0;b<2;b++) {
             Driver_FmOut(b, 0xa4+i, opn2_regs_dedup[(0x100*b)+0xa4+i], true);
             Driver_FmOut(b, 0xa0+i, opn2_regs_dedup[(0x100*b)+0xa0+i], true);
         }
     }
+    //last freq hi latch value
+    Driver_FmOut(0, 0xa4, opn2_regs_dedup[DEDUP_LOC_HIFREQ_LATCH], true);
+
     for (uint8_t i=0xb0;i<=0xb2;i++) {
         Driver_FmOut(0, i, opn2_regs_dedup[i], true);
         Driver_FmOut(1, i, opn2_regs_dedup[0x100+i], true);
@@ -895,6 +921,7 @@ static void opn2_psg_dump_dedup() {
     Driver_FmOut(0, 0xaa, opn2_regs_dedup[0xaa], true);
     Driver_FmOut(0, 0xac, opn2_regs_dedup[0xac], true);
     Driver_FmOut(0, 0xa8, opn2_regs_dedup[0xa8], true);
+    Driver_FmOut(0, 0xac, opn2_regs_dedup[DEDUP_LOC_CH3HIFREQ_LATCH], true); //last latch value for ch3 special hi freq
     for (uint8_t i=0x22;i<=0x2b;i++) {
         if (i == 0x28) continue; //KON is handled below
         if (i == 0x2a && opn2_regs_dedup[i] == 0) continue; //avoid DAC pop
@@ -902,9 +929,9 @@ static void opn2_psg_dump_dedup() {
     }
     //special KON handling:
     for (uint8_t i=0;i<6;i++) {
-        if (i && (opn2_regs_dedup[0xb7+i] & 0x0f) == 0) continue; //prevent anything not already written to from messing with FM1
-        if (opn2_regs_dedup[0xb7+6+i] & 0xf0) Driver_FmOut(0, 0x28, opn2_regs_dedup[0xb7+6+i], true);
-        Driver_FmOut(0, 0x28, opn2_regs_dedup[0xb7+i], true);
+        if (i && (opn2_regs_dedup[DEDUP_LOC_KON+i] & 0x0f) == 0) continue; //prevent anything not already written to from messing with FM1
+        if (opn2_regs_dedup[DEDUP_LOC_KON+6+i] & 0xf0) Driver_FmOut(0, 0x28, opn2_regs_dedup[DEDUP_LOC_KON+6+i], true);
+        Driver_FmOut(0, 0x28, opn2_regs_dedup[DEDUP_LOC_KON+i], true);
     }
     ESP_LOGD(TAG, "Dumped");
 }
