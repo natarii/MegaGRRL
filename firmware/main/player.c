@@ -432,7 +432,7 @@ bool Player_StartTrack(char *FilePath) {
     }
     if (bad) {
         ESP_LOGW(TAG, "Known bad vgm - showing warning");
-        modal_show_simple(TAG, "Warning", "This file is known to be made incorrectly, and may produce loud audio artifacts. Please obtain an updated file for correct playback.", LV_SYMBOL_OK " OK");
+        modal_show_simple(TAG, "Warning", "This VGM contains invalid data. A software fix has been applied. Please report playback issues to Project2612, as this is not a MegaGRRL bug.", LV_SYMBOL_OK " OK");
     }
 
     Gd3Descriptor_t desc;
@@ -574,7 +574,7 @@ bool Player_StartTrack(char *FilePath) {
     }
 
     ESP_LOGI(TAG, "Starting loader");
-    ret = Loader_Start(Player_VgmFile, Player_PcmFile, &Player_Info);
+    ret = Loader_Start(Player_VgmFile, Player_PcmFile, &Player_Info, bad);
     if (!ret) {
         ESP_LOGE(TAG, "Loader failed to start !!");
         return false;
