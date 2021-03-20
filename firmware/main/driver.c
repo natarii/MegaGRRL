@@ -542,6 +542,7 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value, bool Internal) 
     //these regs can be written to either bank. for dedup purposes, force them all to the first bank.
     if (Port) {
         switch (Register) {
+            case 0x21:
             case 0x22:
             case 0x24:
             case 0x25:
@@ -550,6 +551,7 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value, bool Internal) 
             case 0x28:
             case 0x2a:
             case 0x2b:
+            case 0x2c:
                 Port = 0;
                 break;
             default:
