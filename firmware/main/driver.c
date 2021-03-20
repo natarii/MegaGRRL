@@ -547,26 +547,6 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
         }
     }
 
-    //these regs can be written to either bank. for dedup purposes, force them all to the first bank.
-    if (Port) {
-        switch (Register) {
-            case 0x21:
-            case 0x22:
-            case 0x24:
-            case 0x25:
-            case 0x26:
-            case 0x27:
-            case 0x28:
-            case 0x2a:
-            case 0x2b:
-            case 0x2c:
-                Port = 0;
-                break;
-            default:
-                break;
-        }
-    }
-
     //we must never deduplicate writes to the low bytes of frequency. this is regs A0~A2, and in Ch3 special mode also A8~AA.
     //could explicitly check only those ranges, but it seemed that adding those checks was slowing it down further than just checking A0~AF and letting duplicate writes to the high byte go through
     if (opn2_regs_dedup[(Port<<8)|Register] != Value || (Register >> 4) == 0xa) {
