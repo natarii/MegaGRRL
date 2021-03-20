@@ -544,25 +544,6 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value, bool Internal) 
     if (Driver_IsBadVgm) {
         if (Register == 0x21 || Register == 0x2c) return;
     }
-    //these regs can be written to either bank. for dedup purposes, force them all to the first bank.
-    if (Port) {
-        switch (Register) {
-            case 0x21:
-            case 0x22:
-            case 0x24:
-            case 0x25:
-            case 0x26:
-            case 0x27:
-            case 0x28:
-            case 0x2a:
-            case 0x2b:
-            case 0x2c:
-                Port = 0;
-                break;
-            default:
-                break;
-        }
-    }
 
     //in firstwait or slip period? then update the dedup regs, but don't write to the chip or update LEDs
     if (Driver_FirstWait || Driver_Slip) {
