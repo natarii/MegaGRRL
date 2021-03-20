@@ -151,6 +151,8 @@ static uint8_t opn2_regs_dedup[256*2]; //note: this is what was actually written
 #define DEDUP_LOC_CH3HIFREQ_LATCH (DEDUP_LOC_HIFREQ_LATCH+DEDUP_SIZE_HIFREQ_LATCH)
 #define DEDUP_SIZE_CH3HIFREQ_LATCH (1)
 
+static bool Driver_IsBadVgm = false;
+
 #define min(a,b) ((a) < (b) ? (a) : (b)) //sigh.
 
 void Driver_ResetChips();
@@ -539,6 +541,9 @@ uint8_t opn2_fade_pcm(uint8_t Value) {
 }
 
 void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value, bool Internal) {
+    if (Driver_IsBadVgm) {
+        if (Register == 0x21 || Register == 0x2c) return;
+    }
     //these regs can be written to either bank. for dedup purposes, force them all to the first bank.
     if (Port) {
         switch (Register) {
@@ -1330,6 +1335,8 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
         }
     } else if (cmd[0] == 0x31) {
         //ignore AY-3-8910 stereo mask
+    } else if (cmd[0] == 0xff) {
+        Driver_IsBadVgm = true;
     } else {
         ESP_LOGE(TAG, "driver unknown command %02x !!", cmd[0]);
         return false;
@@ -1374,6 +1381,7 @@ void Driver_Main() {
             }
             memset((void *)&ChannelMgr_States[0], 0, 6+4);
             Driver_Slip = 0;
+            Driver_IsBadVgm = false;
 
             //update status flags
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_FINISHED);
