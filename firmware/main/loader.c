@@ -50,7 +50,7 @@ static bool Loader_IsBad = false;
     if (ferror(Loader_File)) { \
         file_error(); \
         Loader_VgmBufPos = 0; \
-        return; \
+        return false; \
     }
 #define LOADER_BUF_CHECK \
     if (Loader_VgmBufPos >= sizeof(Loader_VgmBuf)) { \
