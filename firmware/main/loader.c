@@ -117,8 +117,10 @@ void Loader_Main() {
             xEventGroupClearBits(Loader_Status, LOADER_STOPPED);
             xEventGroupSetBits(Loader_Status, LOADER_RUNNING);
             xEventGroupClearBits(Loader_Status, LOADER_START_REQUEST);
-            uint8_t badval = 0xff;
-            MegaStream_Send(&Driver_CommandStream, &badval, 1);
+            if (Loader_IsBad) {
+                uint8_t badval = 0xff;
+                MegaStream_Send(&Driver_CommandStream, &badval, 1);
+            }
             running = true;
         } else if (bits & LOADER_STOP_REQUEST) {
             ESP_LOGI(TAG, "Loader stopping");
