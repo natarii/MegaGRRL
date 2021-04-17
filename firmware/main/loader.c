@@ -42,7 +42,6 @@ static bool Loader_IsBad = false;
     }
 #define LOADER_BUF_SEEK_SET(offset) \
     Loader_VgmFilePos = offset; \
-    fseek(Loader_File, offset, SEEK_SET); \
     LOADER_BUF_FILL;
 #define LOADER_BUF_SEEK_REL(offset) \
     Loader_VgmFilePos += offset; \
@@ -313,6 +312,7 @@ bool Loader_Start(FILE *File, FILE *PcmFile, VgmInfoStruct_t *info, bool IsBad) 
     Loader_VgmDataBlockIndex = 0;
     Loader_CurLoop = 0;
     Loader_IsBad = IsBad;
+    Loader_PcmBufUsed = FREAD_LOCAL_BUF;
 
     Loader_VgmFilePos = Loader_VgmInfo->DataOffset;
     LOADER_BUF_FILL;
