@@ -384,15 +384,16 @@ static bool Player_StartTrack(char *FilePath) {
     if (magic == 0x8b1f) {
         ESP_LOGI(TAG, "Compressed");
         Ui_StatusBar_SetExtract(true);
+        tinfl_status u = Player_Unvgz(FilePath, Player_UnvgzReplaceOriginal);
+        if (u != TINFL_STATUS_DONE) {
+            modal_show_simple(TAG, "VGZ Extraction Failed", "An error occurred while extracting this VGZ file. The file may be corrupt.", LV_SYMBOL_OK " OK");
+            return false;
+        }
         if (Player_UnvgzReplaceOriginal) {
-            tinfl_status u = Player_Unvgz(FilePath, true);
-            if (u != TINFL_STATUS_DONE) return false;
             if (*(FilePath+(strlen(FilePath)-1)) == 'z' || *(FilePath+(strlen(FilePath)-1)) == 'Z') {
                 *(FilePath+(strlen(FilePath)-1)) -= 0x0d;
             }
         } else {
-            tinfl_status u = Player_Unvgz(FilePath, false);
-            if (u != TINFL_STATUS_DONE) return false;
             OpenFilePath = unvgztmp;
         }
         Ui_StatusBar_SetExtract(false);
