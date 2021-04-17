@@ -16,6 +16,9 @@
 #include "ui/statusbar.h"
 #include "ui/modal.h"
 #include <rom/crc.h>
+#include "sdcard.h"
+#include "ui.h"
+#include "taskmgr.h"
 
 static const uint32_t known_bad_vgms[] = {
     //these lists contain the full p2612 set for comix zone and rocket knight adventures
@@ -100,6 +103,19 @@ const static char* unvgztmp = "/sd/.mega/unvgz.tmp";
 
 static bool Player_StartTrack(char *FilePath);
 static bool Player_StopTrack();
+
+static void file_error(bool writing) {
+    if (!writing) {
+        modal_show_simple(TAG, "SD Card Error", "There was an error reading the VGM from the SD card.\nPlease check that the card is inserted and try again.", LV_SYMBOL_OK " OK");
+    } else {
+        modal_show_simple(TAG, "SD Card Error", "There was an error writing to the SD card during VGZ extraction.\nPlease check that the card is inserted and has free space.", LV_SYMBOL_OK " OK");
+    }
+    xTaskNotify(Taskmgr_Handles[TASK_PLAYER], PLAYER_NOTIFY_STOP_RUNNING, eSetValueWithoutOverwrite);
+    QueueLength = 0;
+    QueuePosition = 0;
+    Ui_Screen = UISCREEN_MAINMENU;
+    Sdcard_Online = false;
+}
 
 static bool Player_NextTrk(bool UserSpecified) { //returns true if there is now a track playing
     Player_StopTrack();
@@ -288,6 +304,12 @@ static tinfl_status Player_Unvgz(char *FilePath, bool ReplaceOriginalFile) {
     }
     reader = fopen(FilePath, "r");
     writer = fopen(unvgztmp, "w");
+    if (!reader || !writer) {
+        file_error(true);
+        if (reader) fclose(reader);
+        if (writer) fclose(writer);
+        return 0x12345678;
+    }
     fseek(writer, 0, SEEK_SET);
 
     //get compressed size
@@ -318,6 +340,12 @@ static tinfl_status Player_Unvgz(char *FilePath, bool ReplaceOriginalFile) {
         in_bytes = avail_in;
         out_bytes = avail_out;
         ESP_LOGD(TAG, "inb %d outb %d", in_bytes, out_bytes);
+        if (ferror(reader)) { //check reader before each block decompress
+            file_error(false);
+            fclose(reader);
+            fclose(writer);
+            return 0x12345678;
+        }
         status = tinfl_decompress(&decomp, (const mz_uint8 *)next_in, &in_bytes, Driver_PcmBuf, (mz_uint8 *)next_out, &out_bytes, (in_remaining?TINFL_FLAG_HAS_MORE_INPUT:0)/*|TINFL_FLAG_PARSE_ZLIB_HEADER*/);
 
         avail_in -= in_bytes;
@@ -332,6 +360,12 @@ static tinfl_status Player_Unvgz(char *FilePath, bool ReplaceOriginalFile) {
             size_t wr = 65536 - avail_out;
             fwrite(Driver_PcmBuf, 1, wr, writer);
             ESP_LOGD(TAG, "wrote chunk %d", wr);
+            if (ferror(writer)) { //catch problems with write here
+                file_error(true);
+                fclose(reader);
+                fclose(writer);
+                return 0x12345678;
+            }
             next_out = Driver_PcmBuf;
             avail_out = 65536;
         }
@@ -351,9 +385,17 @@ static tinfl_status Player_Unvgz(char *FilePath, bool ReplaceOriginalFile) {
     if (status != TINFL_STATUS_DONE) return status;
     if (ReplaceOriginalFile) {
         ESP_LOGW(TAG, "Unvgz: Deleting original file");
-        remove(FilePath);
+        int ret = remove(FilePath);
+        if (ret != 0) {
+            file_error(true);
+            return 0x12345678;
+        }
         ESP_LOGW(TAG, "Unvgz: Renaming temp file to %s", vgmfn);
-        rename(unvgztmp, vgmfn);
+        ret = rename(unvgztmp, vgmfn);
+        if (ret != 0) {
+            file_error(true);
+            return 0x12345678;
+        }
     }
     return status;
 }
@@ -386,7 +428,8 @@ static bool Player_StartTrack(char *FilePath) {
         Ui_StatusBar_SetExtract(true);
         tinfl_status u = Player_Unvgz(FilePath, Player_UnvgzReplaceOriginal);
         if (u != TINFL_STATUS_DONE) {
-            modal_show_simple(TAG, "VGZ Extraction Failed", "An error occurred while extracting this VGZ file. The file may be corrupt.", LV_SYMBOL_OK " OK");
+            //do this silly 0x12345678 thing to avoid blowing away any modal that was popped up in Player_Unvgz. yeah, i don't like it either...
+            if (u != 0x12345678) modal_show_simple(TAG, "VGZ Extraction Failed", "An error occurred while extracting this VGZ file. The file may be corrupt.", LV_SYMBOL_OK " OK");
 
             //get the last track's info off of nowplaying
             Player_Gd3_Title[0] = 0;
@@ -396,6 +439,8 @@ static bool Player_StartTrack(char *FilePath) {
             Player_Info.LoopOffset = 0;
             Player_Info.LoopSamples = 0;
             Ui_NowPlaying_DataAvail = true;
+
+            Ui_StatusBar_SetExtract(false); //we won't make it to the one below
 
             return false;
         }
@@ -413,15 +458,30 @@ static bool Player_StartTrack(char *FilePath) {
         ESP_LOGI(TAG, "Unknown");
         return false;
     }
-    ESP_LOGI(TAG, "parsing header");
+    ESP_LOGI(TAG, "opening files");
     Player_VgmFile = fopen(OpenFilePath, "r");
     Player_PcmFile = fopen(OpenFilePath, "r");
     Player_DsFindFile = fopen(OpenFilePath, "r");
     Player_DsFillFile = fopen(OpenFilePath, "r");
     Driver_Opna_PcmUploadFile = fopen(OpenFilePath, "r");
+    if (!Player_VgmFile || !Player_PcmFile || !Player_DsFillFile || !Player_DsFindFile || !Driver_Opna_PcmUploadFile) {
+        file_error(false);
+        if (Player_VgmFile) fclose(Player_VgmFile);
+        if (Player_PcmFile) fclose(Player_PcmFile);
+        if (Player_DsFindFile) fclose(Player_DsFindFile);
+        if (Player_DsFillFile) fclose(Player_DsFillFile);
+        if (Driver_Opna_PcmUploadFile) fclose(Driver_Opna_PcmUploadFile);
+        return false;
+    }
     fseek(Player_VgmFile, 0, SEEK_SET);
     fseek(Player_DsFindFile, 0, SEEK_SET);
+
+    ESP_LOGI(TAG, "parsing header");
     VgmParseHeader(Player_VgmFile, &Player_Info);
+    if (ferror(Player_VgmFile)) { //good time for a check
+        file_error(false);
+        return false;
+    }
 
     //known bad vgm header checksum
     fseek(Player_VgmFile, 0, SEEK_SET);
@@ -446,6 +506,10 @@ static bool Player_StartTrack(char *FilePath) {
         ESP_LOGW(TAG, "Known bad vgm");
         //modal_show_simple(TAG, "Warning", "This VGM contains invalid data. A software fix has been applied. Please report playback issues to Project2612, as this is not a MegaGRRL bug.", LV_SYMBOL_OK " OK");
     }
+    if (ferror(Player_VgmFile)) { //good time for a check
+        file_error(false);
+        return false;
+    }
 
     Gd3Descriptor_t desc;
     Gd3ParseDescriptor(Player_VgmFile, &Player_Info, &desc);
@@ -453,6 +517,10 @@ static bool Player_StartTrack(char *FilePath) {
         Gd3GetStringChars(Player_VgmFile, &desc, GD3STRING_TRACK_EN, &Player_Gd3_Title[0], PLAYER_GD3_FIELD_SIZES);
         Gd3GetStringChars(Player_VgmFile, &desc, GD3STRING_GAME_EN, &Player_Gd3_Game[0], PLAYER_GD3_FIELD_SIZES);
         Gd3GetStringChars(Player_VgmFile, &desc, GD3STRING_AUTHOR_EN, &Player_Gd3_Author[0], PLAYER_GD3_FIELD_SIZES);
+        if (ferror(Player_VgmFile)) { //better check before telling nowplaying to use garbage gd3 data...
+            file_error(false);
+            return false;
+        }
     } else {
         Player_Gd3_Title[0] = 0;
         Player_Gd3_Game[0] = 0;
@@ -572,6 +640,10 @@ static bool Player_StartTrack(char *FilePath) {
         else if (opm > 5000000) opm = 5000000;
         ESP_LOGI(TAG, "Clock clamped: %d", opm);
         Clk_Set(CLK_FM, opm);
+    }
+    if (ferror(Player_VgmFile)) { //final check after all the clock stuff
+        file_error(false);
+        return false;
     }
 
     ESP_LOGI(TAG, "Signalling driver reset");
