@@ -387,6 +387,16 @@ static bool Player_StartTrack(char *FilePath) {
         tinfl_status u = Player_Unvgz(FilePath, Player_UnvgzReplaceOriginal);
         if (u != TINFL_STATUS_DONE) {
             modal_show_simple(TAG, "VGZ Extraction Failed", "An error occurred while extracting this VGZ file. The file may be corrupt.", LV_SYMBOL_OK " OK");
+
+            //get the last track's info off of nowplaying
+            Player_Gd3_Title[0] = 0;
+            Player_Gd3_Game[0] = 0;
+            Player_Gd3_Author[0] = 0;
+            Player_Info.TotalSamples = 0;
+            Player_Info.LoopOffset = 0;
+            Player_Info.LoopSamples = 0;
+            Ui_NowPlaying_DataAvail = true;
+
             return false;
         }
         if (Player_UnvgzReplaceOriginal) {
