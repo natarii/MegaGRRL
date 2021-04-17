@@ -547,6 +547,24 @@ static bool Player_StartTrack(char *FilePath) {
         FmClock &= ~(1<<31); //3438 bit, ffs...
         ESP_LOGI(TAG, "Clocks from vgm: psg %d, fm %d", PsgClock, FmClock);
 
+        if (!PsgClock && !FmClock) {
+            ESP_LOGW(TAG, "Missing OPN2 and PSG clocks, attempting OPN...");
+            fseek(Player_VgmFile, 0x44, SEEK_SET);
+            fread(&FmClock, 4, 1, Player_VgmFile);
+            if (!FmClock) {
+                ESP_LOGW(TAG, "Attempting OPNA...");
+                fread(&FmClock, 4, 1, Player_VgmFile);
+                if (!FmClock) {
+                    ESP_LOGW(TAG, "It's not OPNA either");
+                }
+            } else {
+                FmClock <<= 1;
+            }
+        }
+        if (FmClock & 0x80000000) {
+            ESP_LOGW(TAG, "Only one FM chip supported !!");
+        }
+
         if (PsgClock == 0) PsgClock = 3579545;
         else if (PsgClock < 3000000) PsgClock = 3000000;
         else if (PsgClock > 4100000) PsgClock = 4100000;
