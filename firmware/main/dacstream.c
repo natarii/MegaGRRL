@@ -9,6 +9,11 @@
 #include "userled.h"
 #include "loader.h"
 #include "player.h"
+#include "queue.h"
+#include "sdcard.h"
+#include "ui.h"
+#include "ui/modal.h"
+#include "taskmgr.h"
 
 static const char* TAG = "DacStream";
 
@@ -34,14 +39,17 @@ static IRAM_ATTR uint32_t DsFind_VgmFilePos = 0;
 #define DSFIND_BUF_FILL \
     fseek(DacStream_FindFile, DsFind_VgmFilePos, SEEK_SET); \
     fread(&DsFind_VgmBuf[0], 1, sizeof(DsFind_VgmBuf), DacStream_FindFile); \
-    DsFind_VgmBufPos = 0; //todo fix read past eof
+    DsFind_VgmBufPos = 0; \
+    if (ferror(DacStream_FindFile)) { \
+        file_error(); \
+        continue; \
+    }
 #define DSFIND_BUF_CHECK \
     if (DsFind_VgmBufPos >= sizeof(DsFind_VgmBuf)) { \
         DSFIND_BUF_FILL; \
     }
 #define DSFIND_BUF_SEEK_SET(offset) \
     DsFind_VgmFilePos = offset; \
-    fseek(DacStream_FindFile, offset, SEEK_SET); \
     DSFIND_BUF_FILL;
 #define DSFIND_BUF_SEEK_REL(offset) \
     DsFind_VgmFilePos += offset; \
@@ -155,7 +163,21 @@ static uint16_t DacStream_CurDataBlock = 0;
 static uint8_t DacStream_CurChipCommand = 0;
 static uint8_t DacStream_CurChipPort = 0;
 
-static bool DacStream_FindRunning = false;
+static volatile bool DacStream_FindRunning = false;
+static volatile bool DacStream_FillRunning = false;
+static void file_error() {
+    modal_show_simple(TAG, "SD Card Error", "There was an error reading the VGM from the SD card.\nPlease check that the card is inserted and try again.", LV_SYMBOL_OK " OK");
+    DacStream_FindRunning = false;
+    DacStream_FillRunning = false;
+    xEventGroupClearBits(DacStream_FindStatus, DACSTREAM_RUNNING);
+    xEventGroupClearBits(DacStream_FillStatus, DACSTREAM_RUNNING); //since the delay on the fill task is ONLY on the eventgroup check, we have to clear this to prevent it spinning, since it's at higher priority than the tasks that are supposed to stop it!
+    xTaskNotify(Taskmgr_Handles[TASK_PLAYER], PLAYER_NOTIFY_STOP_RUNNING, eSetValueWithoutOverwrite);
+    QueueLength = 0;
+    QueuePosition = 0;
+    Ui_Screen = UISCREEN_MAINMENU;
+    Sdcard_Online = false;
+    ESP_LOGE(TAG, "IO error");
+}
 static bool DacStream_FoundAny = false;
 void DacStream_FindTask() {
     ESP_LOGI(TAG, "Find task start");
@@ -333,10 +355,13 @@ bool DacStream_FillTask_DoPre(uint8_t idx) { //returns whether or not it had to 
         }
     }
     xSemaphoreGive(DacStream_Mutex);
+    if (ferror(DacStream_FillFile)) {
+        ESP_LOGE(TAG, "Pre IO ERROR");
+        file_error();
+    }
     return ret;
 }
 
-static bool DacStream_FillRunning = false;
 void DacStream_FillTask() {
     ESP_LOGI(TAG, "Fill task start");
 
@@ -405,7 +430,11 @@ bool DacStream_BeginFinding(VgmDataBlockStruct_t *SourceBlocks, uint8_t SourceBl
     memcpy((VgmDataBlockStruct_t *)&DacStream_VgmDataBlocks[0], SourceBlocks, sizeof(VgmDataBlockStruct_t)*SourceBlockCount);
     DacStream_VgmDataBlockIndex = SourceBlockCount;
     ESP_LOGI(TAG, "Seek to start offset");
-    DSFIND_BUF_SEEK_SET(StartOffset)
+    uint8_t nastyhack = 1; //this is to avoid having a duplicate version of the buffer fill stuff that doesn't `continue`
+    while (nastyhack) {
+        nastyhack = 0;
+        DSFIND_BUF_SEEK_SET(StartOffset)
+    }
     ESP_LOGI(TAG, "Requesting find task start");
     xEventGroupSetBits(DacStream_FindStatus, DACSTREAM_START_REQUEST);
     ESP_LOGI(TAG, "Wait for find task start...");
