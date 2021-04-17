@@ -114,15 +114,10 @@ static void cachedir(char *dir_name) {
         strcpy(&direntry_cache[off], ent->d_name);
         off += strlen(ent->d_name) + 1;
         direntry_count++;
-        if (off > FILEBROWSER_CACHE_SIZE) {
-            ESP_LOGE(TAG, "filebrowser cache area over !!");
-            closedir(dir);
-            return;
-        }
-        if (direntry_count > FILEBROWSER_CACHE_MAXENTRIES) {
-            ESP_LOGE(TAG, "filebrowser cache over !!");
-            closedir(dir);
-            return;
+        if (off > FILEBROWSER_CACHE_SIZE || direntry_count > FILEBROWSER_CACHE_MAXENTRIES) {
+            ESP_LOGE(TAG, "filebrowser cache over! off=%d direntry_count=%d", off, direntry_count);
+            modal_show_simple(TAG, "Directory Too Large", "There are too many files or directories inside this directory. Not all will be shown.", LV_SYMBOL_OK " OK");
+            break;
         }
     }
     if (errno) {
