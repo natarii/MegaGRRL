@@ -20,40 +20,38 @@
 static const char* TAG = "Ui_FileBrowser";
 
 static IRAM_ATTR lv_obj_t *container;
-lv_style_t filestyle;
-lv_style_t filestyle_sel;
-lv_style_t filelabelstyle_dir;
-lv_style_t filelabelstyle_aud;
-lv_style_t filelabelstyle_other;
-lv_style_t filelabelstyle_fw;
+static lv_style_t filestyle;
+static lv_style_t filestyle_sel;
+static lv_style_t filelabelstyle_dir;
+static lv_style_t filelabelstyle_aud;
+static lv_style_t filelabelstyle_other;
+static lv_style_t filelabelstyle_fw;
 
-IRAM_ATTR lv_obj_t *files[10];
-IRAM_ATTR lv_obj_t *labels[10];
-IRAM_ATTR lv_obj_t *icons[10];
+static IRAM_ATTR lv_obj_t *files[10];
+static IRAM_ATTR lv_obj_t *labels[10];
+static IRAM_ATTR lv_obj_t *icons[10];
 static IRAM_ATTR lv_obj_t *preload;
-IRAM_ATTR lv_obj_t *scrollbar;
-lv_style_t scrollbarstyle;
+static IRAM_ATTR lv_obj_t *scrollbar;
+static lv_style_t scrollbarstyle;
 
-uint16_t selectedfile = 0;
-uint16_t selectedfile_last = 0xff;
-uint16_t diroffset = 0;
+static uint16_t selectedfile = 0;
+static uint16_t selectedfile_last = 0xff;
+static uint16_t diroffset = 0;
 
-char startpath[] = "/sd";
-char path[264];
-char temppath[264];
-DIR *dir;
-struct dirent *ent;
+static char startpath[] = "/sd";
+static char path[264];
+static char temppath[264];
+static DIR *dir;
+static struct dirent *ent;
 
 static char direntry_cache[FILEBROWSER_CACHE_SIZE];
 static IRAM_ATTR uint32_t direntry_offset[FILEBROWSER_CACHE_MAXENTRIES];
 static uint16_t direntry_count = 0;
 static volatile bool direntry_invalidated = false;
 
-void openselection();
-void redrawselection();
-void redrawlist();
-void startdir(bool docache);
-void backdir();
+static void openselection();
+static void startdir(bool docache);
+static void backdir();
 
 static const char thumbsdb[] = "Thumbs.db";
 static const char sysvolinfo[] = "System Volume Information";
@@ -96,7 +94,7 @@ static int comp(const void *offset1, const void *offset2) {
     }
 }
 
-void cachedir(char *dir_name) {
+static void cachedir(char *dir_name) {
     ESP_LOGI(TAG, "generating dir cache for %s...", dir_name);
     uint32_t s = xthal_get_ccount();
     dir = opendir(dir_name);
@@ -133,7 +131,7 @@ void cachedir(char *dir_name) {
     }
 }
 
-void savelast() {
+static void savelast() {
     FILE *last;
     last = fopen("/sd/.mega/fbrowser.las", "w");
     if (!last) {
@@ -176,7 +174,7 @@ void savelast() {
     ESP_LOGI(TAG, "dumped fbrowser.las");
 }
 
-bool loadhistory() {
+static bool loadhistory() {
     //this shit will ASPLODE if you're more than 8 dirs deep RIP
     //could rewrite it to iterate forward through the dirs starting at root
     FILE *last;
@@ -295,7 +293,7 @@ static int32_t map(int32_t x, int32_t in_min, int32_t in_max, int32_t out_min, i
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
-void updatescrollbar() {
+static void updatescrollbar() {
     uint32_t toffset = diroffset + selectedfile;
     uint32_t df = direntry_count;
     if (df > 100) df = 100;
@@ -434,7 +432,7 @@ void Ui_FileBrowser_Destroy() {
     LcdDma_Mutex_Give();
 }
 
-void redrawlistsel(bool list, bool sel) {
+static void redrawlistsel(bool list, bool sel) {
     uint8_t u=0;
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     for (uint16_t i=diroffset;i<diroffset+10;i++) {
@@ -523,7 +521,7 @@ void redrawlistsel(bool list, bool sel) {
     LcdDma_Mutex_Give();
 }
 
-void opendirectory() {
+static void opendirectory() {
     ESP_LOGI(TAG, "browser enter %s", path);
 
     diroffset = 0;
@@ -563,7 +561,7 @@ static uint32_t dumpm3u() {
     return r;
 }
 
-void m3u2m3u() {
+static void m3u2m3u() {
     FILE *p;
     p = fopen("/sd/.mega/temp.m3u", "w");
     if (!p) {
@@ -587,7 +585,7 @@ void m3u2m3u() {
     fclose(p);
 }
 
-void openselection() {
+static void openselection() {
     char *name = direntry_cache + direntry_offset[diroffset + selectedfile];
     unsigned char type = direntry_cache[direntry_offset[diroffset + selectedfile]-1];
     if (type == DT_DIR) {
@@ -649,7 +647,7 @@ void openselection() {
     }
 }
 
-void backdir() {
+static void backdir() {
     uint16_t l = 0xffff;
     for (uint16_t i=0;i<strlen(path);i++) {
         if (path[i] == '/') l = i;
@@ -671,7 +669,7 @@ void backdir() {
     startdir(false);
 }
 
-void startdir(bool docache) {
+static void startdir(bool docache) {
     if (docache) cachedir(path);
     redrawlistsel(true, true);
     updatescrollbar();

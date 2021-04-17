@@ -55,8 +55,6 @@ typedef struct {
 extern const option_t Options[];
 extern const char *OptionCatNames[];
 
-extern volatile bool OptionsMgr_Unsaved;
-
 void OptionsMgr_Setup();
 void OptionsMgr_Main();
 void OptionsMgr_Touch();

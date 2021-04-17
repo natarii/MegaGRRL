@@ -14,7 +14,7 @@
 
 static const char* TAG = "Loader";
 
-uint8_t Loader_CurLoop = 0;
+static uint8_t Loader_CurLoop = 0;
 
 EventGroupHandle_t Loader_Status;
 StaticEventGroup_t Loader_StatusBuf;
@@ -23,15 +23,15 @@ StaticEventGroup_t Loader_BufStatusBuf;
 FILE *Loader_File;
 FILE *Loader_PcmFile;
 VgmInfoStruct_t *Loader_VgmInfo;
-uint8_t Loader_VgmDataBlockIndex = 0;
+static uint8_t Loader_VgmDataBlockIndex = 0;
 volatile VgmDataBlockStruct_t Loader_VgmDataBlocks[MAX_REALTIME_DATABLOCKS+1];
-bool Loader_RequestedDacStreamFindStart = false;
-uint8_t Loader_VgmBuf[FREAD_LOCAL_BUF];
-uint16_t Loader_VgmBufPos = FREAD_LOCAL_BUF;
-IRAM_ATTR uint32_t Loader_VgmFilePos = 0;
+static bool Loader_RequestedDacStreamFindStart = false;
+static uint8_t Loader_VgmBuf[FREAD_LOCAL_BUF];
+static uint16_t Loader_VgmBufPos = FREAD_LOCAL_BUF;
+static IRAM_ATTR uint32_t Loader_VgmFilePos = 0;
 volatile bool Loader_IgnoreZeroSampleLoops = true;
 volatile bool Loader_FastOpnaUpload = false;
-bool Loader_HitLoop = false;
+static bool Loader_HitLoop = false;
 static bool Loader_IsBad = false;
 
 //local buffer thingie. big speedup
@@ -102,9 +102,9 @@ bool Loader_Setup() {
     return true;
 }
 
-IRAM_ATTR uint32_t Loader_PcmPos = 0;
-IRAM_ATTR uint32_t Loader_PcmOff = 0;
-uint32_t Loader_GetPcmOffset(uint32_t PcmPos) {
+static IRAM_ATTR uint32_t Loader_PcmPos = 0;
+static IRAM_ATTR uint32_t Loader_PcmOff = 0;
+static uint32_t Loader_GetPcmOffset(uint32_t PcmPos) {
     uint32_t consumed = 0;
     for (uint8_t i=0;i<Loader_VgmDataBlockIndex;i++) {
         if (Loader_VgmDataBlocks[i].Type == 0) { //0 = ym2612 pcm
@@ -127,10 +127,10 @@ static void file_error() {
     ESP_LOGE(TAG, "IO error");
 }
 
-IRAM_ATTR uint32_t Loader_Pending = 0;
-bool Loader_EndReached = false;
-uint8_t Loader_PcmBuf[FREAD_LOCAL_BUF];
-uint16_t Loader_PcmBufUsed = FREAD_LOCAL_BUF;
+static IRAM_ATTR uint32_t Loader_Pending = 0;
+static bool Loader_EndReached = false;
+static uint8_t Loader_PcmBuf[FREAD_LOCAL_BUF];
+static uint16_t Loader_PcmBufUsed = FREAD_LOCAL_BUF;
 static IRAM_ATTR uint32_t adjustedprio = false;
 void Loader_Main() {
     ESP_LOGI(TAG, "Task start");

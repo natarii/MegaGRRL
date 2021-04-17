@@ -17,8 +17,8 @@
 
 static const char* TAG = "OptionsMgr";
 
-volatile bool OptionsMgr_Unsaved = false;
-volatile uint8_t OptionsMgr_ShittyTimer = 0;
+static volatile bool OptionsMgr_Unsaved = false;
+static volatile uint8_t OptionsMgr_ShittyTimer = 0;
 
 const char *OptionCatNames[OPTION_CATEGORY_COUNT] = {
     "General",

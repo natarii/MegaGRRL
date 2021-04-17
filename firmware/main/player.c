@@ -83,7 +83,7 @@ FILE *Player_PcmFile;
 FILE *Player_DsFindFile;
 FILE *Player_DsFillFile;
 VgmInfoStruct_t Player_Info;
-IRAM_ATTR uint32_t notif = 0;
+static IRAM_ATTR uint32_t notif = 0;
 
 volatile uint8_t Player_LoopCount = 2;
 volatile RepeatMode_t Player_RepeatMode = REPEAT_ALL;
@@ -96,11 +96,12 @@ char Player_Gd3_Title[PLAYER_GD3_FIELD_SIZES+1];
 char Player_Gd3_Game[PLAYER_GD3_FIELD_SIZES+1];
 char Player_Gd3_Author[PLAYER_GD3_FIELD_SIZES+1];
 
-bool stopped = true;
-
 const static char* unvgztmp = "/sd/.mega/unvgz.tmp";
 
-bool Player_NextTrk(bool UserSpecified) { //returns true if there is now a track playing
+static bool Player_StartTrack(char *FilePath);
+static bool Player_StopTrack();
+
+static bool Player_NextTrk(bool UserSpecified) { //returns true if there is now a track playing
     Player_StopTrack();
     if (!UserSpecified && Player_RepeatMode == REPEAT_ONE) {
         //nothing to do - just start the same track again
@@ -121,7 +122,7 @@ bool Player_NextTrk(bool UserSpecified) { //returns true if there is now a track
     return true;
 }
 
-bool Player_PrevTrk(bool UserSpecified) { //returns true if there is now a track playing
+static bool Player_PrevTrk(bool UserSpecified) { //returns true if there is now a track playing
     Player_StopTrack();
     if (!UserSpecified && Player_RepeatMode == REPEAT_ONE) {
         //nothing to do - just start the same track again
@@ -357,7 +358,7 @@ static tinfl_status Player_Unvgz(char *FilePath, bool ReplaceOriginalFile) {
     return status;
 }
 
-bool Player_StartTrack(char *FilePath) {
+static bool Player_StartTrack(char *FilePath) {
     const char *OpenFilePath = FilePath;
 
     ESP_LOGI(TAG, "Checking file type of %s", FilePath);
@@ -627,7 +628,7 @@ bool Player_StartTrack(char *FilePath) {
     return true;
 }
 
-bool Player_StopTrack() {
+static bool Player_StopTrack() {
     Ui_NowPlaying_DataAvail = false;
 
     ESP_LOGI(TAG, "Requesting driver stop...");
