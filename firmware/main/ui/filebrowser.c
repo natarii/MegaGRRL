@@ -12,12 +12,12 @@
 #include <rom/crc.h>
 #include <stdio.h>
 #include <dirent.h>
+#include "../sdcard.h"
 
 #include "softbar.h"
+#include "modal.h"
 
 static const char* TAG = "Ui_FileBrowser";
-
-
 
 static IRAM_ATTR lv_obj_t *container;
 lv_style_t filestyle;
@@ -70,6 +70,18 @@ void Ui_FileBrowser_InvalidateDirEntry() {
     direntry_invalidated = true;
 }
 
+static void file_error(bool writing) {
+    if (!writing) {
+        modal_show_simple(TAG, "SD Card Error", "There was an error reading the SD card.\nPlease check that the card is inserted and try again.", LV_SYMBOL_OK " OK");
+    } else {
+        modal_show_simple(TAG, "SD Card Error", "There was an error writing to the SD card.\nPlease check that the card is inserted and has free space.", LV_SYMBOL_OK " OK");
+    }
+    Ui_FileBrowser_InvalidateDirEntry();
+    Ui_Screen = UISCREEN_MAINMENU;
+    Sdcard_Online = false;
+    ESP_LOGE(TAG, "IO error");
+}
+
 static int comp(const void *offset1, const void *offset2) {
     const uint32_t *o1 = offset1, *o2 = offset2;
     char *s1 = direntry_cache + *o1;
@@ -88,6 +100,10 @@ void cachedir(char *dir_name) {
     ESP_LOGI(TAG, "generating dir cache for %s...", dir_name);
     uint32_t s = xthal_get_ccount();
     dir = opendir(dir_name);
+    if (!dir) {
+        file_error(false);
+        return;
+    }
     uint32_t off = 0;
     direntry_count = 0;
     while ((ent=readdir(dir))!=NULL) {
@@ -120,6 +136,10 @@ void cachedir(char *dir_name) {
 void savelast() {
     FILE *last;
     last = fopen("/sd/.mega/fbrowser.las", "w");
+    if (!last) {
+        file_error(true);
+        return;
+    }
     uint8_t ver = BROWSER_LAST_VER;
     //ver no.
     fwrite(&ver, 1, 1, last);
@@ -147,6 +167,11 @@ void savelast() {
     crc = crc32_le(crc, &type, 1);
     fseek(last, 1, SEEK_SET);
     fwrite(&crc, 4, 1, last);
+    if (ferror(last)) {
+        file_error(true);
+        ESP_LOGE(TAG, "Error dumping fbrowser.las");
+        //let it fall through to the close below
+    }
     fclose(last);
     ESP_LOGI(TAG, "dumped fbrowser.las");
 }
@@ -176,7 +201,12 @@ bool loadhistory() {
 
     //load in the rest of the file to verify the crc
     fseek(last, curpos, SEEK_SET);
-    fread(direntry_cache, 1, remaining, last); //don't bother bounds checking this, if the last file is bigger than the direntry cache array, something is suuuuuper wrong
+    if (ferror(last) || remaining > sizeof(direntry_cache)) {
+        fclose(last);
+        file_error(false);
+        return false;
+    }
+    fread(direntry_cache, 1, remaining, last);
     uint32_t crc = 0;
     crc = crc32_le(crc, (uint8_t*)direntry_cache, remaining);
     ESP_LOGD(TAG, "SavedCRC = %08x, ReadCRC = %08x", filecrc, crc);
@@ -189,6 +219,11 @@ bool loadhistory() {
 
     uint16_t pathlen;
     fread(&pathlen,2,1,last); //length of last path + filename
+    if (ferror(last) || pathlen > sizeof(path)-2) {
+        fclose(last);
+        file_error(false);
+        return false;
+    }
     fread(&path,1,pathlen,last); //last path + filename
     uint16_t nameoff;
     fread(&nameoff,2,1,last); //offset of just the filename
@@ -485,11 +520,15 @@ void opendirectory() {
     startdir(true);
 }
 
-uint8_t dumpm3u() {
+static uint32_t dumpm3u() {
     uint16_t m = 0;
     uint16_t r = 0;
     FILE *p;
     p = fopen("/sd/.mega/temp.m3u", "w");
+    if (!p) {
+        file_error(true);
+        return 0xffffffff;
+    }
     for (uint16_t i=0;i<direntry_count;i++) {
         char *name = direntry_cache + direntry_offset[i];
         unsigned char type = direntry_cache[direntry_offset[i]-1];
@@ -499,6 +538,11 @@ uint8_t dumpm3u() {
             strcat(temppath, name);
             strcat(temppath, "\n");
             fwrite(temppath, strlen(temppath), 1, p);
+            if (ferror(p)) {
+                fclose(p);
+                file_error(true);
+                return 0xffffffff;
+            }
             if (i == diroffset + selectedfile) r = m;
             m++;
         }
@@ -510,12 +554,21 @@ uint8_t dumpm3u() {
 void m3u2m3u() {
     FILE *p;
     p = fopen("/sd/.mega/temp.m3u", "w");
+    if (!p) {
+        file_error(true);
+        return;
+    }
 
     QueueLoadM3u(path, temppath, 0, true, false); //don't care about position after shuffle, we don't shuffle here ever
     for (uint32_t i=0;i<QueueLength;i++) {
         QueueSetupEntry(true, false);
         strcat(QueuePlayingFilename, "\n"); //VILE
         fwrite(QueuePlayingFilename, strlen(QueuePlayingFilename), 1, p);
+        if (ferror(p)) {
+            fclose(p);
+            file_error(true);
+            return;
+        }
         QueueNext();
     }
 
@@ -532,7 +585,12 @@ void openselection() {
         return;
     } else if (type == DT_REG) {
         if ((strcasecmp(&name[strlen(name)-4], ".vgm") == 0) || (strcasecmp(&name[strlen(name)-4], ".vgz") == 0)) {
-            ESP_LOGI(TAG, "playing vgm");
+            ESP_LOGI(TAG, "playing vgm, dumping m3u");
+            uint32_t offset = dumpm3u();
+            if (offset == 0xffffffff) {
+                file_error(true);
+                return;
+            }
             ESP_LOGI(TAG, "request stop");
             xTaskNotify(Taskmgr_Handles[TASK_PLAYER], PLAYER_NOTIFY_STOP_RUNNING, eSetValueWithoutOverwrite);
             ESP_LOGI(TAG, "wait stop");

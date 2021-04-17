@@ -8,6 +8,9 @@
 #include "player.h"
 #include "taskmgr.h"
 #include "clk.h"
+#include "ui.h"
+#include "ui/modal.h"
+#include "sdcard.h"
 
 static const char* TAG = "Loader";
 
@@ -35,7 +38,20 @@ static bool Loader_IsBad = false;
 #define LOADER_BUF_FILL \
     fseek(Loader_File, Loader_VgmFilePos, SEEK_SET); \
     fread(&Loader_VgmBuf[0], 1, sizeof(Loader_VgmBuf), Loader_File); \
-    Loader_VgmBufPos = 0; //todo fix read past eof
+    Loader_VgmBufPos = 0; \
+    if (ferror(Loader_File)) { \
+        file_error(); \
+        continue; \
+    }
+#define LOADER_BUF_FILL_NOLOOP \
+    fseek(Loader_File, Loader_VgmFilePos, SEEK_SET); \
+    fread(&Loader_VgmBuf[0], 1, sizeof(Loader_VgmBuf), Loader_File); \
+    Loader_VgmBufPos = 0; \
+    if (ferror(Loader_File)) { \
+        file_error(); \
+        Loader_VgmBufPos = 0; \
+        return; \
+    }
 #define LOADER_BUF_CHECK \
     if (Loader_VgmBufPos >= sizeof(Loader_VgmBuf)) { \
         LOADER_BUF_FILL; \
@@ -101,8 +117,17 @@ uint32_t Loader_GetPcmOffset(uint32_t PcmPos) {
     return 0xffffffff;
 }
 
+static uint8_t running = false;
+static void file_error() {
+    modal_show_simple(TAG, "SD Card Error", "There was an error reading the VGM from the SD card.\nPlease check that the card is inserted and try again.", LV_SYMBOL_OK " OK");
+    running = false;
+    xTaskNotify(Taskmgr_Handles[TASK_PLAYER], PLAYER_NOTIFY_STOP_RUNNING, eSetValueWithoutOverwrite);
+    Ui_Screen = UISCREEN_MAINMENU;
+    Sdcard_Online = false;
+    ESP_LOGE(TAG, "IO error");
+}
+
 IRAM_ATTR uint32_t Loader_Pending = 0;
-uint8_t running = false;
 bool Loader_EndReached = false;
 uint8_t Loader_PcmBuf[FREAD_LOCAL_BUF];
 uint16_t Loader_PcmBufUsed = FREAD_LOCAL_BUF;
@@ -225,6 +250,10 @@ void Loader_Main() {
                         }
                         if (Loader_PcmBufUsed == FREAD_LOCAL_BUF) {
                             fread(&Loader_PcmBuf[0], 1, FREAD_LOCAL_BUF, Loader_PcmFile); //todo: fix read past eof
+                            if (ferror(Loader_PcmFile)) {
+                                file_error();
+                                continue;
+                            }
                             Loader_PcmBufUsed = 0;
                         }
                         MegaStream_Send(&Driver_PcmStream, &Loader_PcmBuf[Loader_PcmBufUsed++], 1); //theoretically pcmqueue should never ever be full while there are still spaces in commandqueue
@@ -315,7 +344,7 @@ bool Loader_Start(FILE *File, FILE *PcmFile, VgmInfoStruct_t *info, bool IsBad) 
     Loader_PcmBufUsed = FREAD_LOCAL_BUF;
 
     Loader_VgmFilePos = Loader_VgmInfo->DataOffset;
-    LOADER_BUF_FILL;
+    LOADER_BUF_FILL_NOLOOP;
 
     xEventGroupSetBits(Loader_Status, LOADER_START_REQUEST);
 

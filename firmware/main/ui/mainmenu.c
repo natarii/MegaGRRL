@@ -13,10 +13,12 @@
 #include <stdio.h>
 #include <dirent.h>
 #include <math.h>
+#include "../sdcard.h"
 
 #include "softbar.h"
+#include "modal.h"
 
-//static const char* TAG = "Ui_MainMenu";
+static const char* TAG = "Ui_MainMenu";
 
 LV_IMG_DECLARE(img_library);
 LV_IMG_DECLARE(img_player);
@@ -193,6 +195,23 @@ void Ui_MainMenu_Key(KeyEvent_t event) {
                 break;
             case KEY_C:
                 KeyMgr_Consume(KEY_C);
+                if (mm_curicon < MM_ICON_COUNT-1 && !Sdcard_Online) {
+                    ESP_LOGW(TAG, "Sdcard is off, try to bring it up again...");
+                    Sdcard_Destroy();
+                    uint8_t ret = Sdcard_Setup();
+                    if (ret) {
+                        if (ret == 1) {
+                            modal_show_simple(TAG, "No SD Card", "You must insert an SD card before using this app.", LV_SYMBOL_OK" OK");
+                        } else if (ret == 2) {
+                            modal_show_simple(TAG, "SD Card Error", "There was an error accessing the SD card. The filesystem may be incorrect. Please ensure it is formatted as FAT32.", LV_SYMBOL_OK" OK");
+                        } else if (ret == 3) {
+                            modal_show_simple(TAG, "SD Card Error", "The SD card you have inserted is write-protected.\nPlease disable write protection and try again.", LV_SYMBOL_OK" OK");
+                        } else {
+                            modal_show_simple(TAG, "SD Card Error", "There was an error accessing the SD card.\nPlease check that the card is inserted and try again.", LV_SYMBOL_OK" OK");
+                        }
+                        return false;
+                    }
+                }
                 Ui_Screen = mm_icontable[mm_curicon].newscreen;
                 break;
             default:

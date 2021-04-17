@@ -12,6 +12,8 @@
 #include "ui.h"
 #include <rom/crc.h>
 #include "queue.h"
+#include "sdcard.h"
+#include "ui/modal.h"
 
 static const char* TAG = "OptionsMgr";
 
@@ -296,9 +298,20 @@ const option_t Options[OPTION_COUNT] = {
     },
 };
 
+static void file_error() {
+    modal_show_simple(TAG, "SD Card Error", "There was an error saving settings to the SD card.\nPlease check that the card is inserted and has free space.", LV_SYMBOL_OK " OK");
+    Sdcard_Online = false;
+}
+
 void OptionsMgr_Save() {
     ESP_LOGI(TAG, "saving options");
     FILE *f = fopen("/sd/.mega/options.mgo", "w");
+    if (!f) {
+        OptionsMgr_Unsaved = true;
+        file_error();
+        ESP_LOGE(TAG, "IO error opening options file for write...");
+        return;
+    }
     uint32_t tmp = OPTIONS_VER;
     fwrite(&tmp, 1, 1, f);
     uint32_t crc = 0;
@@ -321,6 +334,13 @@ void OptionsMgr_Save() {
     //now write out the crc
     fseek(f, 1, SEEK_SET);
     fwrite(&crc, 4, 1, f);
+    if (ferror(f)) {
+        OptionsMgr_Unsaved = true;
+        file_error();
+        ESP_LOGE(TAG, "IO error writing options file...");
+        fclose(f);
+        return;
+    }
     fclose(f);
     ESP_LOGI(TAG, "options saved");
 }
@@ -431,9 +451,13 @@ void OptionsMgr_Touch() {
 void OptionsMgr_Main() {
     while (1) {
         if (OptionsMgr_Unsaved && OptionsMgr_ShittyTimer++ == 2) {
-            OptionsMgr_Unsaved = false;
             OptionsMgr_ShittyTimer = 0;
-            OptionsMgr_Save();
+            if (Sdcard_Online) {
+                OptionsMgr_Unsaved = false;
+                OptionsMgr_Save();
+            } else {
+                ESP_LOGW(TAG, "Skipping saving, SD card is offline");
+            }
         }
         vTaskDelay(pdMS_TO_TICKS(1000));
     }

@@ -9,6 +9,8 @@
 #include "sdmmc_cmd.h"
 #include "diskio.h"
 
+extern volatile bool Sdcard_Online;
+
 uint8_t Sdcard_Setup();
 void Sdcard_Destroy();
 
