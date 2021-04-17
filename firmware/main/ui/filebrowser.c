@@ -30,7 +30,7 @@ lv_style_t filelabelstyle_fw;
 IRAM_ATTR lv_obj_t *files[10];
 IRAM_ATTR lv_obj_t *labels[10];
 IRAM_ATTR lv_obj_t *icons[10];
-
+static IRAM_ATTR lv_obj_t *preload;
 IRAM_ATTR lv_obj_t *scrollbar;
 lv_style_t scrollbarstyle;
 
@@ -356,6 +356,7 @@ bool Ui_FileBrowser_Activate(lv_obj_t *uiscreen) {
         lv_obj_set_height(files[i], 25);
         lv_obj_set_width(files[i],235);
         lv_obj_set_pos(files[i], 0, 25*i);
+        lv_obj_set_hidden(files[i], true);
         labels[i] = lv_label_create(files[i], NULL);
         lv_obj_set_pos(labels[i], 26, 2);
         lv_label_set_text(labels[i], "");
@@ -375,9 +376,13 @@ bool Ui_FileBrowser_Activate(lv_obj_t *uiscreen) {
     lv_obj_set_pos(scrollbar, 235, 0);
 
 
+    preload = lv_preload_create(container, NULL);
+    lv_obj_set_pos(preload, 95, 100);
+    lv_obj_set_size(preload, 50, 50);
+
     Ui_SoftBar_Update(0, true, LV_SYMBOL_HOME "Home", false);
-    //Ui_SoftBar_Update(1, false, LV_SYMBOL_DIRECTORY" Up "LV_SYMBOL_UP);
-    //Ui_SoftBar_Update(2, true, LV_SYMBOL_"Open");
+    Ui_SoftBar_Update(1, false, LV_SYMBOL_UP" "LV_SYMBOL_DIRECTORY"Up", false);
+    Ui_SoftBar_Update(2, false, "", false);
     LcdDma_Mutex_Give();
 
     if (direntry_invalidated) {
@@ -412,6 +417,13 @@ bool Ui_FileBrowser_Activate(lv_obj_t *uiscreen) {
     } else {
         startdir(true);
     }
+
+    LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+    lv_obj_set_hidden(preload, true);
+    for (uint8_t i=0;i<10;i++) {
+        lv_obj_set_hidden(files[i], false);
+    }
+    LcdDma_Mutex_Give();
 
     return true;
 }
@@ -734,7 +746,13 @@ void Ui_FileBrowser_Key(KeyEvent_t event) {
         } else if (event.Key == KEY_C) {
             KeyMgr_Consume(KEY_C);
             if (direntry_count) {
+                LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+                lv_obj_set_hidden(preload, false);
+                LcdDma_Mutex_Give();
                 openselection();
+                LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+                lv_obj_set_hidden(preload, true);
+                LcdDma_Mutex_Give();
             }
         } else if (event.Key == KEY_B) {
             KeyMgr_Consume(KEY_B);
