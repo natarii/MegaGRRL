@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <dirent.h>
 #include "../sdcard.h"
+#include "errno.h"
 
 #include "softbar.h"
 #include "modal.h"
@@ -104,6 +105,7 @@ static void cachedir(char *dir_name) {
     }
     uint32_t off = 0;
     direntry_count = 0;
+    errno = 0; //very often on card failure, we'll get a valid dir pointer, but all readdir calls fail. reset errno, check it after the loop
     while ((ent=readdir(dir))!=NULL) {
         BROWSER_IGNORE;
         direntry_cache[off] = ent->d_type;
@@ -122,6 +124,11 @@ static void cachedir(char *dir_name) {
             closedir(dir);
             return;
         }
+    }
+    if (errno) {
+        file_error(false);
+        closedir(dir);
+        return;
     }
     closedir(dir);
     ESP_LOGI(TAG, "done after %d msec. %d entries, cache use %d", ((xthal_get_ccount()-s)/240000), direntry_count, off);
@@ -387,32 +394,42 @@ bool Ui_FileBrowser_Activate(lv_obj_t *uiscreen) {
         direntry_invalidated = false;
         //if model sort option changes are ever allowed, just move the cache+loop to its own function and reuse it there
         ESP_LOGI(TAG, "direntry was invalidated, re-caching. checking if last file still exists...");
-        //another janky hack for vgz->vgm, like when loading history
-        strcpy(temppath, path);
-        strcat(temppath, "/");
-        strcat(temppath, direntry_cache + direntry_offset[diroffset+selectedfile]);
-        FILE *test = fopen(temppath, "r");
-        bool vgztovgm = false;
-        if (!test && (temppath[strlen(temppath)-1] == 'z' || temppath[strlen(temppath)-1] == 'Z')) {
-            ESP_LOGW(TAG, "vgz does not exist, checking for vgm");
-            vgztovgm = true;
-        }
-        if (test) fclose(test);
-        ESP_LOGI(TAG, "current path: %s", path);
-        strcpy(temppath, direntry_cache + direntry_offset[diroffset+selectedfile]);
-        if (vgztovgm) temppath[strlen(temppath)-1] -= 0x0d;
-        ESP_LOGI(TAG, "currently selected: %s", temppath);
-        cachedir(path);
-        for (uint16_t i=0;i<direntry_count;i++) {
-            char *name = direntry_cache + direntry_offset[i];
-            if (strcmp(name, temppath) == 0) {
-                diroffset = (i/10)*10;
-                selectedfile = i%10;
-                ESP_LOGI(TAG, "found last selection at diroffset %d selfile %d", diroffset, selectedfile);
+        //let's see if even the dir exists. if not, this was probably a card swap
+        DIR *testdir = opendir(path);
+        if (!testdir) {
+            ESP_LOGI(TAG, "dir doesn't even exist, back to root");
+            strcpy(path, startpath);
+            startdir(true);
+        } else {
+            closedir(testdir);
+            //another janky hack for vgz->vgm, like when loading history
+            strcpy(temppath, path);
+            strcat(temppath, "/");
+            strcat(temppath, direntry_cache + direntry_offset[diroffset+selectedfile]);
+            FILE *test = fopen(temppath, "r");
+            bool vgztovgm = false;
+            if (!test && (temppath[strlen(temppath)-1] == 'z' || temppath[strlen(temppath)-1] == 'Z')) {
+                ESP_LOGW(TAG, "vgz does not exist, checking for vgm");
+                vgztovgm = true;
             }
+            if (test) fclose(test);
+            ESP_LOGI(TAG, "current path: %s", path);
+            strcpy(temppath, direntry_cache + direntry_offset[diroffset+selectedfile]);
+            if (vgztovgm) temppath[strlen(temppath)-1] -= 0x0d;
+            ESP_LOGI(TAG, "currently selected: %s", temppath);
+            cachedir(path);
+            for (uint16_t i=0;i<direntry_count;i++) {
+                char *name = direntry_cache + direntry_offset[i];
+                if (strcmp(name, temppath) == 0) {
+                    diroffset = (i/10)*10;
+                    selectedfile = i%10;
+                    ESP_LOGI(TAG, "found last selection at diroffset %d selfile %d", diroffset, selectedfile);
+                }
+            }
+            startdir(false); //already cached above
         }
-        startdir(false);
     } else {
+        ESP_LOGI(TAG, "direntry not invalidated");
         startdir(true);
     }
 
