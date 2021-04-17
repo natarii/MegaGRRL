@@ -49,6 +49,7 @@ static char direntry_cache[FILEBROWSER_CACHE_SIZE];
 static IRAM_ATTR uint32_t direntry_offset[FILEBROWSER_CACHE_MAXENTRIES];
 static uint16_t direntry_count = 0;
 static volatile bool direntry_invalidated = false;
+static volatile bool path_invalidated = false;
 
 static void openselection();
 static void startdir(bool docache);
@@ -69,13 +70,21 @@ void Ui_FileBrowser_InvalidateDirEntry() {
     direntry_invalidated = true;
 }
 
+void Ui_FileBrowser_Reset() {
+    //Ui_FileBrowser_InvalidateDirEntry(); //don't invalidate, move them back to the root and let it cache again
+    strcpy(path, startpath);
+    selectedfile = 0;
+    selectedfile_last = 0;
+    diroffset = 0;
+}
+
 static void file_error(bool writing) {
     if (!writing) {
         modal_show_simple(TAG, "SD Card Error", "There was an error reading the SD card.\nPlease check that the card is inserted and try again.", LV_SYMBOL_OK " OK");
     } else {
         modal_show_simple(TAG, "SD Card Error", "There was an error writing to the SD card.\nPlease check that the card is inserted and has free space.", LV_SYMBOL_OK " OK");
     }
-    Ui_FileBrowser_InvalidateDirEntry();
+    Ui_FileBrowser_Reset();
     Ui_Screen = UISCREEN_MAINMENU;
     Sdcard_Online = false;
     ESP_LOGE(TAG, "IO error");
@@ -393,7 +402,7 @@ bool Ui_FileBrowser_Activate(lv_obj_t *uiscreen) {
         DIR *testdir = opendir(path);
         if (!testdir) {
             ESP_LOGI(TAG, "dir doesn't even exist, back to root");
-            strcpy(path, startpath);
+            Ui_FileBrowser_Reset();
             startdir(true);
         } else {
             closedir(testdir);

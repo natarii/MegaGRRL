@@ -22,5 +22,6 @@ void Ui_FileBrowser_Destroy();
 void Ui_FileBrowser_Key(KeyEvent_t event);
 void Ui_FileBrowser_Tick();
 void Ui_FileBrowser_InvalidateDirEntry();
+void Ui_FileBrowser_Reset();
 
 #endif

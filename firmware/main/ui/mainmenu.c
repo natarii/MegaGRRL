@@ -214,7 +214,7 @@ void Ui_MainMenu_Key(KeyEvent_t event) {
                         return false;
                     }
                     //card is back up
-                    Ui_FileBrowser_InvalidateDirEntry(); //could be a new card
+                    Ui_FileBrowser_Reset(); //could be a new card
                     OptionsMgr_Touch(); //queue an options save, to get everything written to the new card
                 }
                 Ui_Screen = mm_icontable[mm_curicon].newscreen;
