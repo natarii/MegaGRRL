@@ -432,8 +432,8 @@ static bool Player_StartTrack(char *FilePath) {
         }
     }
     if (bad) {
-        ESP_LOGW(TAG, "Known bad vgm - showing warning");
-        modal_show_simple(TAG, "Warning", "This VGM contains invalid data. A software fix has been applied. Please report playback issues to Project2612, as this is not a MegaGRRL bug.", LV_SYMBOL_OK " OK");
+        ESP_LOGW(TAG, "Known bad vgm");
+        //modal_show_simple(TAG, "Warning", "This VGM contains invalid data. A software fix has been applied. Please report playback issues to Project2612, as this is not a MegaGRRL bug.", LV_SYMBOL_OK " OK");
     }
 
     Gd3Descriptor_t desc;
