@@ -11,6 +11,7 @@
 #include "ui.h"
 #include "ui/modal.h"
 #include "sdcard.h"
+#include "queue.h"
 
 static const char* TAG = "Loader";
 
