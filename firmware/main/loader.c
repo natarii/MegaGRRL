@@ -122,6 +122,7 @@ static uint8_t running = false;
 static void file_error() {
     modal_show_simple(TAG, "SD Card Error", "There was an error reading the VGM from the SD card.\nPlease check that the card is inserted and try again.", LV_SYMBOL_OK " OK");
     running = false;
+    xEventGroupClearBits(Loader_Status, LOADER_RUNNING); //prevent task priority issues from stopping loader
     xTaskNotify(Taskmgr_Handles[TASK_PLAYER], PLAYER_NOTIFY_STOP_RUNNING, eSetValueWithoutOverwrite);
     QueueLength = 0;
     QueuePosition = 0;
