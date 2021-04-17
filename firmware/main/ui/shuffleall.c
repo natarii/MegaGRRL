@@ -99,6 +99,8 @@ void Ui_ShuffleAll_Setup(lv_obj_t *uiscreen) {
     xTaskNotify(Taskmgr_Handles[TASK_PLAYER], PLAYER_NOTIFY_STOP_RUNNING, eSetValueWithoutOverwrite);
     ESP_LOGI(TAG, "wait player stop");
     xEventGroupWaitBits(Player_Status, PLAYER_STATUS_NOT_RUNNING, false, true, pdMS_TO_TICKS(3000));
+    QueueLength = 0;
+    QueuePosition = 0;
     
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
 

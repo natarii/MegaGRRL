@@ -122,6 +122,8 @@ static void file_error() {
     modal_show_simple(TAG, "SD Card Error", "There was an error reading the VGM from the SD card.\nPlease check that the card is inserted and try again.", LV_SYMBOL_OK " OK");
     running = false;
     xTaskNotify(Taskmgr_Handles[TASK_PLAYER], PLAYER_NOTIFY_STOP_RUNNING, eSetValueWithoutOverwrite);
+    QueueLength = 0;
+    QueuePosition = 0;
     Ui_Screen = UISCREEN_MAINMENU;
     Sdcard_Online = false;
     ESP_LOGE(TAG, "IO error");
