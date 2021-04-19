@@ -98,6 +98,7 @@ void Ui_Modal_Setup(lv_obj_t *uiscreen) {
     lv_label_set_style(titletext, LV_LABEL_STYLE_MAIN, &titletext_style);
     lv_label_set_static_text(titletext, "Modal Title");
     lv_obj_set_auto_realign(titletext, true);
+    lv_label_set_recolor(titletext, true);
     lv_obj_set_pos(titletext, 5, 3);
 
     bodytext = lv_label_create(textcontainer, NULL);
@@ -111,6 +112,7 @@ void Ui_Modal_Setup(lv_obj_t *uiscreen) {
     lv_label_set_align(bodytext, LV_LABEL_ALIGN_CENTER);
     lv_label_set_static_text(bodytext, "Modal Text");
     lv_obj_set_auto_realign(bodytext, true);
+    lv_label_set_recolor(bodytext, true);
     lv_obj_align(bodytext, titletext, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 1);
 
     lv_cont_set_fit4(textcontainer, LV_FIT_NONE, LV_FIT_NONE, LV_FIT_NONE, LV_FIT_TIGHT);
