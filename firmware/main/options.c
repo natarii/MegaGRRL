@@ -301,6 +301,7 @@ const option_t Options[OPTION_COUNT] = {
 static void file_error() {
     modal_show_simple(TAG, "SD Card Error", "There was an error saving settings to the SD card.\nPlease check that the card is inserted and has free space.", LV_SYMBOL_OK " OK");
     Sdcard_Online = false;
+    Ui_Screen = UISCREEN_MAINMENU;
 }
 
 void OptionsMgr_Save() {
