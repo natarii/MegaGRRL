@@ -69,9 +69,7 @@ static const mm_icon_t mm_icontable[] = {
     {"File Browser", "Browse files stored on the SD card.", &img_library, &img_library_half, UISCREEN_FILEBROWSER},
     {"Shuffle All", "Shuffle and play all tracks on the SD card.", &img_shuffleall, &img_shuffleall_half, UISCREEN_SHUFFLEALL},
     {"Settings", "Adjust system settings.", &img_settings, &img_settings_half, UISCREEN_OPTIONS_CATS},
-    #if 0
-    {"SPFM Mode", "Enter SPFM emulation mode.", &img_spfm, &img_spfm_half, UISCREEN_MAINMENU},
-    #endif
+    {"SPFM Mode", "Enter SPFM emulation mode.", &img_spfm, &img_spfm_half, UISCREEN_SPFM},
     {"About", "View information, credits, acknowledgements.", &img_about, &img_about_half, UISCREEN_ABOUT},
 };
 #define MM_ICON_COUNT (sizeof(mm_icontable)/sizeof(mm_icon_t))

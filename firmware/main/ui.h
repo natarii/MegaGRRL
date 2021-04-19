@@ -18,6 +18,7 @@ typedef enum {
     UISCREEN_DEBUG,
     UISCREEN_SHUFFLEALL,
     UISCREEN_EASTEREGG,
+    UISCREEN_SPFM,
 
     UISCREEN_COUNT
 } UiScreen_t;

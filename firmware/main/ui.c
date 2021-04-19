@@ -23,6 +23,7 @@
 #include "ui/shuffleall.h"
 #include "ui/modal.h"
 #include "ui/easteregg.h"
+#include "ui/spfm.h"
 
 static const char* TAG = "Ui";
 
@@ -173,6 +174,9 @@ void Ui_Main() {
                     case UISCREEN_EASTEREGG:
                         Ui_EasterEgg_Key(event);
                         break;
+                    case UISCREEN_SPFM:
+                        Ui_Spfm_Key(event);
+                        break;
                     default:
                         break;
                 }
@@ -248,6 +252,8 @@ void Ui_Main() {
                 case UISCREEN_EASTEREGG:
                     Ui_EasterEgg_Destroy();
                     break;
+                case UISCREEN_SPFM:
+                    Ui_Spfm_Destroy();
                 default:
                     break;
             }
@@ -286,6 +292,8 @@ void Ui_Main() {
                 case UISCREEN_EASTEREGG:
                     Ui_EasterEgg_Setup(uiscreen);
                     break;
+                case UISCREEN_SPFM:
+                    Ui_Spfm_Setup(uiscreen);
                 default:
                     break;
             }
