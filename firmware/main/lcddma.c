@@ -186,8 +186,6 @@ static void LcdDma_Lvgl_Flush(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv
     LcdDma_Flush_Txs[5].length = pix<<4;
     LcdDma_Flush_Txs[5].user = (void *)0b11; //bit 1 used as end of sequence flag, checked in post-transfer callback
     spi_device_queue_trans(LcdDma_SpiDevice, &LcdDma_Flush_Txs[5], portMAX_DELAY);
-
-    ESP_LOGD(TAG, "Tx buf%d %d bytes", ((void *)color_p >= (void *)&LcdDma_Lvgl_Buf[0] && (void *)color_p < (void *)&LcdDma_Lvgl_Buf[LV_VDB_SIZE_IN_BYTES])?1:2, pix<<1);
     
     //alt mode. i guess another way to do this would be set a flag in the interrupt and check it here...
     return;
