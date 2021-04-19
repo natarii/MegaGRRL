@@ -17,6 +17,7 @@
 
 #include "softbar.h"
 #include "modal.h"
+#include "nowplaying.h"
 
 static const char* TAG = "Ui_FileBrowser";
 
@@ -27,11 +28,13 @@ static lv_style_t filelabelstyle_dir;
 static lv_style_t filelabelstyle_aud;
 static lv_style_t filelabelstyle_other;
 static lv_style_t filelabelstyle_fw;
+static lv_style_t style_preloadbg;
 
 static IRAM_ATTR lv_obj_t *files[10];
 static IRAM_ATTR lv_obj_t *labels[10];
 static IRAM_ATTR lv_obj_t *icons[10];
 static IRAM_ATTR lv_obj_t *preload;
+static IRAM_ATTR lv_obj_t *preloadbg;
 static IRAM_ATTR lv_obj_t *scrollbar;
 static lv_style_t scrollbarstyle;
 
@@ -384,10 +387,20 @@ bool Ui_FileBrowser_Activate(lv_obj_t *uiscreen) {
     lv_obj_set_width(scrollbar, 5);
     lv_obj_set_pos(scrollbar, 235, 0);
 
+    lv_style_copy(&style_preloadbg, &lv_style_plain);
+    style_preloadbg.body.main_color = LV_COLOR_MAKE(0,0,0);
+    style_preloadbg.body.grad_color = LV_COLOR_MAKE(0,0,0);
+    style_preloadbg.body.radius = LV_RADIUS_CIRCLE;
+    preloadbg = lv_obj_create(container, NULL);
+    lv_obj_set_style(preloadbg, &style_preloadbg);
+    lv_obj_set_size(preloadbg, 56, 56);
+    lv_obj_set_pos(preloadbg, 92, 97);
 
     preload = lv_preload_create(container, NULL);
     lv_obj_set_pos(preload, 95, 100);
     lv_obj_set_size(preload, 50, 50);
+
+
 
     Ui_SoftBar_Update(0, true, LV_SYMBOL_HOME "Home", false);
     Ui_SoftBar_Update(1, false, LV_SYMBOL_UP" "LV_SYMBOL_DIRECTORY"Up", false);
@@ -439,6 +452,7 @@ bool Ui_FileBrowser_Activate(lv_obj_t *uiscreen) {
 
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_obj_set_hidden(preload, true);
+    lv_obj_set_hidden(preloadbg, true);
     for (uint8_t i=0;i<10;i++) {
         lv_obj_set_hidden(files[i], false);
     }
@@ -606,6 +620,16 @@ static void m3u2m3u() {
     fclose(p);
 }
 
+static void wait_playing() { //wait up to timeout for player to get vgm data and start playing
+    //this is all kind of counter-intuitive, since the ui vars below are "owned" by nowplaying but actually updated by player.
+    //yeah that really should be cleaned up.
+    uint32_t s = esp_timer_get_time();
+    while (esp_timer_get_time() - s < 3000000) {
+        if (Ui_NowPlaying_DataAvail && Ui_NowPlaying_DriverRunning) return;
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+}
+
 static void openselection() {
     char *name = direntry_cache + direntry_offset[diroffset + selectedfile];
     unsigned char type = direntry_cache[direntry_offset[diroffset + selectedfile]-1];
@@ -630,6 +654,7 @@ static void openselection() {
             QueueLoadM3u("/sd/.mega", "/sd/.mega/temp.m3u", dumpm3u(), false, true);
             ESP_LOGI(TAG, "request start");
             xTaskNotify(Taskmgr_Handles[TASK_PLAYER], PLAYER_NOTIFY_START_RUNNING, eSetValueWithoutOverwrite);
+            wait_playing();
             Ui_Screen = UISCREEN_NOWPLAYING;
             /*ESP_LOGI(TAG, "wait start");
             xEventGroupWaitBits(Player_Status, PLAYER_STATUS_RUNNING, false, true, pdMS_TO_TICKS(3000));*/
@@ -650,6 +675,7 @@ static void openselection() {
             QueueLoadM3u("/sd/.mega", "/sd/.mega/temp.m3u", 0, false, true);
             ESP_LOGI(TAG, "request start");
             xTaskNotify(Taskmgr_Handles[TASK_PLAYER], PLAYER_NOTIFY_START_RUNNING, eSetValueWithoutOverwrite);
+            wait_playing();
             Ui_Screen = UISCREEN_NOWPLAYING;
             /*ESP_LOGI(TAG, "wait start");
             xEventGroupWaitBits(Player_Status, PLAYER_STATUS_RUNNING, false, true, pdMS_TO_TICKS(3000));*/
@@ -767,10 +793,12 @@ void Ui_FileBrowser_Key(KeyEvent_t event) {
             if (direntry_count) {
                 LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
                 lv_obj_set_hidden(preload, false);
+                lv_obj_set_hidden(preloadbg, false);
                 LcdDma_Mutex_Give();
                 openselection();
                 LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
                 lv_obj_set_hidden(preload, true);
+                lv_obj_set_hidden(preloadbg, true);
                 LcdDma_Mutex_Give();
             }
         } else if (event.Key == KEY_B) {
