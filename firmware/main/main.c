@@ -752,8 +752,8 @@ void app_main(void) {
     if (logmgr_loglevel == 0) {
         ESP_LOGE(TAG, "/!\\ WARNING: SYSTEM LOGLEVEL IS ABOUT TO CHANGE TO ESP_LOG_WARNING /!\\");
         ESP_LOGE(TAG, "/!\\ Change in the settings menu, or hold LEFT + RIGHT + A while rebooting to force to ESP_LOG_INFO /!\\");
-        logmgr_update_loglevel();
     }
+    logmgr_update_loglevel();
 
     ESP_LOGE(TAG, "Starting tasks");
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
