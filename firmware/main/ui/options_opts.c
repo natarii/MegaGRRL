@@ -152,6 +152,24 @@ static void displayvalue(char *buf, bool def) {
                             break;
                     }
                     break;
+                case OPTION_SUBTYPE_LOGLEVEL:
+                    switch (val) {
+                        case 0:
+                            strcpy(buf, "Normal");
+                            break;
+                        case 1:
+                            strcpy(buf, "High");
+                            break;
+                        case 2:
+                            strcpy(buf, "Higher");
+                            break;
+                        case 3:
+                            strcpy(buf, "Highest (O_O;)");
+                            break;
+                        default:
+                            break;
+                    }
+                    break;
                 default:
                     strcpy(buf, "OPTION_TYPE_NUMERIC");
                     break;
@@ -268,6 +286,17 @@ static void changevalue(bool inc) {
                     //update it so they can see it now
                     lv_label_set_long_mode(optiondesc, Ui_GetScrollType());
                     lv_obj_set_width(optiondesc, 220);
+                    break;
+                case OPTION_SUBTYPE_LOGLEVEL:
+                    if (inc) {
+                        if (*var < 3) {
+                            *var += 1;
+                        }
+                    } else {
+                        if (*var > 0) {
+                            *var -= 1;
+                        }
+                    }
                     break;
                 default:
                     //uh oh

@@ -54,6 +54,7 @@
 #include "hspi.h"
 #include "ver.h"
 #include "key.h"
+#include "logmgr.h"
 #ifndef FWUPDATE
 #include "battery.h"
 #include "dacstream.h"
@@ -235,9 +236,9 @@ void checkcore() {
     LcdDma_Mutex_Give();
 }
 
-void app_main(void)
-{
+void app_main(void) {
     assert(configUSE_16_BIT_TICKS == 0);
+    esp_log_level_set("*", ESP_LOG_DEBUG);
     //uint8_t r = rtc_get_reset_reason(0);
 
     #ifdef FWUPDATE
@@ -589,6 +590,13 @@ void app_main(void)
     LcdDma_Mutex_Give();
     OptionsMgr_Setup();
     MAIN_PROGRESS_UPDATE;
+    if (IoExp_PowerOnKeys & ((1<<KEY_LEFT) | (1<<KEY_RIGHT) | (1<<KEY_A))) {
+        ESP_LOGE(TAG, "/!\\ SETTING LOGLEVEL TO ESP_LOG_INFO! /!\\");
+        logmgr_loglevel = 1;
+        logmgr_update_loglevel();
+        ESP_LOGI(TAG, "Queueing options save");
+        OptionsMgr_Touch();
+    }
 
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_ta_add_text(textarea, "Setting up ChannelMgr... ");
@@ -740,7 +748,14 @@ void app_main(void)
         LcdDma_Mutex_Give();
         crash();
     }
-    ESP_LOGI(TAG, "Starting tasks !!");
+
+    if (logmgr_loglevel == 0) {
+        ESP_LOGE(TAG, "/!\\ WARNING: SYSTEM LOGLEVEL IS ABOUT TO CHANGE TO ESP_LOG_WARNING /!\\");
+        ESP_LOGE(TAG, "/!\\ Change in the settings menu, or hold LEFT + RIGHT + A while rebooting to force to ESP_LOG_INFO /!\\");
+        logmgr_update_loglevel();
+    }
+
+    ESP_LOGE(TAG, "Starting tasks");
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
     lv_ta_add_text(textarea, "Starting tasks!");
     LcdDma_Mutex_Give();

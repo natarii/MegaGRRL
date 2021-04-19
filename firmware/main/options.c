@@ -14,6 +14,7 @@
 #include "queue.h"
 #include "sdcard.h"
 #include "ui/modal.h"
+#include "logmgr.h"
 
 static const char* TAG = "OptionsMgr";
 
@@ -39,7 +40,7 @@ static void opts_pitchupdate() {
 
 static bool loaded[OPTION_COUNT];
 
-//last used: 12
+//last used: 14
 const option_t Options[OPTION_COUNT] = {
     {
         0x0001,
@@ -296,6 +297,18 @@ const option_t Options[OPTION_COUNT] = {
         NULL,
         NULL
     },
+    {
+        0x0014,
+        "Log level",
+        "Change the serial port log level. Values other than Normal will cause slight performance decrease.",
+        OPTION_CATEGORY_ADVANCED,
+        OPTION_TYPE_NUMERIC,
+        OPTION_SUBTYPE_LOGLEVEL,
+        &logmgr_loglevel,
+        0,
+        logmgr_update_loglevel,
+        NULL
+    }
 };
 
 static void file_error() {
