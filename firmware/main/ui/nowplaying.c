@@ -339,13 +339,14 @@ bool Ui_NowPlaying_Setup(lv_obj_t *uiscreen) {
     laststatus = 0;
     lastelapsedsecs = 0xffffffff;
     lastelapsedsecs = 0xffffffff;
+
+    tutorial_show_if_not_complete(TUT_CMPL_NOWPLAYING, Ui_NowPlaying_DriverRunning, Ui_NowPlaying_DriverRunning?0:1);
+
     if (Ui_NowPlaying_DriverRunning) {
         newtrack();
         do_tick();
         Ui_NowPlaying_DataAvail = false;
     }
-
-    tutorial_show_if_not_complete(TUT_CMPL_NOWPLAYING, Ui_NowPlaying_DriverRunning, Ui_NowPlaying_DriverRunning?0:1);
 
     LcdDma_Mutex_Give();
 
