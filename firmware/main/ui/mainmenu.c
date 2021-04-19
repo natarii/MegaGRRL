@@ -16,6 +16,7 @@
 #include "../sdcard.h"
 #include "filebrowser.h"
 #include "../options.h"
+#include "../tutorial.h"
 
 #include "softbar.h"
 #include "modal.h"
@@ -149,6 +150,9 @@ void Ui_MainMenu_Setup(lv_obj_t *uiscreen) {
     #endif
     Ui_SoftBar_Update(1, false, "", false);
     Ui_SoftBar_Update(2, true, "Select", false);
+
+    tutorial_show_if_not_complete(TUT_CMPL_MAINMENU, true, 0);
+
     LcdDma_Mutex_Give();
 
     mm_updateicons();

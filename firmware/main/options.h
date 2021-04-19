@@ -21,6 +21,7 @@ typedef enum {
     OPTION_SUBTYPE_SCROLLTYPE,
     OPTION_SUBTYPE_SHUFFLE,
     OPTION_SUBTYPE_LOGLEVEL,
+    OPTION_SUBTYPE_TUTORIAL,
     OPTION_SUBTYPE_COUNT
 } optionsubtype_t;
 
@@ -48,7 +49,7 @@ typedef struct {
     void (*cb_initial)();
 } option_t;
 
-#define OPTION_COUNT 20
+#define OPTION_COUNT 21
 
 //options version. this was 0xA0 before the crc was added, so we will support 0xA0 files.
 #define OPTIONS_VER 0xA1

@@ -12,6 +12,7 @@
 #include "../options.h"
 #include "../loader.h"
 #include "../pitch.h"
+#include "../tutorial.h"
 
 #include "softbar.h"
 
@@ -343,6 +344,8 @@ bool Ui_NowPlaying_Setup(lv_obj_t *uiscreen) {
         do_tick();
         Ui_NowPlaying_DataAvail = false;
     }
+
+    tutorial_show_if_not_complete(TUT_CMPL_NOWPLAYING, Ui_NowPlaying_DriverRunning, Ui_NowPlaying_DriverRunning?0:1);
 
     LcdDma_Mutex_Give();
 

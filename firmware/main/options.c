@@ -15,6 +15,7 @@
 #include "sdcard.h"
 #include "ui/modal.h"
 #include "logmgr.h"
+#include "tutorial.h"
 
 static const char* TAG = "OptionsMgr";
 
@@ -40,7 +41,7 @@ static void opts_pitchupdate() {
 
 static bool loaded[OPTION_COUNT];
 
-//last used: 14
+//last used: 15
 const option_t Options[OPTION_COUNT] = {
     {
         0x0001,
@@ -307,6 +308,18 @@ const option_t Options[OPTION_COUNT] = {
         &logmgr_loglevel,
         0,
         logmgr_update_loglevel,
+        NULL
+    },
+    {
+        0x0015,
+        "Tutorial completion",
+        "Complete or reset the tutorial.",
+        OPTION_CATEGORY_ADVANCED,
+        OPTION_TYPE_NUMERIC,
+        OPTION_SUBTYPE_TUTORIAL,
+        &tutorial_completion,
+        0,
+        NULL,
         NULL
     }
 };
