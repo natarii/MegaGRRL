@@ -40,7 +40,7 @@ static void opts_pitchupdate() {
 
 static bool loaded[OPTION_COUNT];
 
-//last used: 14
+//last used: 15
 const option_t Options[OPTION_COUNT] = {
     {
         0x0001,
@@ -118,14 +118,14 @@ const option_t Options[OPTION_COUNT] = {
         opts_mutingupdate
     },
     {
-        0x0004,
+        0x0015,
         "LED brightness",
         "Overall LED brightness",
         OPTION_CATEGORY_LEDS,
         OPTION_TYPE_NUMERIC,
         OPTION_SUBTYPE_BRIGHTNESS,
-        &LedDrv_Brightness, //
-        0x40,
+        &LedDrv_Brightness,
+        5,
         LedDrv_UpdateBrightness,
         LedDrv_UpdateBrightness
     },
@@ -416,7 +416,26 @@ static uint8_t loadoptionsfile(const char *filename) {
             }
         }
         if (!found) {
-            ESP_LOGW(TAG, "skipping unknown option uid %d", uid);
+            if (uid == 0x0004) { //old led brightness, new is 0015
+                //find the nearest new brightness setting to the old one
+                uint8_t newval = 0;
+                for (uint8_t j=0;j<sizeof(global_bright_lut);j++) {
+                    if (global_bright_lut[j] > v) break;
+                    newval = j;
+                }
+                ESP_LOGW(TAG, "Remapping old LED brightness %d to new value %d (%d)", v, newval, global_bright_lut[newval]);
+                for (uint8_t j=0;j<OPTION_COUNT;j++) {
+                    if (Options[j].uid == 0x0015) {
+                        if (Options[j].var != NULL) *(volatile uint8_t*)Options[j].var = newval;
+                        if (Options[j].cb_initial != NULL) Options[j].cb_initial();
+                        loaded[j] = true;
+                        break;
+                    }
+                }
+                OptionsMgr_Touch();
+            } else {
+                ESP_LOGW(TAG, "skipping unknown option uid %d", uid);
+            }
         }
     }
     fclose(f);

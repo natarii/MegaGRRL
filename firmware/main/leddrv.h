@@ -7,6 +7,7 @@
 extern volatile uint8_t LedDrv_States[16];
 extern volatile uint8_t LedDrv_Brightness;
 extern volatile uint8_t LedDrv_States_ULatch[3];
+extern const uint8_t global_bright_lut[17];
 
 bool LedDrv_Setup();
 bool LedDrv_Update();

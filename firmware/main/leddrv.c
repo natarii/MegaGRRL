@@ -16,7 +16,7 @@ static const char* TAG = "LedDrv";
 volatile uint8_t led_pwm[16];
 volatile uint8_t LedDrv_States[16];
 volatile uint8_t LedDrv_States_ULatch[3];
-volatile uint8_t LedDrv_Brightness = 0x40;
+volatile uint8_t LedDrv_Brightness = 0x00;
 
 const uint8_t led_curve_lut[256] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
@@ -36,6 +36,8 @@ const uint8_t led_curve_lut[256] = {
     0xFC, 0xFC, 0xFC, 0xFC, 0xFC, 0xFC, 0xFC, 0xFC, 0xFD, 0xFD, 0xFD, 0xFD, 0xFD, 0xFD, 0xFD, 0xFD,
     0xFD, 0xFD, 0xFD, 0xFD, 0xFD, 0xFD, 0xFD, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFF, 0xFF
 };
+
+const uint8_t global_bright_lut[11] = {0, 0x01, 0x05, 0x0b, 0x17, 0x2c, 0x4f, 0x7c, 0xaa, 0xce, 0xff};
 
 #if defined HWVER_PORTABLE
 const uint8_t led_channel_assignment[] = {
@@ -130,6 +132,19 @@ bool LedDrv_Update() {
     return ret;
 }
 
+void LedDrv_UpdateBrightness() {
+    assert(LedDrv_Brightness < sizeof(global_bright_lut));
+    if (!I2cMgr_Seize(false, pdMS_TO_TICKS(1000))) {
+        ESP_LOGE(TAG, "Couldn't seize bus !!");
+        return;
+    }
+
+    LedDrv_WriteRegister(0, 0x0a, global_bright_lut[LedDrv_Brightness]);
+    LedDrv_WriteRegister(1, 0x0a, global_bright_lut[LedDrv_Brightness]);
+
+    I2cMgr_Release(false);
+}
+
 bool LedDrv_Setup() {
     ESP_LOGI(TAG, "Setting up");
 
@@ -157,10 +172,6 @@ bool LedDrv_Setup() {
             I2cMgr_Release(false);
             return false;
         }
-        if (!LedDrv_WriteRegister(i, 0x0a, LedDrv_Brightness)) {         //GRPPWM
-            I2cMgr_Release(false);
-            return false;
-        }
         if (!LedDrv_WriteRegister(i, 0x0c, 0xff)) {         //LEDOUT0
             I2cMgr_Release(false);
             return false;
@@ -178,18 +189,8 @@ bool LedDrv_Setup() {
 
     I2cMgr_Release(false);
 
+    LedDrv_UpdateBrightness();
+
     ESP_LOGI(TAG, "OK !!");
     return true;
-}
-
-void LedDrv_UpdateBrightness() {
-    if (!I2cMgr_Seize(false, pdMS_TO_TICKS(1000))) {
-        ESP_LOGE(TAG, "Couldn't seize bus !!");
-        return;
-    }
-
-    LedDrv_WriteRegister(0, 0x0a, LedDrv_Brightness);
-    LedDrv_WriteRegister(1, 0x0a, LedDrv_Brightness);
-
-    I2cMgr_Release(false);
 }

@@ -63,8 +63,16 @@ static void displayvalue(char *buf, bool def) {
         case OPTION_TYPE_NUMERIC:
             switch (Options[Options_OptId].subtype) {
                 case OPTION_SUBTYPE_NONE:
-                case OPTION_SUBTYPE_BRIGHTNESS: //this one will go away as soon as the LUT exists
                     sprintf(buf, "%d", val);
+                    break;
+                case OPTION_SUBTYPE_BRIGHTNESS:
+                    if (val == 0) {
+                        strcpy(buf, "Off");
+                    } else if (val == 10) {
+                        strcpy(buf, "Max");
+                    } else {
+                        sprintf(buf, "%d", val);
+                    }
                     break;
                 case OPTION_SUBTYPE_LOOPS:
                     if (val == 255) {
@@ -215,9 +223,19 @@ static void changevalue(bool inc) {
         case OPTION_TYPE_NUMERIC:
             switch (Options[Options_OptId].subtype) {
                 case OPTION_SUBTYPE_NONE:
-                case OPTION_SUBTYPE_BRIGHTNESS:
                     if (inc) {
                         if (*var < 255) {
+                            *var += 1;
+                        }
+                    } else {
+                        if (*var > 0) {
+                            *var -= 1;
+                        }
+                    }
+                    break;
+                case OPTION_SUBTYPE_BRIGHTNESS:
+                    if (inc) {
+                        if (*var < 10) {
                             *var += 1;
                         }
                     } else {
