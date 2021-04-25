@@ -318,7 +318,7 @@ static void file_error() {
 }
 
 void OptionsMgr_Save() {
-    ESP_LOGI(TAG, "saving options");
+    ESP_LOGW(TAG, "saving options");
     FILE *f = fopen("/sd/.mega/options.mgo", "w");
     if (!f) {
         OptionsMgr_Unsaved = true;
@@ -356,7 +356,7 @@ void OptionsMgr_Save() {
         return;
     }
     fclose(f);
-    ESP_LOGI(TAG, "options saved");
+    ESP_LOGW(TAG, "options saved");
 }
 
 static uint8_t loadoptionsfile(const char *filename) {
