@@ -244,11 +244,10 @@ void Driver_ModDetect() {
             Driver_SrBuf[SR_DATABUS] = ~(1<<bit);
             Driver_Output();
             Driver_Sleep(1000);
-            ESP_LOGD(TAG, "mod detect bit %d", bit);
             if (gpio_get_level(PIN_CLK_PSG) == 0) {
-                ESP_LOGD(TAG, "low");
+                ESP_LOGD(TAG, "Mod detect bit %d low", bit);
                 if (lastbit != 0xff && lastbit != bit) {
-                    ESP_LOGE(TAG, "Driver_ModDetect() noisy detect pin !!");
+                    ESP_LOGE(TAG, "Driver_ModDetect() noisy detect pin");
                     Driver_DetectedMod = MEGAMOD_FAULT;
                     return;
                 }
