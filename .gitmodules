@@ -1,0 +1,9 @@
+[submodule "hardware/MegaGRRL_Desktop"]
+	path = hardware/MegaGRRL_Desktop
+	url = https://git.agiri.ninja/natalie/MegaGRRL_Desktop.git
+[submodule "hardware/MegaMod_OPL3"]
+	path = hardware/MegaMod_OPL3
+	url = https://git.agiri.ninja/natalie/MegaMod_OPL3.git
+[submodule "hardware/MegaMod_OPNA"]
+	path = hardware/MegaMod_OPNA
+	url = https://git.agiri.ninja/natalie/MegaMod_OPNA.git
