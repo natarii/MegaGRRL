@@ -11,6 +11,6 @@ extern const uint8_t global_bright_lut[17];
 
 bool LedDrv_Setup();
 bool LedDrv_Update();
-void LedDrv_UpdateBrightness();
+void LedDrv_UpdateBrightness(bool force_off);
 
 #endif

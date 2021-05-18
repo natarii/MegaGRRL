@@ -38,6 +38,10 @@ static void opts_pitchupdate() {
     Pitch_Adjust(Pitch_Get()); //this will snap down to the max locked clock if they switch from unlocked -> locked
 }
 
+static void wrap_leddrv_updatebrightness() {
+    LedDrv_UpdateBrightness(false);
+}
+
 static bool loaded[OPTION_COUNT];
 
 //last used: 15
@@ -126,8 +130,8 @@ const option_t Options[OPTION_COUNT] = {
         OPTION_SUBTYPE_BRIGHTNESS,
         &LedDrv_Brightness,
         5,
-        LedDrv_UpdateBrightness,
-        LedDrv_UpdateBrightness
+        wrap_leddrv_updatebrightness,
+        wrap_leddrv_updatebrightness
     },
     {
         0x000e,

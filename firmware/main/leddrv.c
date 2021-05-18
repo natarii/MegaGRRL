@@ -132,15 +132,19 @@ bool LedDrv_Update() {
     return ret;
 }
 
-void LedDrv_UpdateBrightness() {
+void LedDrv_UpdateBrightness(bool force_off) {
     assert(LedDrv_Brightness < sizeof(global_bright_lut));
     if (!I2cMgr_Seize(false, pdMS_TO_TICKS(1000))) {
         ESP_LOGE(TAG, "Couldn't seize bus !!");
         return;
     }
-
-    LedDrv_WriteRegister(0, 0x0a, global_bright_lut[LedDrv_Brightness]);
-    LedDrv_WriteRegister(1, 0x0a, global_bright_lut[LedDrv_Brightness]);
+    if (force_off) {
+        LedDrv_WriteRegister(0, 0x0a, 0);
+        LedDrv_WriteRegister(1, 0x0a, 0);
+    } else {
+        LedDrv_WriteRegister(0, 0x0a, global_bright_lut[LedDrv_Brightness]);
+        LedDrv_WriteRegister(1, 0x0a, global_bright_lut[LedDrv_Brightness]);
+    }
 
     I2cMgr_Release(false);
 }
@@ -189,7 +193,7 @@ bool LedDrv_Setup() {
 
     I2cMgr_Release(false);
 
-    LedDrv_UpdateBrightness();
+    LedDrv_UpdateBrightness(false);
 
     ESP_LOGI(TAG, "OK !!");
     return true;
