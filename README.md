@@ -22,7 +22,7 @@ This repository contains the MegaGRRL OS firmware, and includes the hardware as 
 
 ## Compiling and initial flash
   * Windows users: A complete guide is available [here](https://git.agiri.ninja/snippets/3).
-  * Other platforms: MegaGRRL OS is built like a standard ESP-IDF v3.3.4 project, but some patches are required. Please see [doc/compiling.md](https://git.agiri.ninja/natalie/megagrrl/doc/compiling.md) for more information.
+  * Other platforms: MegaGRRL OS is built like a standard ESP-IDF v3.3.4 project, but some patches are required. Please see [doc/compiling.md](https://git.agiri.ninja/natalie/megagrrl/-/blob/master/doc/compiling.md) for more information.
 
 ## Updating firmware
 To update to the latest firmware after your player is up and running, download the latest .mgu file for your hardware version (desktop or portable) from the [Releases page](https://git.agiri.ninja/natalie/megagrrl/-/releases) and copy it to the SD card. Launch the update from MegaGRRL's file browser.
