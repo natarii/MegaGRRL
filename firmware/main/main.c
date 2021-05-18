@@ -590,7 +590,7 @@ void app_main(void) {
     LcdDma_Mutex_Give();
     OptionsMgr_Setup();
     MAIN_PROGRESS_UPDATE;
-    if (IoExp_PowerOnKeys & ((1<<KEY_LEFT) | (1<<KEY_RIGHT) | (1<<KEY_A))) {
+    if ((IoExp_PowerOnKeys & (1<<KEY_LEFT)) && (IoExp_PowerOnKeys & (1<<KEY_RIGHT)) && (IoExp_PowerOnKeys & (1<<KEY_A))) {
         ESP_LOGE(TAG, "/!\\ SETTING LOGLEVEL TO ESP_LOG_INFO! /!\\");
         logmgr_loglevel = 1;
         logmgr_update_loglevel();
