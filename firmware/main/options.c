@@ -412,6 +412,11 @@ static uint8_t loadoptionsfile(const char *filename) {
         for (uint8_t j=0;j<OPTION_COUNT;j++) {
             if (Options[j].uid == uid) {
                 found = true;
+                if (uid == 0x0011 && v == 2) { //"truncate" scroll type got deleted
+                    ESP_LOGW(TAG, "Fixing unsupported scroll type");
+                    v = SCROLLTYPE_PINGPONG;
+                    OptionsMgr_Touch();
+                }
                 if (Options[j].var != NULL) *(volatile uint8_t*)Options[j].var = v;
                 if (Options[j].cb_initial != NULL) Options[j].cb_initial();
                 loaded[j] = true;

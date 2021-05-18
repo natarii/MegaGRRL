@@ -25,7 +25,6 @@ typedef enum {
 typedef enum {
     SCROLLTYPE_PINGPONG,
     SCROLLTYPE_CIRCULAR,
-    SCROLLTYPE_DOT,
     SCROLLTYPE_COUNT,
 } ScrollType_t;
 
