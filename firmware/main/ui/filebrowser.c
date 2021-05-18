@@ -803,7 +803,17 @@ void Ui_FileBrowser_Key(KeyEvent_t event) {
             }
         } else if (event.Key == KEY_B) {
             KeyMgr_Consume(KEY_B);
-            if (strcmp(path, startpath) != 0) backdir();
+            if (strcmp(path, startpath) != 0) {
+                LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+                lv_obj_set_hidden(preload, false);
+                lv_obj_set_hidden(preloadbg, false);
+                LcdDma_Mutex_Give();
+                backdir();
+                LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+                lv_obj_set_hidden(preload, true);
+                lv_obj_set_hidden(preloadbg, true);
+                LcdDma_Mutex_Give();
+            }
         } else if (event.Key == KEY_A) {
             KeyMgr_Consume(KEY_A);
             Ui_Screen = UISCREEN_MAINMENU;
