@@ -9,5 +9,6 @@ void Ui_ShuffleAll_Setup(lv_obj_t *uiscreen);
 void Ui_ShuffleAll_Destroy();
 void Ui_ShuffleAll_Key(KeyEvent_t event);
 void Ui_ShuffleAll_Tick();
+void Ui_ShuffleAll_Invalidate();
 
 #endif

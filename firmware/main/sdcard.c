@@ -106,6 +106,7 @@ uint8_t Sdcard_Setup() {
 
 void Sdcard_Invalidate() { //mark card offline and invalidate any cached stuff that depends on card contents
     Sdcard_Online = false;
+    Ui_ShuffleAll_Invalidate();
 }
 
 void Sdcard_Destroy() {

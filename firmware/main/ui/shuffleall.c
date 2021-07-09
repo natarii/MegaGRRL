@@ -34,7 +34,7 @@ static lv_style_t fnstyle;
 static lv_style_t titlestyle;
 static IRAM_ATTR uint32_t lastdraw = 0;
 static IRAM_ATTR lv_obj_t *preload;
-static bool already = false;
+static volatile bool already = false;
 static char cntbuf[16] = "0 tracks";
 static IRAM_ATTR uint32_t trackcount = 0;
 static IRAM_ATTR uint32_t bufused = 0;
@@ -87,6 +87,10 @@ static void dumppls() {
         }
     }
     closedir(dir);
+}
+
+void Ui_ShuffleAll_Invalidate() {
+    already = false;
 }
 
 void Ui_ShuffleAll_Setup(lv_obj_t *uiscreen) {
