@@ -23,7 +23,7 @@ void Taskmgr_CreateTasks() {
         if (i == TASK_LCDDMA) continue;
         Taskmgr_Handles[i] = NULL;
     }
-    xTaskCreatePinnedToCore(BatteryMgr_Main, "BatMgr", 2048, NULL, 3, &Taskmgr_Handles[TASK_BATTERYMGR], 0);
+    xTaskCreatePinnedToCore(BatteryMgr_Main, "BatMgr", 2304, NULL, 3, &Taskmgr_Handles[TASK_BATTERYMGR], 0);
     xTaskCreatePinnedToCore(Loader_Main, "Loader", 2560, NULL, LOADER_TASK_PRIO_NORM, &Taskmgr_Handles[TASK_LOADER], 0);
     xTaskCreatePinnedToCore(IoExp_Main, "IoExp ", 2048, NULL, 19, &Taskmgr_Handles[TASK_IOEXP], 0);
     xTaskCreatePinnedToCore(KeyMgr_Main, "KeyMgr", 2048, NULL, 19, &Taskmgr_Handles[TASK_KEYMGR], 0);
