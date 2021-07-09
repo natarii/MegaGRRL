@@ -178,11 +178,7 @@ bool Ui_NowPlaying_Setup(lv_obj_t *uiscreen) {
     text_loop = lv_label_create(container, NULL);
     lv_label_set_style(text_loop, LV_LABEL_STYLE_MAIN, &textstyle_sm);
     lv_obj_set_pos(text_loop, 125, 220); 
-    if (Player_LoopCount < 255) {
-        sprintf(loopbuf, "1 / %d", Player_LoopCount);
-    } else {
-        strcpy(loopbuf, "1 / inf.");
-    }
+    strcpy(loopbuf, "1 / 1");
     lv_label_set_static_text(text_loop, loopbuf);
 
 
