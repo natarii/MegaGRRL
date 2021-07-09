@@ -114,7 +114,7 @@ static void file_error(bool writing) {
     QueueLength = 0;
     QueuePosition = 0;
     Ui_Screen = UISCREEN_MAINMENU;
-    Sdcard_Online = false;
+    Sdcard_Invalidate();
 }
 
 static bool Player_NextTrk(bool UserSpecified) { //returns true if there is now a track playing

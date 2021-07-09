@@ -127,7 +127,7 @@ static void file_error() {
     QueueLength = 0;
     QueuePosition = 0;
     Ui_Screen = UISCREEN_MAINMENU;
-    Sdcard_Online = false;
+    Sdcard_Invalidate();
     ESP_LOGE(TAG, "IO error");
 }
 

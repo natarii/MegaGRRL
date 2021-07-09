@@ -197,7 +197,7 @@ void Ui_MainMenu_Key(KeyEvent_t event) {
                 break;
             case KEY_C:
                 KeyMgr_Consume(KEY_C);
-                if (mm_curicon < MM_ICON_COUNT-1 && !Sdcard_Online) {
+                if (mm_curicon < MM_ICON_COUNT-1 && !Sdcard_IsOnline()) {
                     ESP_LOGW(TAG, "Sdcard is off, try to bring it up again...");
                     Sdcard_Destroy();
                     uint8_t ret = Sdcard_Setup();

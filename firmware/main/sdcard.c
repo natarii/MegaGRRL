@@ -2,6 +2,7 @@
 #include "mallocs.h"
 #include "esp_log.h"
 #include <dirent.h>
+#include "ui/shuffleall.h"
 
 static const char* TAG = "Sdcard";
 
@@ -103,6 +104,10 @@ uint8_t Sdcard_Setup() {
     return 0;
 }
 
+void Sdcard_Invalidate() { //mark card offline and invalidate any cached stuff that depends on card contents
+    Sdcard_Online = false;
+}
+
 void Sdcard_Destroy() {
     if (state_mounted_fs) f_unmount(drv);
     if (state_registered_vfs) {
@@ -120,5 +125,9 @@ void Sdcard_Destroy() {
     state_registered_diskio = false;
     state_registered_vfs = false;
     state_mounted_fs = false;
-    Sdcard_Online = false;
+    Sdcard_Invalidate(); //instead of Sdcard_Online = false;
+}
+
+bool Sdcard_IsOnline() {
+    return Sdcard_Online;
 }

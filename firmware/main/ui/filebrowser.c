@@ -88,7 +88,7 @@ static void file_error(bool writing) {
         modal_show_simple(TAG, "SD Card Error", "There was an error writing to the SD card.\nPlease check that the card is inserted and has free space.", LV_SYMBOL_OK " OK");
     }
     Ui_Screen = UISCREEN_MAINMENU;
-    Sdcard_Online = false;
+    Sdcard_Invalidate();
     ESP_LOGE(TAG, "IO error");
 }
 
