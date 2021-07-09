@@ -87,7 +87,6 @@ static void file_error(bool writing) {
     } else {
         modal_show_simple(TAG, "SD Card Error", "There was an error writing to the SD card.\nPlease check that the card is inserted and has free space.", LV_SYMBOL_OK " OK");
     }
-    Ui_FileBrowser_Reset();
     Ui_Screen = UISCREEN_MAINMENU;
     Sdcard_Online = false;
     ESP_LOGE(TAG, "IO error");
@@ -294,6 +293,7 @@ static bool loadhistory() {
 }
 
 void Ui_FileBrowser_Setup() {
+    Ui_FileBrowser_Reset();
     if (loadhistory()) {
         selectedfile_last = selectedfile;
         //nothing more to do
