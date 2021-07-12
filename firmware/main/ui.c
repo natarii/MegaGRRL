@@ -43,7 +43,7 @@ lv_obj_t *hlines[2];
 lv_style_t hlinestyle;
 static lv_point_t hpoints[4];
 
-static const lv_label_long_mode_t scrolltypeLUT[SCROLLTYPE_COUNT] = {LV_LABEL_LONG_SROLL, LV_LABEL_LONG_SROLL_CIRC, LV_LABEL_LONG_DOT};
+static const lv_label_long_mode_t scrolltypeLUT[SCROLLTYPE_COUNT] = {LV_LABEL_LONG_SROLL, LV_LABEL_LONG_SROLL_CIRC};
 
 static bool modal_visible = false;
 
