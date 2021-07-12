@@ -20,35 +20,20 @@
 #include "ui.h"
 #include "taskmgr.h"
 
-static const uint32_t known_bad_vgms[] = {
-    //these lists contain the full p2612 set for comix zone and rocket knight adventures
-    //tracks that actually play okay are commented, in case they don't get replaced
+//vgms with the project 2612 test register issue
+static const uint32_t known_bad_testreg_vgms[] = {
     //comix zone
     0x81f1e23d,
     0x7f5e11fd,
-    //0x29407e83, //options
-    //0x052db4cd, //introduction
-    //0x967a81d3, //e1p1-1
     0xe567d242,
     0x28971f44,
     0xd6ae05f9,
-    //0x1b2045f5, //e2p1-1
     0x44fc0038,
-    //0x29b9149e, //e2p1-3
-    //0x30281872, //e2p2-1
-    //0x4db58dcc, //e2p2-2
-    //0xcf0a41a8, //e3p1-1
-    //0x47fb99a1, //e3p1-2
-    //0x356949c8, //e3p1-3
-    //0xa72f1849, //e3p2-1
     0xa2aa195e,
     0x32693be7,
     0x9beea872,
     0x8e8c0fb2,
-    //0x0c498b5c, //ending
-    //0xc2b4ba3b, //results
     0x8d35a542,
-    //0x89905f50, //staff roll
     //rocket knight adventures
     0x6f25be56,
     0x58b4cdd2,
@@ -75,8 +60,15 @@ static const uint32_t known_bad_vgms[] = {
     0x802e0781,
     0x8990b4c1,
     0x08b54cdd,
-    //alisia dragoon opening
-    0xced29e07,
+    //vectorman
+    0xed8e98b9, //options
+    0x9e0d20a1, //information day 8
+};
+
+//vgms that are bad for other reasons, so they don't get reported as bugs
+static const uint32_t known_bad_other_vgms[] = {
+    //alisia dragoon
+    0xced29e07, //opening
 };
 
 static const char* TAG = "Player";
@@ -496,16 +488,21 @@ static bool Player_StartTrack(char *FilePath) {
     }
     ESP_LOGI(TAG, "File header CRC = 0x%08x", headercrc);
     bool bad = false;
-    for (uint32_t i=0;i<sizeof(known_bad_vgms)/sizeof(uint32_t);i++) {
-        if (headercrc == known_bad_vgms[i]) {
+    for (uint32_t i=0;i<sizeof(known_bad_testreg_vgms)/sizeof(uint32_t);i++) {
+        if (headercrc == known_bad_testreg_vgms[i]) {
+            ESP_LOGW(TAG, "Known bad vgm - test register");
             bad = true;
             break;
         }
     }
-    if (bad) {
-        ESP_LOGW(TAG, "Known bad vgm");
-        //modal_show_simple(TAG, "Warning", "This VGM contains invalid data. A software fix has been applied. Please report playback issues to Project2612, as this is not a MegaGRRL bug.", LV_SYMBOL_OK " OK");
+    for (uint32_t i=0;i<sizeof(known_bad_other_vgms)/sizeof(uint32_t);i++) {
+        if (headercrc == known_bad_other_vgms[i]) {
+            ESP_LOGW(TAG, "Known bad vgm - other reason");
+            modal_show_simple(TAG, "Warning", "This VGM is known to be incorrectly logged or have other playback issues. Please report this issue to the pack author as it is not a MegaGRRL bug.", LV_SYMBOL_OK " OK");
+            break;
+        }
     }
+
     if (ferror(Player_VgmFile)) { //good time for a check
         file_error(false);
         return false;
