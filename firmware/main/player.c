@@ -570,7 +570,7 @@ static bool Player_StartTrack(char *FilePath) {
         }
 
         if (PsgClock == 0) PsgClock = 3579545;
-        else if (PsgClock < 3000000) PsgClock = 3000000;
+        else if (PsgClock < 1000000) PsgClock = 1000000;
         else if (PsgClock > 4100000) PsgClock = 4100000;
         if (FmClock == 0) FmClock = 7670453;
         else if (FmClock < 7000000) FmClock = 7000000;
