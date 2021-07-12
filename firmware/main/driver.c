@@ -1245,6 +1245,8 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
         }
     } else if (cmd[0] == 0x31) {
         //ignore AY-3-8910 stereo mask
+    } else if (cmd[0] == 0x30) {
+        //ignore psg no.2
     } else if (cmd[0] == 0xff) {
         Driver_IsBadVgm = true;
     } else {

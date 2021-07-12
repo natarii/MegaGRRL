@@ -545,6 +545,10 @@ static bool Player_StartTrack(char *FilePath) {
         fseek(Player_VgmFile, 0x2c, SEEK_SET);
         fread(&FmClock, 4, 1, Player_VgmFile);
         FmClock &= ~(1<<31); //3438 bit, ffs...
+        if (PsgClock & (1<<30)) {
+            ESP_LOGW(TAG, "Only one PSG supported! Writes to the second chip will be dropped");
+            PsgClock &= ~(1<<30);
+        }
         ESP_LOGI(TAG, "Clocks from vgm: psg %d, fm %d", PsgClock, FmClock);
 
         if (!PsgClock && !FmClock) {
@@ -562,7 +566,7 @@ static bool Player_StartTrack(char *FilePath) {
             }
         }
         if (FmClock & 0x80000000) {
-            ESP_LOGW(TAG, "Only one FM chip supported !!");
+            ESP_LOGE(TAG, "Only one FM chip supported !!");
         }
 
         if (PsgClock == 0) PsgClock = 3579545;
