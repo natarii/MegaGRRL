@@ -603,6 +603,7 @@ static bool Player_StartTrack(char *FilePath) {
         uint32_t opn2 = 0;
         fseek(Player_VgmFile, 0x2c, SEEK_SET);
         fread(&opn2, 4, 1, Player_VgmFile);
+        opn2 &= ~(1<<31); //3438 bit
         if (Player_Info.Version >= 151) {
             fseek(Player_VgmFile, 0x44, SEEK_SET);
             fread(&opn,4,1,Player_VgmFile);
