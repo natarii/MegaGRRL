@@ -603,11 +603,13 @@ static bool Player_StartTrack(char *FilePath) {
         uint32_t opn2 = 0;
         fseek(Player_VgmFile, 0x2c, SEEK_SET);
         fread(&opn2, 4, 1, Player_VgmFile);
-        fseek(Player_VgmFile, 0x44, SEEK_SET);
-        fread(&opn,4,1,Player_VgmFile);
-        fread(&opna,4,1,Player_VgmFile);
-        fseek(Player_VgmFile, 0x74, SEEK_SET);
-        fread(&ay,4,1,Player_VgmFile);
+        if (Player_Info.Version >= 151) {
+            fseek(Player_VgmFile, 0x44, SEEK_SET);
+            fread(&opn,4,1,Player_VgmFile);
+            fread(&opna,4,1,Player_VgmFile);
+            fseek(Player_VgmFile, 0x74, SEEK_SET);
+            fread(&ay,4,1,Player_VgmFile);
+        }
         if (opna & (1<<30) || opn2 & (1<<30)) {
             ESP_LOGE(TAG, "Only one opna/opn2 supported !!");
         }
