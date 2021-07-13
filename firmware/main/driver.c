@@ -149,6 +149,8 @@ static uint8_t opn2_regs_dedup[256*2];
 
 static bool Driver_IsBadVgm = false;
 
+static bool opn2_on_opna_mode = false;
+
 #define min(a,b) ((a) < (b) ? (a) : (b)) //sigh.
 
 void Driver_ResetChips();
@@ -1101,6 +1103,15 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
         }
         if (!nw) Driver_FmOutopna((cmd[0] == 0x57)?1:0, cmd[1], cmd[2]); //not just checking the low bit because of opn
     } else if (cmd[0] == 0x52) { //YM2612 port 0
+        if (Driver_DetectedMod == MEGAMOD_OPNA) { //opn2 write when opna mod detected
+            if (!opn2_on_opna_mode) { //insert a command to enable 6ch mode, and enable opn2_on_opna_mode
+                ESP_LOGW(TAG, "Playing OPN2 tune on OPNA hardware");
+                Driver_FmOut(0, 0x29, 0x80);
+                opn2_on_opna_mode = true;
+            } else if (cmd[1] == 0x29) { //mask on the 6ch bit for any writes to this reg, should they exist in the vgm
+                cmd[2] |= 0x80;
+            }
+        }
         if (cmd[1] >= 0xb4 && cmd[1] <= 0xb6) { //pan, FMS, AMS
             Driver_FmPans[cmd[1]-0xb4] = cmd[2];
             if ((Driver_MitigateVgmTrim && Driver_FirstWait) || Driver_Slip) cmd[2] &= 0b00111111; //if we haven't reached the first wait, disable both L and R
@@ -1315,6 +1326,7 @@ void Driver_Main() {
                 ChannelMgr_States[i] = 0;
             }
             Driver_Sample = 0;
+            opn2_on_opna_mode = false;
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_FINISHED);
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_RESET_REQUEST);
             xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_RESET_ACK);
