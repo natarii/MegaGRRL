@@ -546,6 +546,10 @@ static bool Player_StartTrack(char *FilePath) {
             ESP_LOGW(TAG, "Only one PSG supported! Writes to the second chip will be dropped");
             PsgClock &= ~(1<<30);
         }
+        if (PsgClock & (1<<31)) {
+            ESP_LOGW(TAG, "VGM specifies T6W28!");
+            PsgClock &= ~(1<<31);
+        }
         ESP_LOGI(TAG, "Clocks from vgm: psg %d, fm %d", PsgClock, FmClock);
 
         if (!PsgClock && !FmClock) {
