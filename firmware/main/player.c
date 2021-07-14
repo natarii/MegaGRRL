@@ -587,7 +587,7 @@ static bool Player_StartTrack(char *FilePath) {
         fseek(Player_VgmFile, 0x0c, SEEK_SET);
         fread(&psg,4,1,Player_VgmFile);
         fread(&opll,4,1,Player_VgmFile);
-        if ((psg & 0x80000000) || (opll & 0x80000000)) {
+        if ((psg & 0x40000000) || (opll & 0x40000000)) {
             ESP_LOGW(TAG, "Only one of each chip supported !!");
         } else if (psg && opll && (psg != opll)) {
             ESP_LOGW(TAG, "Different clocks not supported !!");
@@ -643,7 +643,7 @@ static bool Player_StartTrack(char *FilePath) {
         fread(&opl,4,1,Player_VgmFile);
         fseek(Player_VgmFile, 0x5c, SEEK_SET);
         fread(&opl3,4,1,Player_VgmFile);
-        if ((opl & 0x80000000) || (opl2 & 0x80000000) || (opl3 & 0x80000000)) {
+        if ((opl & 0x40000000) || (opl2 & 0x40000000) || (opl3 & 0x40000000)) {
             ESP_LOGW(TAG, "Only one of each chip supported FOR NOW !!");
         }
         //todo make this shit work like the above with clamping etc
@@ -665,7 +665,7 @@ static bool Player_StartTrack(char *FilePath) {
         uint32_t opm = 0;
         fseek(Player_VgmFile, 0x30, SEEK_SET);
         fread(&opm,4,1,Player_VgmFile);
-        if (opm & 0x80000000) {
+        if (opm & 0x40000000) {
             ESP_LOGW(TAG, "Only one opm supported !!");
         }
         ESP_LOGI(TAG, "Clock from vgm: %d", opm);
