@@ -83,6 +83,7 @@ static IRAM_ATTR uint32_t notif = 0;
 volatile uint8_t Player_LoopCount = 2;
 volatile RepeatMode_t Player_RepeatMode = REPEAT_ALL;
 volatile bool Player_UnvgzReplaceOriginal = true;
+volatile bool Player_SkipUnsupported = true;
 
 EventGroupHandle_t Player_Status;
 StaticEventGroup_t Player_StatusBuf;
@@ -93,8 +94,14 @@ char Player_Gd3_Author[PLAYER_GD3_FIELD_SIZES+1];
 
 const static char* unvgztmp = "/sd/.mega/unvgz.tmp";
 
-static bool Player_StartTrack(char *FilePath);
+static IRAM_ATTR uint32_t failed_plays = 0;
+
+static int Player_StartTrack(char *FilePath);
 static bool Player_StopTrack();
+
+#define PLAYER_OK 1
+#define PLAYER_OTHER_ERR 0
+#define PLAYER_UNSUPPORTED_CHIPS -1
 
 static void file_error(bool writing) {
     if (!writing) {
@@ -155,16 +162,21 @@ void Player_Main() {
     ESP_LOGI(TAG, "Task start");
 
     while (1) {
+        bool failed = false;
         if (xTaskNotifyWait(0,0xffffffff, &notif, pdMS_TO_TICKS(250)) == pdTRUE) {
             if (notif == PLAYER_NOTIFY_START_RUNNING) {
                 ESP_LOGI(TAG, "control: start requested");
+                failed_plays = 0;
                 xEventGroupClearBits(Player_Status, PLAYER_STATUS_RAN_OUT);
                 xEventGroupClearBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
                 xEventGroupClearBits(Player_Status, PLAYER_STATUS_PAUSED);
                 if ((xEventGroupGetBits(Player_Status) & PLAYER_STATUS_RUNNING) == 0) {
                     xEventGroupSetBits(Player_Status, PLAYER_STATUS_RUNNING); //do this now, Player_StartTrack could take longer than the timeout of the task waiting for this event.
                     QueueSetupEntry(false, true);
-                    Player_StartTrack(&QueuePlayingFilename[0]);
+                    if (Player_StartTrack(&QueuePlayingFilename[0]) == PLAYER_UNSUPPORTED_CHIPS) {
+                        failed = true;
+                        failed_plays++;
+                    }
                 } else {
                     //already running. yikes!
                 }
@@ -185,7 +197,10 @@ void Player_Main() {
                     ESP_LOGI(TAG, "next track proceeding");
                     xEventGroupSetBits(Player_Status, PLAYER_STATUS_RUNNING);
                     xEventGroupClearBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
-                    Player_StartTrack(QueuePlayingFilename);
+                    if (Player_StartTrack(QueuePlayingFilename) == PLAYER_UNSUPPORTED_CHIPS) {
+                        failed = true;
+                        failed_plays++;
+                    }
                 } else {
                     ESP_LOGI(TAG, "next track failed");
                     xEventGroupClearBits(Player_Status, PLAYER_STATUS_RUNNING);
@@ -194,6 +209,7 @@ void Player_Main() {
                 }
             } else if (notif == PLAYER_NOTIFY_PREV) {
                 ESP_LOGI(TAG, "control: prev requested");
+                failed_plays = 0; //also reset here in case they change the setting and retry, or something like that
                 xEventGroupClearBits(Player_Status, PLAYER_STATUS_PAUSED);
                 if (Driver_FirstWait || (Driver_Sample < 3*44100)) { //actually change track
                     ESP_LOGI(TAG, "within 3 second window");
@@ -201,7 +217,10 @@ void Player_Main() {
                         ESP_LOGI(TAG, "prev track proceeding");
                         xEventGroupSetBits(Player_Status, PLAYER_STATUS_RUNNING);
                         xEventGroupClearBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
-                        Player_StartTrack(QueuePlayingFilename);
+                        if (Player_StartTrack(QueuePlayingFilename) == PLAYER_UNSUPPORTED_CHIPS) {
+                            failed = true;
+                            failed_plays++;
+                        }
                     } else {
                         ESP_LOGI(TAG, "prev track failed");
                         xEventGroupClearBits(Player_Status, PLAYER_STATUS_RUNNING);
@@ -210,7 +229,10 @@ void Player_Main() {
                 } else { //just restart
                     ESP_LOGI(TAG, "outside 3 second window, just restarting track");
                     Player_StopTrack();
-                    Player_StartTrack(&QueuePlayingFilename[0]);
+                    if (Player_StartTrack(&QueuePlayingFilename[0]) == PLAYER_UNSUPPORTED_CHIPS) {
+                        failed = true;
+                        failed_plays++;
+                    }
                     xEventGroupSetBits(Player_Status, PLAYER_STATUS_RUNNING);
                     xEventGroupClearBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
                 }
@@ -249,12 +271,28 @@ void Player_Main() {
             xEventGroupClearBits(Player_Status, PLAYER_STATUS_PAUSED);
             if (Player_NextTrk(false)) {
                 ESP_LOGI(TAG, "next track proceeding");
-                Player_StartTrack(QueuePlayingFilename);
+                if (Player_StartTrack(QueuePlayingFilename) == PLAYER_UNSUPPORTED_CHIPS) {
+                    failed = true;
+                    failed_plays++;
+                }
             } else {
                 ESP_LOGI(TAG, "next track failed");
                 xEventGroupClearBits(Player_Status, PLAYER_STATUS_RUNNING);
                 xEventGroupSetBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
                 xEventGroupSetBits(Player_Status, PLAYER_STATUS_RAN_OUT);
+            }
+        }
+
+        if (failed) {
+            ESP_LOGW(TAG, "%d failed plays out of %d in queue", failed_plays, QueueLength);
+            //avoid looping and popping up modals forever
+            if (failed_plays >= QueueLength) {
+                //incomplete handling of stop, just to catch any attempts to do this...
+                xTaskNotify(Taskmgr_Handles[TASK_PLAYER], PLAYER_NOTIFY_STOP_RUNNING, eSetValueWithoutOverwrite);
+                QueueLength = 0;
+                QueuePosition = 0;
+            } else {
+                xTaskNotify(Taskmgr_Handles[TASK_PLAYER], PLAYER_NOTIFY_NEXT, eSetValueWithoutOverwrite);
             }
         }
     }
@@ -392,7 +430,9 @@ static tinfl_status Player_Unvgz(char *FilePath, bool ReplaceOriginalFile) {
     return status;
 }
 
-static bool Player_StartTrack(char *FilePath) {
+#define CHECK_CLOCK(offset) if (Driver_PcmBuf[offset+3] & 0x40) { clocks_specified += 2; ESP_LOGI(TAG, "Dual-chip at %08x", offset); } else if (Driver_PcmBuf[offset] || Driver_PcmBuf[offset+1] || Driver_PcmBuf[offset+2] || Driver_PcmBuf[offset+3]) { clocks_specified +=1; ESP_LOGI(TAG, "Chip at %08x", offset); }
+
+static int Player_StartTrack(char *FilePath) {
     const char *OpenFilePath = FilePath;
 
     ESP_LOGI(TAG, "Checking file type of %s", FilePath);
@@ -532,7 +572,63 @@ static bool Player_StartTrack(char *FilePath) {
 
     ESP_LOGI(TAG, "vgm rate: %d", Player_Info.Rate);
 
-    //todo: improve this, check that the vgm is for the chips we have, more graceful handling of dual chip bit 30
+    //read in the first 256 bytes of the file, then go through it and figure out how many chip clocks are specified
+    fseek(Player_VgmFile, 0, SEEK_SET);
+    fread(Driver_PcmBuf, 1, 256, Player_VgmFile);
+    uint8_t clocks_specified = 0;
+    uint8_t clocks_used = 0;
+    CHECK_CLOCK(0x0c); //sn76489
+    CHECK_CLOCK(0x10); //ym2413
+    if (Player_Info.Version >= 110) {
+        CHECK_CLOCK(0x2c); //opn2
+        CHECK_CLOCK(0x30); //opm
+        if (Player_Info.Version >= 151) {
+            CHECK_CLOCK(0x38); //spcm
+            CHECK_CLOCK(0x40); //rf5c68
+            CHECK_CLOCK(0x44); //opn
+            CHECK_CLOCK(0x48); //opna
+            CHECK_CLOCK(0x4c); //opnb
+            CHECK_CLOCK(0x50); //opl2
+            CHECK_CLOCK(0x54); //opl
+            CHECK_CLOCK(0x58); //y8950
+            CHECK_CLOCK(0x5c); //opl3
+            CHECK_CLOCK(0x60); //ymf278b
+            CHECK_CLOCK(0x64); //ymf271
+            CHECK_CLOCK(0x68); //ymz280b
+            CHECK_CLOCK(0x6c); //rf5c164
+            CHECK_CLOCK(0x70); //32x pwm
+            CHECK_CLOCK(0x74); //ay38910
+            if (Player_Info.Version >= 161) {
+                CHECK_CLOCK(0x80); //dmg
+                CHECK_CLOCK(0x84); //nes apu
+                CHECK_CLOCK(0x88); //multipcm
+                CHECK_CLOCK(0x8c); //upd7759
+                CHECK_CLOCK(0x90); //msm6258
+                CHECK_CLOCK(0x96); //msm6295
+                CHECK_CLOCK(0x9c); //k051649 k052539
+                CHECK_CLOCK(0xa0); //k054539
+                CHECK_CLOCK(0xa4); //huc6280
+                CHECK_CLOCK(0xa8); //c140
+                CHECK_CLOCK(0xac); //k053260
+                CHECK_CLOCK(0xb0); //pokey
+                CHECK_CLOCK(0xb4); //qsound
+                if (Player_Info.Version >= 171) {
+                    CHECK_CLOCK(0xb8); //scsp
+                    CHECK_CLOCK(0xc0); //wonderswan
+                    CHECK_CLOCK(0xc4); //virtual boy
+                    CHECK_CLOCK(0xc8); //saa1099
+                    CHECK_CLOCK(0xcc); //es5503
+                    CHECK_CLOCK(0xd0); //es5505 5506
+                    CHECK_CLOCK(0xd8); //x1-010
+                    CHECK_CLOCK(0xdc); //c352
+                    CHECK_CLOCK(0xe0); //ga20
+                }
+            }
+        }
+    }
+    ESP_LOGI(TAG, "clocks specified: %d", clocks_specified);
+
+    //todo: more graceful handling of dual chip bit 30. really, more graceful handling of this whole thing...
     if (Driver_DetectedMod == MEGAMOD_NONE) {
         ESP_LOGI(TAG, "MegaMod: none");
         uint32_t PsgClock = 0;
@@ -553,22 +649,33 @@ static bool Player_StartTrack(char *FilePath) {
         ESP_LOGI(TAG, "Clocks from vgm: psg %d, fm %d", PsgClock, FmClock);
 
         if (!PsgClock && !FmClock) {
-            ESP_LOGW(TAG, "Missing OPN2 and PSG clocks, attempting OPN...");
-            fseek(Player_VgmFile, 0x44, SEEK_SET);
-            fread(&FmClock, 4, 1, Player_VgmFile);
-            if (!FmClock) {
-                ESP_LOGW(TAG, "Attempting OPNA...");
+            if (Player_Info.Version >= 151) {
+                ESP_LOGW(TAG, "Missing OPN2 and PSG clocks, attempting OPN...");
+                fseek(Player_VgmFile, 0x44, SEEK_SET);
                 fread(&FmClock, 4, 1, Player_VgmFile);
                 if (!FmClock) {
-                    ESP_LOGW(TAG, "It's not OPNA either");
+                    ESP_LOGW(TAG, "Attempting OPNA...");
+                    fread(&FmClock, 4, 1, Player_VgmFile);
+                    if (!FmClock) {
+                        ESP_LOGW(TAG, "It's not OPNA either");
+                    } else {
+                        clocks_used++;
+                    }
+                } else {
+                    FmClock <<= 1;
+                    clocks_used++;
                 }
             } else {
-                FmClock <<= 1;
+                ESP_LOGW(TAG, "Not checking OPN/OPNA clocks, VGM too old");
             }
+        } else {
+            clocks_used++;
         }
         if (FmClock & 0x80000000) {
             ESP_LOGE(TAG, "Only one FM chip supported !!");
         }
+
+        if (PsgClock) clocks_used++;
 
         if (PsgClock == 0) PsgClock = 3579545;
         else if (PsgClock < 1000000) PsgClock = 1000000;
@@ -593,6 +700,8 @@ static bool Player_StartTrack(char *FilePath) {
             ESP_LOGW(TAG, "Different clocks not supported !!");
         }
         ESP_LOGI(TAG, "Clock from vgm: PSG: %d, OPLL: %d", psg, opll);
+        if (psg) clocks_used++;
+        if (opll) clocks_used++;
         if (psg == 0) psg = opll;
         if (psg < 3000000) psg = 3000000;
         else if (psg > 4100000) psg = 4100000;
@@ -615,24 +724,28 @@ static bool Player_StartTrack(char *FilePath) {
             fseek(Player_VgmFile, 0x74, SEEK_SET);
             fread(&ay,4,1,Player_VgmFile);
         }
-        if (opna & (1<<30) || opn2 & (1<<30)) {
-            ESP_LOGE(TAG, "Only one opna/opn2 supported !!");
+        if (opna & (1<<30) || opn2 & (1<<30) || ay & (1<<30)) {
+            ESP_LOGE(TAG, "Only one opna/opn2/ay supported !!");
         }
         if (!opna && opn2) {
             ESP_LOGW(TAG, "OPNA MegaMod: No opna clock, using opn2");
             opna = opn2;
         }
         if (opna) {
+            clocks_used++;
             ESP_LOGI(TAG, "Clock from vgm: %d", opna);
             if (opna < 6000000) opna = 6000000;
             else if (opna > 10000000) opna = 10000000;
             ESP_LOGI(TAG, "Clock clamped: %d", opna);
             Clk_Set(CLK_FM, opna);
         } else if (opn) {
-            Clk_Set(CLK_FM, opn<<1); //todo clamping
+            clocks_used++;
+            if (opn & (1<<30)) clocks_used++;
+            Clk_Set(CLK_FM, (opn&~(1<<30))<<1); //todo clamping
         } else if (ay) {
+            clocks_used++;
             ESP_LOGI(TAG, "Clock from vgm: AY %d", ay<<2);
-            Clk_Set(CLK_FM, ay<<2);
+            Clk_Set(CLK_FM, (ay&~(1<<30))<<2);
         }
     } else if (Driver_DetectedMod == MEGAMOD_OPL3) {
         uint32_t opl = 0;
@@ -648,13 +761,16 @@ static bool Player_StartTrack(char *FilePath) {
         }
         //todo make this shit work like the above with clamping etc
         if (opl3) {
+            clocks_used++;
             ESP_LOGI(TAG, "set %d", opl3);
             Clk_Set(CLK_FM, opl3);
         } else if (opl2) {
+            clocks_used++;
             opl2 *= 4;
             ESP_LOGI(TAG, "set %d", opl2);
             Clk_Set(CLK_FM, opl2);
         } else if (opl) {
+            clocks_used++;
             opl *= 4;
             ESP_LOGI(TAG, "set %d", opl);
             Clk_Set(CLK_FM, opl);
@@ -668,6 +784,7 @@ static bool Player_StartTrack(char *FilePath) {
         if (opm & 0x40000000) {
             ESP_LOGW(TAG, "Only one opm supported !!");
         }
+        clocks_used++;
         ESP_LOGI(TAG, "Clock from vgm: %d", opm);
         if (opm < 3000000) opm = 3000000;
         else if (opm > 5000000) opm = 5000000;
@@ -677,6 +794,15 @@ static bool Player_StartTrack(char *FilePath) {
     if (ferror(Player_VgmFile)) { //final check after all the clock stuff
         file_error(false);
         return false;
+    }
+
+    if (clocks_specified > clocks_used) {
+        ESP_LOGW(TAG, "Can't play this vgm correctly - %d clocks specified, %d used", clocks_specified, clocks_used);
+        if (Player_SkipUnsupported) {
+            ESP_LOGW(TAG, "Not playing as requested by option");
+            modal_show_simple(TAG, "Warning", "One or more tracks were skipped because they use sound chips not supported by this hardware. This can be disabled in Settings.", LV_SYMBOL_OK " OK");
+            return PLAYER_UNSUPPORTED_CHIPS;
+        }
     }
 
     ESP_LOGI(TAG, "Signalling driver reset");

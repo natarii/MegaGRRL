@@ -40,6 +40,7 @@ extern VgmInfoStruct_t Player_Info;
 extern volatile uint8_t Player_LoopCount;
 extern volatile RepeatMode_t Player_RepeatMode;
 extern volatile bool Player_UnvgzReplaceOriginal;
+extern volatile bool Player_SkipUnsupported;
 
 void Player_Main();
 bool Player_Setup();

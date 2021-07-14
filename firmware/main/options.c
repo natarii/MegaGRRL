@@ -44,7 +44,7 @@ static void wrap_leddrv_updatebrightness() {
 
 static bool loaded[OPTION_COUNT];
 
-//last used: 15
+//last used: 16
 const option_t Options[OPTION_COUNT] = {
     {
         0x0001,
@@ -165,6 +165,18 @@ const option_t Options[OPTION_COUNT] = {
         OPTION_TYPE_BOOL,
         OPTION_SUBTYPE_NONE,
         &Loader_IgnoreZeroSampleLoops,
+        true,
+        NULL,
+        NULL
+    },
+    {
+        0x0016,
+        "Skip unsupported VGMs",
+        "Skip VGMs that cannot be played on the hardware.",
+        OPTION_CATEGORY_PLAYBACK,
+        OPTION_TYPE_BOOL,
+        OPTION_SUBTYPE_NONE,
+        &Player_SkipUnsupported,
         true,
         NULL,
         NULL
