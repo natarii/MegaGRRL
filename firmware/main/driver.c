@@ -278,8 +278,13 @@ void Driver_SleepClocks(uint32_t f, uint32_t clks) { //same dirty spin sleep, bu
 }
 
 void Driver_PsgOut(uint8_t Data) {
-    uint32_t clk = Clk_GetCh(1);
-    if (clk == 0) return;
+    uint32_t clk = 0;
+    if (Driver_DetectedMod != MEGAMOD_OPLLPSG) { //opll+dcsg megamod only uses one clock line so this check is invalid
+        clk = Clk_GetCh(1);
+        if (clk == 0) return;
+    } else { //we still need to know the clock for delay calculations
+        clk = Clk_GetCh(0);
+    }
     //data bus is reversed for the psg because it made pcb layout easier
     Driver_SrBuf[SR_DATABUS] = 0;
     for (uint8_t i=0;i<=7;i++) {
