@@ -631,26 +631,26 @@ static int Player_StartTrack(char *FilePath) {
     //todo: more graceful handling of dual chip bit 30. really, more graceful handling of this whole thing...
     if (Driver_DetectedMod == MEGAMOD_NONE) {
         ESP_LOGI(TAG, "MegaMod: none");
-        uint32_t PsgClock = 0;
+        uint32_t DcsgClock = 0;
         uint32_t FmClock = 0;
         fseek(Player_VgmFile, 0x0c, SEEK_SET);
-        fread(&PsgClock, 4, 1, Player_VgmFile);
+        fread(&DcsgClock, 4, 1, Player_VgmFile);
         fseek(Player_VgmFile, 0x2c, SEEK_SET);
         fread(&FmClock, 4, 1, Player_VgmFile);
         FmClock &= ~(1<<31); //3438 bit, ffs...
-        if (PsgClock & (1<<30)) {
-            ESP_LOGW(TAG, "Only one PSG supported! Writes to the second chip will be dropped");
-            PsgClock &= ~(1<<30);
+        if (DcsgClock & (1<<30)) {
+            ESP_LOGW(TAG, "Only one DCSG supported! Writes to the second chip will be dropped");
+            DcsgClock &= ~(1<<30);
         }
-        if (PsgClock & (1<<31)) {
+        if (DcsgClock & (1<<31)) {
             ESP_LOGW(TAG, "VGM specifies T6W28!");
-            PsgClock &= ~(1<<31);
+            DcsgClock &= ~(1<<31);
         }
-        ESP_LOGI(TAG, "Clocks from vgm: psg %d, fm %d", PsgClock, FmClock);
+        ESP_LOGI(TAG, "Clocks from vgm: dcsg %d, fm %d", DcsgClock, FmClock);
 
-        if (!PsgClock && !FmClock) {
+        if (!DcsgClock && !FmClock) {
             if (Player_Info.Version >= 151) {
-                ESP_LOGW(TAG, "Missing OPN2 and PSG clocks, attempting OPN...");
+                ESP_LOGW(TAG, "Missing OPN2 and DCSG clocks, attempting OPN...");
                 fseek(Player_VgmFile, 0x44, SEEK_SET);
                 fread(&FmClock, 4, 1, Player_VgmFile);
                 if (!FmClock) {
@@ -675,41 +675,41 @@ static int Player_StartTrack(char *FilePath) {
             ESP_LOGE(TAG, "Only one FM chip supported !!");
         }
 
-        if (PsgClock) clocks_used++;
+        if (DcsgClock) clocks_used++;
 
-        if (PsgClock == 0) PsgClock = 3579545;
-        else if (PsgClock < 1000000) PsgClock = 1000000;
-        else if (PsgClock > 4100000) PsgClock = 4100000;
+        if (DcsgClock == 0) DcsgClock = 3579545;
+        else if (DcsgClock < 1000000) DcsgClock = 1000000;
+        else if (DcsgClock > 4100000) DcsgClock = 4100000;
         if (FmClock == 0) FmClock = 7670453;
         else if (FmClock < 7000000) FmClock = 7000000;
         else if (FmClock > 8300000) FmClock = 8300000;
-        ESP_LOGI(TAG, "Clocks clamped: psg %d, fm %d", PsgClock, FmClock);
+        ESP_LOGI(TAG, "Clocks clamped: dcsg %d, fm %d", DcsgClock, FmClock);
         Clk_Set(CLK_FM, FmClock);
-        Clk_Set(CLK_PSG, PsgClock);
-    } else if (Driver_DetectedMod == MEGAMOD_OPLLPSG) {
-        ESP_LOGI(TAG, "MegaMod: OPLL+PSG");
-        Clk_Set(CLK_PSG, 0);
+        Clk_Set(CLK_DCSG, DcsgClock);
+    } else if (Driver_DetectedMod == MEGAMOD_OPLLDCSG) {
+        ESP_LOGI(TAG, "MegaMod: OPLL+DCSG");
+        Clk_Set(CLK_DCSG, 0);
         uint32_t opll = 0;
-        uint32_t psg = 0;
+        uint32_t dcsg = 0;
         fseek(Player_VgmFile, 0x0c, SEEK_SET);
-        fread(&psg,4,1,Player_VgmFile);
+        fread(&dcsg,4,1,Player_VgmFile);
         fread(&opll,4,1,Player_VgmFile);
-        if ((psg & 0x40000000) || (opll & 0x40000000)) {
+        if ((dcsg & 0x40000000) || (opll & 0x40000000)) {
             ESP_LOGW(TAG, "Only one of each chip supported !!");
-        } else if (psg && opll && (psg != opll)) {
+        } else if (dcsg && opll && (dcsg != opll)) {
             ESP_LOGW(TAG, "Different clocks not supported !!");
         }
-        ESP_LOGI(TAG, "Clock from vgm: PSG: %d, OPLL: %d", psg, opll);
-        if (psg) clocks_used++;
+        ESP_LOGI(TAG, "Clock from vgm: DCSG: %d, OPLL: %d", dcsg, opll);
+        if (dcsg) clocks_used++;
         if (opll) clocks_used++;
-        if (psg == 0) psg = opll;
-        if (psg < 3000000) psg = 3000000;
-        else if (psg > 4100000) psg = 4100000;
-        ESP_LOGI(TAG, "Clock clamped: %d", psg);
-        Clk_Set(CLK_FM, psg);
+        if (dcsg == 0) dcsg = opll;
+        if (dcsg < 3000000) dcsg = 3000000;
+        else if (dcsg > 4100000) dcsg = 4100000;
+        ESP_LOGI(TAG, "Clock clamped: %d", dcsg);
+        Clk_Set(CLK_FM, dcsg);
     } else if (Driver_DetectedMod == MEGAMOD_OPNA) {
         ESP_LOGI(TAG, "MegaMod: OPNA");
-        Clk_Set(CLK_PSG, 0);
+        Clk_Set(CLK_DCSG, 0);
         uint32_t opna = 0;
         uint32_t opn = 0;
         uint32_t ay = 0;
@@ -777,7 +777,7 @@ static int Player_StartTrack(char *FilePath) {
         }
     } else if (Driver_DetectedMod == MEGAMOD_OPM) {
         ESP_LOGI(TAG, "MegaMod: OPM");
-        Clk_Set(CLK_PSG, 0);
+        Clk_Set(CLK_DCSG, 0);
         uint32_t opm = 0;
         fseek(Player_VgmFile, 0x30, SEEK_SET);
         fread(&opm,4,1,Player_VgmFile);

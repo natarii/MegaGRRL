@@ -19,6 +19,6 @@
 #define PIN_DISP_MOSI       27
 
 #define PIN_CLK_FM          5
-#define PIN_CLK_PSG         33
+#define PIN_CLK_DCSG         33
 
 #endif

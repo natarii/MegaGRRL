@@ -115,7 +115,7 @@ void Ui_StatusBar_RedrawIcons() {
 
     Ui_StatusBar_DrawIcon(Driver_ForceMono?ICON_MONO:ICON_STEREO, iconlabels[1], 30, 7);
 
-    if (Driver_FmMask == 0b01111111 && Driver_PsgMask == 0b00001111) {
+    if (Driver_FmMask == 0b01111111 && Driver_DcsgMask == 0b00001111) {
         Ui_StatusBar_DrawIcon(ICON_SOUND, iconlabels[2], 54, 7);
     } else {
         Ui_StatusBar_DrawIcon(ICON_CHANNELMUTED, iconlabels[2], 60, 7);
@@ -171,7 +171,7 @@ void Ui_StatusBar_Tick() {
         if (Driver_ForceMono != lastforcemono) {
             redraw = true;
         }
-        if (Driver_FmMask != statusbarmasks[0] || Driver_PsgMask != statusbarmasks[1]) {
+        if (Driver_FmMask != statusbarmasks[0] || Driver_DcsgMask != statusbarmasks[1]) {
             redraw = true;
         }
         if (lastrepeatmode != Player_RepeatMode) {
@@ -203,7 +203,7 @@ void Ui_StatusBar_Tick() {
         lastplayerevents = playerevents;
         lastforcemono = Driver_ForceMono;
         statusbarmasks[0] = Driver_FmMask;
-        statusbarmasks[1] = Driver_PsgMask;
+        statusbarmasks[1] = Driver_DcsgMask;
         lastrepeatmode = Player_RepeatMode;
         lastshuffle = Queue_Shuffle;
         last = xthal_get_ccount();

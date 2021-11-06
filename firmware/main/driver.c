@@ -25,7 +25,7 @@ static const char* TAG = "Driver";
 #if defined HWVER_PORTABLE
 #define SR_CONTROL      0
 #define SR_DATABUS      1
-#define SR_BIT_PSG_CS   0x01 // PSG /CS
+#define SR_BIT_DCSG_CS   0x01 // DCSG /CS
 #define SR_BIT_WR       0x04 // /WR
 #define SR_BIT_FM_CS    0x20 // FM /CS
 #define SR_BIT_A0       0x08 // A0
@@ -35,7 +35,7 @@ uint8_t Driver_SrBuf[2] = {0xff & ~SR_BIT_IC,0x00};
 #elif defined HWVER_DESKTOP
 #define SR_CONTROL      1
 #define SR_DATABUS      0
-#define SR_BIT_PSG_CS   0x40 // PSG /CS
+#define SR_BIT_DCSG_CS   0x40 // DCSG /CS
 #define SR_BIT_WR       0x20 // /WR
 #define SR_BIT_FM_CS    0x80 // FM /CS
 #define SR_BIT_A0       0x08 // A0
@@ -57,8 +57,8 @@ volatile IRAM_ATTR uint32_t Driver_CpuPeriod = 0;
 volatile IRAM_ATTR uint32_t Driver_CpuUsageVgm = 0;
 volatile IRAM_ATTR uint32_t Driver_CpuUsageDs = 0;
 
-volatile bool Driver_FixPsgFrequency = true;
-volatile bool Driver_FixPsgPeriodic = true;
+volatile bool Driver_FixDcsgFrequency = true;
+volatile bool Driver_FixDcsgPeriodic = true;
 volatile bool Driver_MitigateVgmTrim = true;
 
 volatile MegaMod_t Driver_DetectedMod = MEGAMOD_NONE;
@@ -91,12 +91,12 @@ IRAM_ATTR uint32_t Driver_LastCc = 0;     //copy of the above var
 IRAM_ATTR uint32_t Driver_NextSample = 0; //sample number at which the next command needs to be run
 IRAM_ATTR uint32_t Driver_ICycle = 0;
 uint8_t Driver_FmAlgo[6] = {0,0,0,0,0,0};
-uint8_t Driver_PsgLastChannel = 0;
+uint8_t Driver_DcsgLastChannel = 0;
 volatile bool Driver_FirstWait = true;
 uint8_t Driver_FmPans[6] = {0b11000000,0b11000000,0b11000000,0b11000000,0b11000000,0b11000000};
 IRAM_ATTR uint32_t Driver_PauseSample = 0; //sample no before stop
 IRAM_ATTR uint32_t Driver_PauseSample_Ds = 0; //sample no before stop for dacstreams
-uint8_t Driver_PsgAttenuation[4] = {0b10011111, 0b10111111, 0b11011111, 0b11111111};
+uint8_t Driver_DcsgAttenuation[4] = {0b10011111, 0b10111111, 0b11011111, 0b11111111};
 bool Driver_NoLeds = false;
 
 //dacstream specific
@@ -113,7 +113,7 @@ IRAM_ATTR uint32_t DacStreamDataLength = 0;
 bool DacStreamFailed = false;
 
 volatile uint8_t Driver_FmMask = 0b01111111;
-volatile uint8_t Driver_PsgMask = 0b00001111;
+volatile uint8_t Driver_DcsgMask = 0b00001111;
 uint8_t Driver_DacEn = 0;
 volatile bool Driver_ForceMono = false;
 uint8_t Driver_Opna_AdpcmConfig = 0b11000000; //todo verify in emu? 
@@ -121,9 +121,9 @@ uint8_t Driver_Opna_RhythmConfig[6] = {0b11000000,0b11000000,0b11000000,0b110000
 uint8_t Driver_Opna_SsgConfig = 0b00111111; //todo verify in emu
 uint8_t Driver_Opna_SsgLevel[3] = {0,0,0}; //todo verify in emu
 
-IRAM_ATTR uint32_t Driver_PsgCh3Freq = 0;
-bool Driver_PsgNoisePeriodic = false;
-bool Driver_PsgNoiseSourceCh3 = false;
+IRAM_ATTR uint32_t Driver_DcsgCh3Freq = 0;
+bool Driver_DcsgNoisePeriodic = false;
+bool Driver_DcsgNoiseSourceCh3 = false;
 
 volatile IRAM_ATTR uint32_t Driver_Opna_PcmUploadId = 0;
 volatile bool Driver_Opna_PcmUpload = false;
@@ -237,7 +237,7 @@ void Driver_ModDetect() {
     det.mode = GPIO_MODE_INPUT;
     det.pull_down_en = 0;
     det.pull_up_en = 1;
-    det.pin_bit_mask = 1ULL<<PIN_CLK_PSG;
+    det.pin_bit_mask = 1ULL<<PIN_CLK_DCSG;
     gpio_config(&det);
     uint8_t foundbit = 0xff;
     uint8_t lastbit = 0xff;
@@ -246,7 +246,7 @@ void Driver_ModDetect() {
             Driver_SrBuf[SR_DATABUS] = ~(1<<bit);
             Driver_Output();
             Driver_Sleep(1000);
-            if (gpio_get_level(PIN_CLK_PSG) == 0) {
+            if (gpio_get_level(PIN_CLK_DCSG) == 0) {
                 ESP_LOGD(TAG, "Mod detect bit %d low", bit);
                 if (lastbit != 0xff && lastbit != bit) {
                     ESP_LOGE(TAG, "Driver_ModDetect() noisy detect pin");
@@ -257,7 +257,7 @@ void Driver_ModDetect() {
             }
         }
     }
-    if (foundbit == 0xff) { //nothing detected, it's probably PSG
+    if (foundbit == 0xff) { //nothing detected, it's probably DCSG
         ESP_LOGI(TAG, "Driver_ModDetect() nothing found");
         Driver_DetectedMod = MEGAMOD_NONE;
         return;
@@ -277,9 +277,9 @@ void Driver_SleepClocks(uint32_t f, uint32_t clks) { //same dirty spin sleep, bu
     while (xthal_get_ccount() - s < c);
 }
 
-void Driver_PsgOut(uint8_t Data) {
+void Driver_DcsgOut(uint8_t Data) {
     uint32_t clk = 0;
-    if (Driver_DetectedMod != MEGAMOD_OPLLPSG) { //opll+dcsg megamod only uses one clock line so this check is invalid
+    if (Driver_DetectedMod != MEGAMOD_OPLLDCSG) { //opll+dcsg megamod only uses one clock line so this check is invalid
         clk = Clk_GetCh(1);
         if (clk == 0) return;
     } else { //we still need to know the clock for delay calculations
@@ -287,7 +287,7 @@ void Driver_PsgOut(uint8_t Data) {
     }
 
     #ifdef OPLLDCSG_ORIGINAL_PROTO
-    //data bus is reversed for the psg because it made pcb layout easier
+    //data bus is reversed for the dcsg because it made pcb layout easier
     Driver_SrBuf[SR_DATABUS] = 0;
     for (uint8_t i=0;i<=7;i++) {
         Driver_SrBuf[SR_DATABUS] |= ((Data>>(7-i))&1)<<i;
@@ -297,12 +297,12 @@ void Driver_PsgOut(uint8_t Data) {
     #endif
 
     Driver_Output();
-    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_PSG_CS; //!cs low
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_DCSG_CS; //!cs low
     Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR; //!wr low
     portENTER_CRITICAL(&mux);
     Driver_Output();
     Driver_SleepClocks(clk, 36); //32, but with wiggle room. but not enough to push us into another write cycle...
-    Driver_SrBuf[SR_CONTROL] |= SR_BIT_PSG_CS; //!cs high
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_DCSG_CS; //!cs high
     Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; //!wr high
     Driver_Output();
     portEXIT_CRITICAL(&mux);
@@ -310,9 +310,9 @@ void Driver_PsgOut(uint8_t Data) {
     //channel led stuff
     if (Driver_NoLeds) return;
     if (Data & 0x80) {
-        Driver_PsgLastChannel = (Data & 0b01100000) >> 5;
+        Driver_DcsgLastChannel = (Data & 0b01100000) >> 5;
     }
-    uint8_t ch = 6 + Driver_PsgLastChannel; //6 = psg ch offset in array
+    uint8_t ch = 6 + Driver_DcsgLastChannel; //6 = dcsg ch offset in array
     if ((Data & 0b10010000) == 0b10010000) { //attenuation
         uint8_t atten = Data & 0b00001111;
         if (atten == 0b1111) { //full atten, off.
@@ -332,13 +332,13 @@ void Driver_PsgOut(uint8_t Data) {
     }
 }
 
-void Driver_WritePsgCh3Freq() {
+void Driver_WriteDcsgCh3Freq() {
     //get the current frequency value. this comes from catching register writes
-    uint32_t freq = Driver_PsgCh3Freq;
+    uint32_t freq = Driver_DcsgCh3Freq;
 
-    //if the fix is enabled, and psg noise is set to "periodic" mode, and it gets its freq from ch3, and ch3 is muted, then adjust ch3 freq
-    if (Driver_FixPsgPeriodic && Driver_PsgNoisePeriodic && Driver_PsgNoiseSourceCh3 && Driver_PsgAttenuation[2] == 0b11011111) {
-        //increase the value by 6.25%, which actually decreases output freq, because psg freq regs are "upside down"
+    //if the fix is enabled, and dcsg noise is set to "periodic" mode, and it gets its freq from ch3, and ch3 is muted, then adjust ch3 freq
+    if (Driver_FixDcsgPeriodic && Driver_DcsgNoisePeriodic && Driver_DcsgNoiseSourceCh3 && Driver_DcsgAttenuation[2] == 0b11011111) {
+        //increase the value by 6.25%, which actually decreases output freq, because dcsg freq regs are "upside down"
         freq *= 10625;
         freq /= 10000;
     }
@@ -347,18 +347,18 @@ void Driver_WritePsgCh3Freq() {
 
     //first byte
     uint8_t out = 0b11000000 | (freq & 0b00001111);
-    Driver_PsgOut(out);
+    Driver_DcsgOut(out);
 
     //second byte
-    out = (freq >> 4) & 0b00111111; //mask is needed to make sure overflows don't end up in psg bit 7
-    Driver_PsgOut(out);
+    out = (freq >> 4) & 0b00111111; //mask is needed to make sure overflows don't end up in dcsg bit 7
+    Driver_DcsgOut(out);
 }
 
 void Driver_ResetChips() {
-        Driver_PsgOut(0b10011111);
-        Driver_PsgOut(0b10111111);
-        Driver_PsgOut(0b11011111);
-        Driver_PsgOut(0b11111111);
+        Driver_DcsgOut(0b10011111);
+        Driver_DcsgOut(0b10111111);
+        Driver_DcsgOut(0b11011111);
+        Driver_DcsgOut(0b11111111);
         Driver_SrBuf[SR_CONTROL] ^= SR_BIT_IC;
         Driver_Output();
         Driver_Sleep(1000);
@@ -728,19 +728,19 @@ static uint8_t FilterTLWrite(uint8_t bank, uint8_t cmd1, uint8_t cmd2) {
     return cmd2;
 }
 
-static uint8_t FadePsgAtten(uint8_t atten) {
+static uint8_t FadeDcsgAtten(uint8_t atten) {
     uint32_t latten = atten & 0b1111;
     latten += map(FadePos, 0, 44100*Driver_FadeLength, 0, 0xf);
     if (latten > 0xf) latten = 0xf;
     return (atten & 0b11110000) | latten;
 }
 
-static uint8_t FilterPsgAttenWrite(uint8_t cmd1) { //handles fades and channel muting config
+static uint8_t FilterDcsgAttenWrite(uint8_t cmd1) { //handles fades and channel muting config
     uint8_t ch = (cmd1>>5) & 0b11;
     if (FadeActive) {
-        cmd1 = FadePsgAtten(cmd1);
+        cmd1 = FadeDcsgAtten(cmd1);
     }
-    if ((Driver_PsgMask & (1<<ch)) == 0) {
+    if ((Driver_DcsgMask & (1<<ch)) == 0) {
         cmd1 |= 0b00001111;
     }
     return cmd1;
@@ -821,9 +821,9 @@ static void FadeTick() {
         Driver_FmOutopna(1, 0x0b, FadeAdpcmLevel(AdpcmLevel));
     }
 
-    if (Driver_DetectedMod == MEGAMOD_NONE || Driver_DetectedMod == MEGAMOD_OPLLPSG) {
+    if (Driver_DetectedMod == MEGAMOD_NONE || Driver_DetectedMod == MEGAMOD_OPLLDCSG) {
         for (uint8_t ch=0;ch<4;ch++) {
-            Driver_PsgOut(FilterPsgAttenWrite(Driver_PsgAttenuation[ch]));
+            Driver_DcsgOut(FilterDcsgAttenWrite(Driver_DcsgAttenuation[ch]));
         }
     }
 }
@@ -843,14 +843,14 @@ void Driver_UpdateCh6Muting() {
 static uint8_t Driver_ProcessSsgControlWrite(uint8_t ssgreg) {
     //tones
     for (uint8_t i=0;i<3;i++) {
-        if (Driver_PsgMask & (1<<i)) { //unmuted
+        if (Driver_DcsgMask & (1<<i)) { //unmuted
             //do nothing
         } else { //muted
             ssgreg |= (1<<i); //force bit on (tone off)
         }
     }
     //noise, single bit controls all of it
-    if (Driver_PsgMask & (1<<3)) { //unmuted
+    if (Driver_DcsgMask & (1<<3)) { //unmuted
         //do nothing
     } else { //muted
         ssgreg |= 0b00111000;
@@ -870,7 +870,7 @@ void Driver_UpdateMuting() {
                 Driver_FmOut(1, 0xb5, Driver_FmPans[4] & 0b00111111);
                 Driver_FmOut(1, 0xb6, Driver_FmPans[5] & 0b00111111);
                 for (uint8_t i=0;i<4;i++) {
-                    Driver_PsgOut(0b10011111 | (i<<5));
+                    Driver_DcsgOut(0b10011111 | (i<<5));
                 }
                 return;
             }
@@ -884,12 +884,12 @@ void Driver_UpdateMuting() {
         Driver_UpdateCh6Muting();
         for (uint8_t i=0;i<4;i++) {
             uint8_t atten = 0;
-            if (Driver_PsgMask & (1<<i)) {
-                atten = Driver_PsgAttenuation[i];
+            if (Driver_DcsgMask & (1<<i)) {
+                atten = Driver_DcsgAttenuation[i];
             } else {
                 atten = 0b10011111 | (i<<5);
             }
-            Driver_PsgOut(FilterPsgAttenWrite(atten));
+            Driver_DcsgOut(FilterDcsgAttenWrite(atten));
         }
     } else if (Driver_DetectedMod == MEGAMOD_OPNA) {
         //todo: handle vgm_trim mitigation
@@ -915,7 +915,7 @@ void Driver_UpdateMuting() {
         //if we are coming out of mute, level registers will be wrong, because writes to them are blocked during mute. so fix them:
         for (uint8_t i=0;i<3;i++) {
             //only bother writing if that ch is actually enabled - prevents pops and led flashes
-            if (Driver_PsgMask & (1<<i)) Driver_FmOutopna(0,0x08+i,Driver_Opna_SsgLevel[i]);
+            if (Driver_DcsgMask & (1<<i)) Driver_FmOutopna(0,0x08+i,Driver_Opna_SsgLevel[i]);
         }
         //ssg tone/noise enable bits
         Driver_FmOutopna(0,0x07,Driver_ProcessSsgControlWrite(Driver_Opna_SsgConfig));
@@ -962,7 +962,7 @@ static void StartFade() {
     FadeTimer = Driver_Sample;
 }
 
-uint8_t Driver_PsgFreqLow = 0; //used for sega psg fix
+uint8_t Driver_DcsgFreqLow = 0; //used for sega dcsg fix
 uint16_t opnastart = 0;
 uint16_t opnastart_hacked = 0;
 uint16_t opnastop = 0;
@@ -975,48 +975,48 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
     MegaStream_Recv(&Driver_CommandStream, cmd, CommandLength);
 
     if (cmd[0] == 0x50) { //SN76489
-        //psg writes need to be intercepted to fix frequency register differences between TI PSG <-> SEGA VDP PSG
+        //dcsg writes need to be intercepted to fix frequency register differences between TI DCSG <-> SEGA VDP DCSG
         //TODO: only do this for vgms where ver >= 1.51 and header 0x2b bit 0 is set
-        //TODO: fix all the logic here - it's fucked up if fixpsgfreq = false
-        if (Driver_FixPsgFrequency) {
+        //TODO: fix all the logic here - it's fucked up if fixdcsgfreq = false
+        if (Driver_FixDcsgFrequency) {
             if ((cmd[1] & 0x80) == 0) { //ch 1~3 frequency high byte write
-                if ((Driver_PsgFreqLow & 0b00001111) == 0) { //if low byte is all 0 for freq
+                if ((Driver_DcsgFreqLow & 0b00001111) == 0) { //if low byte is all 0 for freq
                     if ((cmd[1] & 0b00111111) == 0) { //if high byte is all 0 for freq
-                        Driver_PsgFreqLow |= 1; //set bit 0 of freq to 1
+                        Driver_DcsgFreqLow |= 1; //set bit 0 of freq to 1
                     }
                 }
                 //write both registers now
-                if ((Driver_PsgFreqLow & 0b01100000) == 0b01000000) { //ch3
-                    Driver_PsgCh3Freq = (Driver_PsgFreqLow & 0b00001111) | ((cmd[1] & 0b00111111) << 4);
-                    Driver_WritePsgCh3Freq();
+                if ((Driver_DcsgFreqLow & 0b01100000) == 0b01000000) { //ch3
+                    Driver_DcsgCh3Freq = (Driver_DcsgFreqLow & 0b00001111) | ((cmd[1] & 0b00111111) << 4);
+                    Driver_WriteDcsgCh3Freq();
                 } else {
-                    Driver_PsgOut(Driver_PsgFreqLow);
-                    Driver_PsgOut(cmd[1]);
+                    Driver_DcsgOut(Driver_DcsgFreqLow);
+                    Driver_DcsgOut(cmd[1]);
                 }
             } else if ((cmd[1] & 0b10010000) == 0b10000000 && (cmd[1]&0b01100000)>>5 != 3) { //ch 1~3 frequency low byte write
-                Driver_PsgFreqLow = cmd[1]; //just store the value for now, don't write anything until we get the high byte
+                Driver_DcsgFreqLow = cmd[1]; //just store the value for now, don't write anything until we get the high byte
             } else { //attenuation or noise ch control write
                 if ((cmd[1] & 0b10010000) == 0b10010000) { //attenuation
                     uint8_t ch = (cmd[1]>>5)&0b00000011;
-                    Driver_PsgAttenuation[ch] = cmd[1];
-                    cmd[1] = FilterPsgAttenWrite(cmd[1]);
+                    Driver_DcsgAttenuation[ch] = cmd[1];
+                    cmd[1] = FilterDcsgAttenWrite(cmd[1]);
                     if ((Driver_MitigateVgmTrim && Driver_FirstWait) || Driver_Slip) cmd[1] |= 0b00001111; //if we haven't reached the first wait, force full attenuation
                     if (ch == 2) {
                         //when ch 3 atten is updated, we also need to write frequency again. this is due to the periodic noise fix.
                         //TODO: this would be better if it only does it if actually transitioning in or out of mute, rather than on every atten update
-                        Driver_WritePsgCh3Freq();
+                        Driver_WriteDcsgCh3Freq();
                     }
                 } else if ((cmd[1] & 0b11110000) == 0b11100000) { //noise control
-                    Driver_PsgNoisePeriodic = (cmd[1] & 0b00000100) == 0; //FB
-                    Driver_PsgNoiseSourceCh3 = (cmd[1] & 0b00000011) == 0b00000011; //NF0, NF1
+                    Driver_DcsgNoisePeriodic = (cmd[1] & 0b00000100) == 0; //FB
+                    Driver_DcsgNoiseSourceCh3 = (cmd[1] & 0b00000011) == 0b00000011; //NF0, NF1
                     //periodic noise fix: update ch3 frequency when noise control settings change
                     //TODO: only update it when it matters :P
-                    Driver_WritePsgCh3Freq();
+                    Driver_WriteDcsgCh3Freq();
                 }
-                Driver_PsgOut(cmd[1]);
+                Driver_DcsgOut(cmd[1]);
             }
-        } else { //not fixing psg frequency
-            Driver_PsgOut(cmd[1]); //just write it normally
+        } else { //not fixing dcsg frequency
+            Driver_DcsgOut(cmd[1]); //just write it normally
         }
     } else if (cmd[0] == 0x51) {
         Driver_FmOutopl3(0, cmd[1], cmd[2]);
@@ -1101,7 +1101,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
             Driver_Opna_SsgLevel[cmd[1] - 0x08] = cmd[2];
             
             //block writes to ssg level registers during mute, to avoid level change pops:
-            if ((Driver_PsgMask & (1<<(cmd[1]-8))) == 0) nw = true;
+            if ((Driver_DcsgMask & (1<<(cmd[1]-8))) == 0) nw = true;
             
             cmd[2] = FilterSsgLevelWrite(cmd[1], cmd[2]);
         } else if (cmd[0] >= 0x55 && cmd[0] <= 0x57 && cmd[1] >= 0xb0 && cmd[1] <= 0xb2) { //algo
@@ -1234,8 +1234,8 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
         }
     } else if (cmd[0] == 0x90 || cmd[0] == 0x91) { //dacstream commands we don't need to worry about here
 
-    } else if (cmd[0] == 0x4f) { //gamegear psg stereo
-        ESP_LOGD(TAG, "Game Gear PSG stereo not implemented !!");
+    } else if (cmd[0] == 0x4f) { //gamegear dcsg stereo
+        ESP_LOGD(TAG, "Game Gear DCSG stereo not implemented !!");
     } else if (cmd[0] == 0xb1) {
         //RF5C164 write, just ignore it...
     } else if (cmd[0] == 0xb2) {
@@ -1268,7 +1268,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
     } else if (cmd[0] == 0x31) {
         //ignore AY-3-8910 stereo mask
     } else if (cmd[0] == 0x30) {
-        //ignore psg no.2
+        //ignore dcsg no.2
     } else if (cmd[0] == 0xb7) {
         //ignore msm6258
     } else if (cmd[0] == 0xb8) {
@@ -1307,7 +1307,7 @@ void Driver_Main() {
             RhythmTL = 0; //TODO: verify
             AdpcmLevel = 0; //TODO: verify
             Driver_DacEn = 0;
-            Driver_PsgLastChannel = 0; //psg can't really be reset, so technically this is kinda wrong? but it's consistent.
+            Driver_DcsgLastChannel = 0; //dcsg can't really be reset, so technically this is kinda wrong? but it's consistent.
             Driver_FirstWait = true;
             memset(&Driver_FmPans[0], 0b11000000, sizeof(Driver_FmPans));
             Driver_Opna_AdpcmConfig = 0b11000000; //todo verify in emu?
@@ -1315,7 +1315,7 @@ void Driver_Main() {
             Driver_Opna_SsgConfig = 0b00111111; //todo verify in emu
             memset(&Driver_Opna_SsgLevel[0], 0, sizeof(Driver_Opna_SsgLevel)); //todo verify in emu
             for (uint8_t i=0;i<4;i++) {
-                Driver_PsgAttenuation[i] = 0b10011111 | (i<<5);
+                Driver_DcsgAttenuation[i] = 0b10011111 | (i<<5);
             }
             Driver_UpdateMuting();
             memset((void *)&ChannelMgr_States[0], 0, 6+4);
@@ -1369,9 +1369,9 @@ void Driver_Main() {
             if (Driver_DetectedMod == MEGAMOD_OPNA) {
                 Driver_FmOutopna(0, 0x07, Driver_Opna_SsgConfig | 0b00111111);
             }
-            if (Driver_DetectedMod == MEGAMOD_NONE || Driver_DetectedMod == MEGAMOD_OPLLPSG) {
+            if (Driver_DetectedMod == MEGAMOD_NONE || Driver_DetectedMod == MEGAMOD_OPLLDCSG) {
                 for (uint8_t i=0;i<4;i++) {
-                    Driver_PsgOut(0b10011111 | (i<<5));
+                    Driver_DcsgOut(0b10011111 | (i<<5));
                 }
             }
             Driver_NoLeds = false;

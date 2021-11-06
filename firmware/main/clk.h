@@ -5,7 +5,7 @@
 #include "esp_system.h"
 
 #define CLK_FM  0
-#define CLK_PSG 1
+#define CLK_DCSG 1
 
 extern volatile bool Clk_Unlock;
 

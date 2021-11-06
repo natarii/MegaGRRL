@@ -30,7 +30,7 @@ bool ChannelMgr_Setup() {
 
 void ChannelMgr_Main() {
     while (1) {
-        for (uint8_t i=0;i<6+4;i++) { //fm, psg
+        for (uint8_t i=0;i<6+4;i++) { //fm, dcsg
             uint8_t chstate = ChannelMgr_States[i];
 
             if (ChannelMgr_LedStates[i] == LEDSTATE_BRIGHT && xthal_get_ccount() - ChannelMgr_BrTime[i] >= 50*240000) {

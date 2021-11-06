@@ -8,7 +8,7 @@
 
 enum VgmDeviceType {
     VGM_DEVICE_SN76489,
-    VGM_DEVICE_T6W28, //neogeo pocket psg
+    VGM_DEVICE_T6W28, //neogeo pocket dcsg
     VGM_DEVICE_YM2413,
     VGM_DEVICE_YM2612,
     VGM_DEVICE_YM2151,

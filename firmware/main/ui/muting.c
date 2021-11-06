@@ -15,10 +15,10 @@ const char *chnames[11] = {
     "FM 5",
     "FM 6 (FM Mode)",
     "FM 6 (DAC Mode)",
-    "PSG 1",
-    "PSG 2",
-    "PSG 3",
-    "PSG Noise"
+    "DCSG 1",
+    "DCSG 2",
+    "DCSG 3",
+    "DCSG Noise"
 };
 const char *chnames_opna[11] = {
     "FM 1",
@@ -62,7 +62,7 @@ bool ch_en(uint8_t ch) {
     if (ch <= 6) {
         return (Driver_FmMask & (1<<ch)) > 0;
     } else {
-        return (Driver_PsgMask & (1<<(ch-7))) > 0;
+        return (Driver_DcsgMask & (1<<(ch-7))) > 0;
     }
 }
 
@@ -71,7 +71,7 @@ void ch_set(uint8_t ch, bool en) {
         Driver_FmMask = ((Driver_FmMask&~(1<<ch)) | ((en?1:0)<<ch));
     } else {
         ch -= 7;
-        Driver_PsgMask = ((Driver_PsgMask&~(1<<ch)) | ((en?1:0)<<ch));
+        Driver_DcsgMask = ((Driver_DcsgMask&~(1<<ch)) | ((en?1:0)<<ch));
     }
 }
 

@@ -43,7 +43,7 @@ const uint8_t global_bright_lut[11] = {0, 0x01, 0x05, 0x0b, 0x17, 0x2c, 0x4f, 0x
 const uint8_t led_channel_assignment[] = {
     //FM 1-6
     7, 5, 0, 2, 3, 8+6,
-    //PSG 1-3 + noise
+    //DCSG 1-3 + noise
     6, 4, 1, 8+4,
     //FM PCM
     8+5,
@@ -56,7 +56,7 @@ const uint8_t led_channel_assignment[] = {
 const uint8_t led_channel_assignment[] = {
     //FM 1-6
     7, 1, 2, 3, 8+1, 8+2,
-    //PSG 1-3 + noise
+    //DCSG 1-3 + noise
     0, 6, 5, 4,
     //FM PCM
     8+3,

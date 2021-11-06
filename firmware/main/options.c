@@ -89,11 +89,11 @@ const option_t Options[OPTION_COUNT] = {
         NULL
     },
     {
-        "Correct PSG frequency",
-        "Automatically correct for differences between discrete TI PSGs and Sega VDP PSGs when channel frequency is set to 0.",
+        "Correct DCSG frequency",
+        "Automatically correct for differences between discrete TI DCSGs and Sega VDP DCSGs when channel frequency is set to 0.",
         OPTION_CATEGORY_PLAYBACK,
         OPTION_TYPE_BOOL,
-        &Driver_FixPsgFrequency,
+        &Driver_FixDcsgFrequency,
         true,
         NULL
     },*/

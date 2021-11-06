@@ -17,7 +17,7 @@ typedef enum {
     MEGAMOD_FAULT = 0xfe,
     MEGAMOD_OPNA = 2,
     MEGAMOD_OPL3 = 3,
-    MEGAMOD_OPLLPSG = 4,
+    MEGAMOD_OPLLDCSG = 4,
     MEGAMOD_OPM = 7,
 } MegaMod_t;
 
@@ -51,12 +51,12 @@ extern uint8_t DacStreamId;
 extern volatile IRAM_ATTR uint32_t Driver_CpuPeriod;
 extern volatile IRAM_ATTR uint32_t Driver_CpuUsageVgm;
 extern volatile IRAM_ATTR uint32_t Driver_CpuUsageDs;
-extern volatile bool Driver_FixPsgFrequency;
-extern volatile bool Driver_FixPsgPeriodic;
+extern volatile bool Driver_FixDcsgFrequency;
+extern volatile bool Driver_FixDcsgPeriodic;
 extern volatile bool Driver_MitigateVgmTrim;
 extern volatile bool Driver_FirstWait;
 extern volatile uint8_t Driver_FmMask;
-extern volatile uint8_t Driver_PsgMask;
+extern volatile uint8_t Driver_DcsgMask;
 extern volatile bool Driver_ForceMono;
 extern volatile IRAM_ATTR uint32_t Driver_Opna_PcmUploadId;
 extern volatile bool Driver_Opna_PcmUpload;

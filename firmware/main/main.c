@@ -271,11 +271,11 @@ void app_main(void) {
     Driver_ModDetect();
     switch (Driver_DetectedMod) {
         case MEGAMOD_NONE:
-            ESP_LOGI(TAG, "No mod detected, assuming PSG");
-            Clk_Set(CLK_PSG, 3579545);
+            ESP_LOGI(TAG, "No mod detected, assuming DCSG");
+            Clk_Set(CLK_DCSG, 3579545);
             break;
-        case MEGAMOD_OPLLPSG:
-            ESP_LOGI(TAG, "OPLL+PSG detected, switching FM clock to PSG");
+        case MEGAMOD_OPLLDCSG:
+            ESP_LOGI(TAG, "OPLL+DCSG detected, switching FM clock to DCSG");
             Clk_Set(CLK_FM, 3579545);
             break;
         case MEGAMOD_OPL3:
@@ -719,8 +719,8 @@ void app_main(void) {
             case MEGAMOD_OPNA:
                 lv_label_set_static_text(mmlabel, "OPNA MegaMod");
                 break;
-            case MEGAMOD_OPLLPSG:
-                lv_label_set_static_text(mmlabel, "OPLL+PSG MegaMod");
+            case MEGAMOD_OPLLDCSG:
+                lv_label_set_static_text(mmlabel, "OPLL+DCSG MegaMod");
                 break;
             case MEGAMOD_OPM:
                 lv_label_set_static_text(mmlabel, "OPM MegaMod");
