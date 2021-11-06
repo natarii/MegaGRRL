@@ -286,15 +286,22 @@ void Driver_DcsgOut(uint8_t Data) {
         clk = Clk_GetCh(0);
     }
 
-    #ifdef OPLLDCSG_ORIGINAL_PROTO
-    //data bus is reversed for the dcsg because it made pcb layout easier
-    Driver_SrBuf[SR_DATABUS] = 0;
-    for (uint8_t i=0;i<=7;i++) {
-        Driver_SrBuf[SR_DATABUS] |= ((Data>>(7-i))&1)<<i;
+    if (Driver_DetectedMod == MEGAMOD_OPLLDCSG) {
+        #ifdef OPLLDCSG_ORIGINAL_PROTO
+        Driver_SrBuf[SR_DATABUS] = 0;
+        for (uint8_t i=0;i<=7;i++) {
+            Driver_SrBuf[SR_DATABUS] |= ((Data>>(7-i))&1)<<i;
+        }
+        #else
+        Driver_SrBuf[SR_DATABUS] = Data;
+        #endif
+    } else {
+        //data bus is reversed for the dcsg because it made pcb layout easier
+        Driver_SrBuf[SR_DATABUS] = 0;
+        for (uint8_t i=0;i<=7;i++) {
+            Driver_SrBuf[SR_DATABUS] |= ((Data>>(7-i))&1)<<i;
+        }
     }
-    #else
-    Driver_SrBuf[SR_DATABUS] = Data;
-    #endif
 
     Driver_Output();
     Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_DCSG_CS; //!cs low
