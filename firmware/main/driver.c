@@ -285,11 +285,17 @@ void Driver_PsgOut(uint8_t Data) {
     } else { //we still need to know the clock for delay calculations
         clk = Clk_GetCh(0);
     }
+
+    #ifdef OPLLDCSG_ORIGINAL_PROTO
     //data bus is reversed for the psg because it made pcb layout easier
     Driver_SrBuf[SR_DATABUS] = 0;
     for (uint8_t i=0;i<=7;i++) {
         Driver_SrBuf[SR_DATABUS] |= ((Data>>(7-i))&1)<<i;
     }
+    #else
+    Driver_SrBuf[SR_DATABUS] = Data;
+    #endif
+
     Driver_Output();
     Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_PSG_CS; //!cs low
     Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR; //!wr low

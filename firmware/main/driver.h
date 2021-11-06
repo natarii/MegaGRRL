@@ -10,6 +10,8 @@
 #include "mallocs.h"
 #include "megastream.h"
 
+//#define OPLLDCSG_ORIGINAL_PROTO //natalie's original OPLL+DCSG prototype megamod has a different bus bit arrangement...
+
 typedef enum {
     MEGAMOD_NONE = 0xff,
     MEGAMOD_FAULT = 0xfe,
