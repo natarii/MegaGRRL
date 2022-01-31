@@ -91,13 +91,16 @@ IRAM_ATTR uint32_t Driver_LastCc = 0;     //copy of the above var
 IRAM_ATTR uint32_t Driver_NextSample = 0; //sample number at which the next command needs to be run
 IRAM_ATTR uint32_t Driver_ICycle = 0;
 uint8_t Driver_FmAlgo[6] = {0,0,0,0,0,0};
-uint8_t Driver_DcsgLastChannel = 0;
 volatile bool Driver_FirstWait = true;
 uint8_t Driver_FmPans[6] = {0b11000000,0b11000000,0b11000000,0b11000000,0b11000000,0b11000000};
 IRAM_ATTR uint32_t Driver_PauseSample = 0; //sample no before stop
 IRAM_ATTR uint32_t Driver_PauseSample_Ds = 0; //sample no before stop for dacstreams
 uint8_t Driver_DcsgAttenuation[4] = {0b10011111, 0b10111111, 0b11011111, 0b11111111};
 bool Driver_NoLeds = false;
+bool Driver_DcsgNoisePeriodic = false;
+bool Driver_DcsgNoiseSourceCh3 = false;
+static uint32_t dcsg_freq[3] = {0,0,0};
+static uint8_t dcsg_latched_ch = 0;
 
 //dacstream specific
 IRAM_ATTR uint32_t DacStreamSeq = 0;              //sequence no of the current stream
@@ -120,10 +123,6 @@ uint8_t Driver_Opna_AdpcmConfig = 0b11000000; //todo verify in emu?
 uint8_t Driver_Opna_RhythmConfig[6] = {0b11000000,0b11000000,0b11000000,0b11000000,0b11000000,0b11000000}; //todo verify in emu
 uint8_t Driver_Opna_SsgConfig = 0b00111111; //todo verify in emu
 uint8_t Driver_Opna_SsgLevel[3] = {0,0,0}; //todo verify in emu
-
-IRAM_ATTR uint32_t Driver_DcsgCh3Freq = 0;
-bool Driver_DcsgNoisePeriodic = false;
-bool Driver_DcsgNoiseSourceCh3 = false;
 
 volatile IRAM_ATTR uint32_t Driver_Opna_PcmUploadId = 0;
 volatile bool Driver_Opna_PcmUpload = false;
@@ -316,10 +315,12 @@ void Driver_DcsgOut(uint8_t Data) {
 
     //channel led stuff
     if (Driver_NoLeds) return;
-    if (Data & 0x80) {
-        Driver_DcsgLastChannel = (Data & 0b01100000) >> 5;
+    uint8_t ch = 6; //dcsg ch offset in array
+    if (Data & 0x80) { //if this is not a high frequency write, then we can get the channel from the data.
+        ch += (Data>>5)&3;
+    } else { //it's a high frequency write so we need to pull in the last used ch
+        ch += dcsg_latched_ch;
     }
-    uint8_t ch = 6 + Driver_DcsgLastChannel; //6 = dcsg ch offset in array
     if ((Data & 0b10010000) == 0b10010000) { //attenuation
         uint8_t atten = Data & 0b00001111;
         if (atten == 0b1111) { //full atten, off.
@@ -341,7 +342,7 @@ void Driver_DcsgOut(uint8_t Data) {
 
 void Driver_WriteDcsgCh3Freq() {
     //get the current frequency value. this comes from catching register writes
-    uint32_t freq = Driver_DcsgCh3Freq;
+    uint32_t freq = dcsg_freq[2];
 
     //if the fix is enabled, and dcsg noise is set to "periodic" mode, and it gets its freq from ch3, and ch3 is muted, then adjust ch3 freq
     if (Driver_FixDcsgPeriodic && Driver_DcsgNoisePeriodic && Driver_DcsgNoiseSourceCh3 && Driver_DcsgAttenuation[2] == 0b11011111) {
@@ -362,10 +363,13 @@ void Driver_WriteDcsgCh3Freq() {
 }
 
 void Driver_ResetChips() {
-        Driver_DcsgOut(0b10011111);
-        Driver_DcsgOut(0b10111111);
-        Driver_DcsgOut(0b11011111);
-        Driver_DcsgOut(0b11111111);
+        for (uint8_t i=0;i<4;i++) {
+            Driver_DcsgOut(0x80 | (i<<5) | 0x10 | 0xf); //full atten
+            if (i != 3) { //set freq to 0
+                Driver_DcsgOut(0x80 | (i<<5));
+                Driver_DcsgOut(0);
+            }
+        }
         Driver_SrBuf[SR_CONTROL] ^= SR_BIT_IC;
         Driver_Output();
         Driver_Sleep(1000);
@@ -969,7 +973,6 @@ static void StartFade() {
     FadeTimer = Driver_Sample;
 }
 
-uint8_t Driver_DcsgFreqLow = 0; //used for sega dcsg fix
 uint16_t opnastart = 0;
 uint16_t opnastart_hacked = 0;
 uint16_t opnastop = 0;
@@ -987,21 +990,25 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
         //TODO: fix all the logic here - it's fucked up if fixdcsgfreq = false
         if (Driver_FixDcsgFrequency) {
             if ((cmd[1] & 0x80) == 0) { //ch 1~3 frequency high byte write
-                if ((Driver_DcsgFreqLow & 0b00001111) == 0) { //if low byte is all 0 for freq
-                    if ((cmd[1] & 0b00111111) == 0) { //if high byte is all 0 for freq
-                        Driver_DcsgFreqLow |= 1; //set bit 0 of freq to 1
-                    }
-                }
+                //note: whether or not dcsg_latched_ch is actually still in the latch on the chip (ch3 updates might blow it away) doesn't matter, because we always rewrite the low byte anyway. it's what's latched from *our* POV
+                dcsg_freq[dcsg_latched_ch] = (dcsg_freq[dcsg_latched_ch] & 0b1111) | ((cmd[1] & 0b111111) << 4);
                 //write both registers now
-                if ((Driver_DcsgFreqLow & 0b01100000) == 0b01000000) { //ch3
-                    Driver_DcsgCh3Freq = (Driver_DcsgFreqLow & 0b00001111) | ((cmd[1] & 0b00111111) << 4);
+                if (dcsg_latched_ch == 2) { //ch3
                     Driver_WriteDcsgCh3Freq();
                 } else {
-                    Driver_DcsgOut(Driver_DcsgFreqLow);
-                    Driver_DcsgOut(cmd[1]);
+                    uint8_t low = 0x80 | (dcsg_latched_ch<<5) | (dcsg_freq[dcsg_latched_ch] & 0b1111);
+                    if (dcsg_freq[dcsg_latched_ch] == 0) low |= 1;
+                    Driver_DcsgOut(low);
+                    Driver_DcsgOut((dcsg_freq[dcsg_latched_ch] >> 4) & 0b111111);
                 }
             } else if ((cmd[1] & 0b10010000) == 0b10000000 && (cmd[1]&0b01100000)>>5 != 3) { //ch 1~3 frequency low byte write
-                Driver_DcsgFreqLow = cmd[1]; //just store the value for now, don't write anything until we get the high byte
+                dcsg_latched_ch = (cmd[1]>>5)&3;
+                dcsg_freq[dcsg_latched_ch] = (dcsg_freq[dcsg_latched_ch] & 0b1111110000) | (cmd[1] & 0b1111);
+                uint8_t val = cmd[1];
+                if (dcsg_freq[dcsg_latched_ch] == 0) {
+                    val |= 1;
+                }
+                Driver_DcsgOut(val);
             } else { //attenuation or noise ch control write
                 if ((cmd[1] & 0b10010000) == 0b10010000) { //attenuation
                     uint8_t ch = (cmd[1]>>5)&0b00000011;
@@ -1314,7 +1321,8 @@ void Driver_Main() {
             RhythmTL = 0; //TODO: verify
             AdpcmLevel = 0; //TODO: verify
             Driver_DacEn = 0;
-            Driver_DcsgLastChannel = 0; //dcsg can't really be reset, so technically this is kinda wrong? but it's consistent.
+            dcsg_latched_ch = 0;
+            for (uint8_t i=0;i<3;i++) dcsg_freq[i] = 0;
             Driver_FirstWait = true;
             memset(&Driver_FmPans[0], 0b11000000, sizeof(Driver_FmPans));
             Driver_Opna_AdpcmConfig = 0b11000000; //todo verify in emu?
