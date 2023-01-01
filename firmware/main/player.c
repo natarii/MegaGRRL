@@ -96,12 +96,14 @@ const static char* unvgztmp = "/sd/.mega/unvgz.tmp";
 
 static IRAM_ATTR uint32_t failed_plays = 0;
 
-static int Player_StartTrack(char *FilePath);
+static uint32_t Player_StartTrack(char *FilePath);
 static bool Player_StopTrack();
 
-#define PLAYER_OK 1
-#define PLAYER_OTHER_ERR 0
-#define PLAYER_UNSUPPORTED_CHIPS -1
+#define PLAYER_ERR (1<<0) //flag for any failure
+#define PLAYER_UNSUPPORTED_CHIPS (1<<1) //unsupported chips present (synth type)
+#define PLAYER_UNSUPPORTED_CHIPS_ARE_PCM (1<<2) //unsupported chips present (ONLY "addon" pcm type) - TODO
+#define PLAYER_ERR_INTERNAL (1<<3) //when it's not the user's fault
+#define PLAYER_ERR_SYS (1<<4) //things that Should Never Happen (TM)
 
 static void file_error(bool writing) {
     if (!writing) {
@@ -173,7 +175,7 @@ void Player_Main() {
                 if ((xEventGroupGetBits(Player_Status) & PLAYER_STATUS_RUNNING) == 0) {
                     xEventGroupSetBits(Player_Status, PLAYER_STATUS_RUNNING); //do this now, Player_StartTrack could take longer than the timeout of the task waiting for this event.
                     QueueSetupEntry(false, true);
-                    if (Player_StartTrack(&QueuePlayingFilename[0]) == PLAYER_UNSUPPORTED_CHIPS) {
+                    if (Player_StartTrack(&QueuePlayingFilename[0]) & PLAYER_ERR) {
                         failed = true;
                         failed_plays++;
                     }
@@ -197,7 +199,7 @@ void Player_Main() {
                     ESP_LOGI(TAG, "next track proceeding");
                     xEventGroupSetBits(Player_Status, PLAYER_STATUS_RUNNING);
                     xEventGroupClearBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
-                    if (Player_StartTrack(QueuePlayingFilename) == PLAYER_UNSUPPORTED_CHIPS) {
+                    if (Player_StartTrack(QueuePlayingFilename) & PLAYER_ERR) {
                         failed = true;
                         failed_plays++;
                     }
@@ -217,7 +219,7 @@ void Player_Main() {
                         ESP_LOGI(TAG, "prev track proceeding");
                         xEventGroupSetBits(Player_Status, PLAYER_STATUS_RUNNING);
                         xEventGroupClearBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
-                        if (Player_StartTrack(QueuePlayingFilename) == PLAYER_UNSUPPORTED_CHIPS) {
+                        if (Player_StartTrack(QueuePlayingFilename) & PLAYER_ERR) {
                             failed = true;
                             failed_plays++;
                         }
@@ -229,7 +231,7 @@ void Player_Main() {
                 } else { //just restart
                     ESP_LOGI(TAG, "outside 3 second window, just restarting track");
                     Player_StopTrack();
-                    if (Player_StartTrack(&QueuePlayingFilename[0]) == PLAYER_UNSUPPORTED_CHIPS) {
+                    if (Player_StartTrack(&QueuePlayingFilename[0]) & PLAYER_ERR) {
                         failed = true;
                         failed_plays++;
                     }
@@ -271,7 +273,7 @@ void Player_Main() {
             xEventGroupClearBits(Player_Status, PLAYER_STATUS_PAUSED);
             if (Player_NextTrk(false)) {
                 ESP_LOGI(TAG, "next track proceeding");
-                if (Player_StartTrack(QueuePlayingFilename) == PLAYER_UNSUPPORTED_CHIPS) {
+                if (Player_StartTrack(QueuePlayingFilename) & PLAYER_ERR) {
                     failed = true;
                     failed_plays++;
                 }
@@ -442,11 +444,12 @@ static tinfl_status Player_Unvgz(char *FilePath, bool ReplaceOriginalFile) {
         ESP_LOGI(TAG, "Chip at %08x", offset);\
     }
 
-static int Player_StartTrack(char *FilePath) {
+static uint32_t Player_StartTrack(char *FilePath) {
     const char *OpenFilePath = FilePath;
 
     ESP_LOGI(TAG, "Checking file type of %s", FilePath);
     FILE *test = fopen(FilePath, "r");
+    //note that errors here could be the user's fault - for example, a playlist specifying non-existent files
     if (!test) {
         if (*(FilePath+(strlen(FilePath)-1)) == 'z' || *(FilePath+(strlen(FilePath)-1)) == 'Z') {
             ESP_LOGW(TAG, "vgz doesn't exist, let's try vgm");
@@ -454,13 +457,14 @@ static int Player_StartTrack(char *FilePath) {
             test = fopen(FilePath, "r");
             if (!test) {
                 ESP_LOGE(TAG, "vgm doesn't exist either");
-                return false;
+                return PLAYER_ERR;
             }
         } else {
             ESP_LOGE(TAG, "file doesn't exist");
-            return false;
+            return PLAYER_ERR;
         }
     }
+
     uint16_t magic = 0;
     fseek(test, 0, SEEK_SET);
     fread(&magic, 2, 1, test);
@@ -484,7 +488,7 @@ static int Player_StartTrack(char *FilePath) {
 
             Ui_StatusBar_SetExtract(false); //we won't make it to the one below
 
-            return false;
+            return PLAYER_ERR;
         }
         if (Player_UnvgzReplaceOriginal) {
             if (*(FilePath+(strlen(FilePath)-1)) == 'z' || *(FilePath+(strlen(FilePath)-1)) == 'Z') {
@@ -498,7 +502,7 @@ static int Player_StartTrack(char *FilePath) {
         ESP_LOGI(TAG, "Uncompressed");
     } else {
         ESP_LOGI(TAG, "Unknown");
-        return false;
+        return PLAYER_ERR;
     }
     ESP_LOGI(TAG, "opening files");
     Player_VgmFile = fopen(OpenFilePath, "r");
@@ -513,7 +517,7 @@ static int Player_StartTrack(char *FilePath) {
         if (Player_DsFindFile) fclose(Player_DsFindFile);
         if (Player_DsFillFile) fclose(Player_DsFillFile);
         if (Driver_Opna_PcmUploadFile) fclose(Driver_Opna_PcmUploadFile);
-        return false;
+        return PLAYER_ERR | PLAYER_ERR_INTERNAL;
     }
     fseek(Player_VgmFile, 0, SEEK_SET);
     fseek(Player_DsFindFile, 0, SEEK_SET);
@@ -522,7 +526,7 @@ static int Player_StartTrack(char *FilePath) {
     VgmParseHeader(Player_VgmFile, &Player_Info);
     if (ferror(Player_VgmFile)) { //good time for a check
         file_error(false);
-        return false;
+        return PLAYER_ERR | PLAYER_ERR_INTERNAL;
     }
 
     ESP_LOGI(TAG, "VGM VER = %d", Player_Info.Version);
@@ -557,7 +561,7 @@ static int Player_StartTrack(char *FilePath) {
 
     if (ferror(Player_VgmFile)) { //good time for a check
         file_error(false);
-        return false;
+        return PLAYER_ERR | PLAYER_ERR_INTERNAL;
     }
 
     Gd3Descriptor_t desc;
@@ -568,7 +572,7 @@ static int Player_StartTrack(char *FilePath) {
         Gd3GetStringChars(Player_VgmFile, &desc, GD3STRING_AUTHOR_EN, &Player_Gd3_Author[0], PLAYER_GD3_FIELD_SIZES);
         if (ferror(Player_VgmFile)) { //better check before telling nowplaying to use garbage gd3 data...
             file_error(false);
-            return false;
+            return PLAYER_ERR | PLAYER_ERR_INTERNAL;
         }
     } else {
         Player_Gd3_Title[0] = 0;
@@ -593,7 +597,7 @@ static int Player_StartTrack(char *FilePath) {
     CHECK_CLOCK(0x0c, false); //sn76489
     CHECK_CLOCK(0x10, false); //ym2413
     if (Player_Info.Version >= 110) {
-        CHECK_CLOCK(0x2c, false; //opn2
+        CHECK_CLOCK(0x2c, false); //opn2
         CHECK_CLOCK(0x30, false); //opm
         if (Player_Info.Version >= 151) {
             CHECK_CLOCK(0x38, true); //spcm
@@ -825,7 +829,7 @@ static int Player_StartTrack(char *FilePath) {
     }
     if (ferror(Player_VgmFile)) { //final check after all the clock stuff
         file_error(false);
-        return false;
+        return PLAYER_ERR | PLAYER_ERR_INTERNAL;
     }
 
     if (clocks_specified > clocks_used) {
@@ -833,7 +837,7 @@ static int Player_StartTrack(char *FilePath) {
         if (Player_SkipUnsupported) {
             ESP_LOGW(TAG, "Not playing as requested by option");
             modal_show_simple(TAG, "Warning", "One or more tracks were skipped because they use sound chips not supported by this hardware. This can be disabled in Settings.", LV_SYMBOL_OK " OK");
-            return PLAYER_UNSUPPORTED_CHIPS;
+            return PLAYER_ERR | PLAYER_UNSUPPORTED_CHIPS;
         }
     }
 
@@ -845,14 +849,14 @@ static int Player_StartTrack(char *FilePath) {
     ret = DacStream_Start(Player_DsFindFile, Player_DsFillFile, &Player_Info);
     if (!ret) {
         ESP_LOGE(TAG, "Dacstreams failed to start !!");
-        return false;
+        return PLAYER_ERR | PLAYER_ERR_SYS;
     }
 
     ESP_LOGI(TAG, "Starting loader");
     ret = Loader_Start(Player_VgmFile, Player_PcmFile, &Player_Info, bad);
     if (!ret) {
         ESP_LOGE(TAG, "Loader failed to start !!");
-        return false;
+        return PLAYER_ERR | PLAYER_ERR_SYS;
     }
 
     ESP_LOGI(TAG, "Wait for loader to start...");
@@ -860,28 +864,28 @@ static int Player_StartTrack(char *FilePath) {
     bits = xEventGroupWaitBits(Loader_Status, LOADER_RUNNING, false, false, pdMS_TO_TICKS(3000));
     if ((bits & LOADER_RUNNING) == 0) {
         ESP_LOGE(TAG, "Loader start timeout !!");
-        return false;
+        return PLAYER_ERR | PLAYER_ERR_SYS;
     }
 
     ESP_LOGI(TAG, "Wait for loader buffer OK...");
     bits = xEventGroupWaitBits(Loader_BufStatus, LOADER_BUF_OK | LOADER_BUF_FULL, false, false, pdMS_TO_TICKS(10000));
     if ((bits & (LOADER_BUF_OK | LOADER_BUF_FULL)) == 0) {
         ESP_LOGE(TAG, "Loader buffer timeout !!");
-        return false;
+        return PLAYER_ERR | PLAYER_ERR_SYS;
     }
 
     ESP_LOGI(TAG, "Wait for dacstream fill task...");
     bits = xEventGroupWaitBits(DacStream_FillStatus, DACSTREAM_RUNNING, false, false, pdMS_TO_TICKS(3000));
     if ((bits & DACSTREAM_RUNNING) == 0) {
         ESP_LOGE(TAG, "Dacstream fill task start timeout !!");
-        return false;
+        return PLAYER_ERR | PLAYER_ERR_SYS;
     }
 
     ESP_LOGI(TAG, "Wait for driver to reset...");
     bits = xEventGroupWaitBits(Driver_CommandEvents, DRIVER_EVENT_RESET_ACK, false, false, pdMS_TO_TICKS(3000));
     if ((bits & DRIVER_EVENT_RESET_ACK) == 0) {
         ESP_LOGE(TAG, "Driver reset ack timeout !!");
-        return false;
+        return PLAYER_ERR | PLAYER_ERR_SYS;
     }
     xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_RESET_ACK);
 
@@ -892,14 +896,14 @@ static int Player_StartTrack(char *FilePath) {
     bits = xEventGroupWaitBits(Driver_CommandEvents, DRIVER_EVENT_RUNNING, false, false, pdMS_TO_TICKS(3000));
     if ((bits & DRIVER_EVENT_RUNNING) == 0) {
         ESP_LOGE(TAG, "Driver start timeout !!");
-        return false;
+        return PLAYER_ERR | PLAYER_ERR_SYS;
     }
 
     Ui_NowPlaying_DriverRunning = true;
 
     ESP_LOGI(TAG, "Driver started !!");
 
-    return true;
+    return 0;
 }
 
 static bool Player_StopTrack() {
