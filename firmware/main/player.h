@@ -32,6 +32,8 @@ enum {
 #define PLAYER_STATUS_PAUSED        0x08
 #define PLAYER_STATUS_RAN_OUT       0x10
 
+#define PLAYER_BADVGM_OPN2_TESTREG  0x01
+
 extern EventGroupHandle_t Player_Status;
 extern char Player_Gd3_Title[PLAYER_GD3_FIELD_SIZES+1];
 extern char Player_Gd3_Game[PLAYER_GD3_FIELD_SIZES+1];

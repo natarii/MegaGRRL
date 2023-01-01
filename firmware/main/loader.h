@@ -37,6 +37,6 @@ extern volatile bool Loader_FastOpnaUpload;
 bool Loader_Setup();
 void Loader_Main();
 bool Loader_Stop();
-bool Loader_Start(FILE *File, FILE *PcmFile, VgmInfoStruct_t *info, bool IsBad);
+bool Loader_Start(FILE *File, FILE *PcmFile, VgmInfoStruct_t *info, uint8_t bad_flags);
 
 #endif

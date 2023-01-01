@@ -543,11 +543,11 @@ static uint32_t Player_StartTrack(char *FilePath) {
         headercrc = crc32_le(headercrc, Driver_PcmBuf, eof-Player_Info.Gd3Offset);
     }
     ESP_LOGI(TAG, "File header CRC = 0x%08x", headercrc);
-    bool bad = false;
+    uint8_t badflags = 0;
     for (uint32_t i=0;i<sizeof(known_bad_testreg_vgms)/sizeof(uint32_t);i++) {
         if (headercrc == known_bad_testreg_vgms[i]) {
             ESP_LOGW(TAG, "Known bad vgm - test register");
-            bad = true;
+            badflags |= PLAYER_BADVGM_OPN2_TESTREG;
             break;
         }
     }
@@ -853,7 +853,7 @@ static uint32_t Player_StartTrack(char *FilePath) {
     }
 
     ESP_LOGI(TAG, "Starting loader");
-    ret = Loader_Start(Player_VgmFile, Player_PcmFile, &Player_Info, bad);
+    ret = Loader_Start(Player_VgmFile, Player_PcmFile, &Player_Info, badflags);
     if (!ret) {
         ESP_LOGE(TAG, "Loader failed to start !!");
         return PLAYER_ERR | PLAYER_ERR_SYS;

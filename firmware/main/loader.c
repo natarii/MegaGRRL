@@ -33,7 +33,7 @@ static IRAM_ATTR uint32_t Loader_VgmFilePos = 0;
 volatile bool Loader_IgnoreZeroSampleLoops = true;
 volatile bool Loader_FastOpnaUpload = false;
 static bool Loader_HitLoop = false;
-static bool Loader_IsBad = false;
+static uint8_t Loader_BadFlags = 0;
 
 //local buffer thingie. big speedup
 #define LOADER_BUF_FILL \
@@ -145,9 +145,11 @@ void Loader_Main() {
             xEventGroupClearBits(Loader_Status, LOADER_STOPPED);
             xEventGroupSetBits(Loader_Status, LOADER_RUNNING);
             xEventGroupClearBits(Loader_Status, LOADER_START_REQUEST);
-            if (Loader_IsBad) {
+            if (Loader_BadFlags) {
+                ESP_LOGW(TAG, "Passing badflags to driver: 0x%02x", Loader_BadFlags);
                 uint8_t badval = 0xff;
                 MegaStream_Send(&Driver_CommandStream, &badval, 1);
+                MegaStream_Send(&Driver_CommandStream, &Loader_BadFlags, 1);
             }
             running = true;
         } else if (bits & LOADER_STOP_REQUEST) {
@@ -328,7 +330,7 @@ void Loader_Main() {
     }
 }
 
-bool Loader_Start(FILE *File, FILE *PcmFile, VgmInfoStruct_t *info, bool IsBad) {
+bool Loader_Start(FILE *File, FILE *PcmFile, VgmInfoStruct_t *info, uint8_t bad_flags) {
     if (xEventGroupGetBits(Loader_Status) & LOADER_RUNNING) {
         //running, can't start
         return false;
@@ -344,7 +346,7 @@ bool Loader_Start(FILE *File, FILE *PcmFile, VgmInfoStruct_t *info, bool IsBad) 
     Loader_RequestedDacStreamFindStart = false;
     Loader_VgmDataBlockIndex = 0;
     Loader_CurLoop = 0;
-    Loader_IsBad = IsBad;
+    Loader_BadFlags = bad_flags;
     Loader_PcmBufUsed = FREAD_LOCAL_BUF;
 
     Loader_VgmFilePos = Loader_VgmInfo->DataOffset;

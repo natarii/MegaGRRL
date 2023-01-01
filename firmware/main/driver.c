@@ -147,7 +147,7 @@ static uint8_t DacLastValue = 0;
 static bool DacTouched = false;
 static uint8_t opn2_regs_dedup[256*2];
 
-static bool Driver_IsBadVgm = false;
+static bool Driver_BlockOpn2TestReg = false;
 
 static bool opn2_on_opna_mode = false;
 
@@ -557,7 +557,7 @@ void Driver_Opna_UploadByte(uint8_t pair) {
 }
 
 void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
-    if (Driver_IsBadVgm) {
+    if (Driver_BlockOpn2TestReg) {
         if (Register == 0x21 || Register == 0x2c) return;
     }
     if (Register == 0x2a) {
@@ -1290,8 +1290,8 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
         //ignore msm6258
     } else if (cmd[0] == 0xb8) {
         //ignore msm6295
-    } else if (cmd[0] == 0xff) {
-        Driver_IsBadVgm = true;
+    } else if (cmd[0] == 0xff) { //receiving bad flags
+        if (cmd[1] & PLAYER_BADVGM_OPN2_TESTREG) Driver_BlockOpn2TestReg = true;
     } else {
         ESP_LOGE(TAG, "driver unknown command %02x !!", cmd[0]);
         return false;
@@ -1340,7 +1340,7 @@ void Driver_Main() {
             DacLastValue = 0;
             DacTouched = false;
             Driver_Slip = 0;
-            Driver_IsBadVgm = false;
+            Driver_BlockOpn2TestReg = false;
 
             //update status flags
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_FINISHED);
