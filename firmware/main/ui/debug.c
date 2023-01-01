@@ -102,6 +102,7 @@ static void drawtasks() {
         }
         if (blacklisted) continue;
         uint32_t cpu = (taskstatus[i].ulRunTimeCounter-tasklastruntime[i]) / ((trt-tasklasttrt)/100);
+        if (cpu > 100) cpu = 100;
         bp += sprintf(bp, "%s %4d %8d %3d%%\n", taskstatus[i].pcTaskName, (taskstatus[i].xHandle==Taskmgr_Handles[TASK_DRIVER])?1:0, taskstatus[i].usStackHighWaterMark, cpu);
         tasklastruntime[i] = taskstatus[i].ulRunTimeCounter;
     }
