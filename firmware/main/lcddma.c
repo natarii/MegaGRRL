@@ -11,6 +11,7 @@
 #include "lvgl.h"
 #include "mallocs.h"
 #include "taskmgr.h"
+#include "hal.h"
 
 #define LV_VDB_SIZE 4094/2
 #define LV_VDB_SIZE_IN_BYTES (LV_VDB_SIZE*2)
@@ -67,7 +68,11 @@ static DRAM_ATTR uint8_t ILI9341_init[] = {
   TFT_CMD_VMCTR1, 2, 0x3e, 0x28,					//VCM control
   TFT_CMD_VMCTR2, 1, 0x86,							//VCM control2
   TFT_MADCTL, 1,									// Memory Access Control (orientation)
-  (0b1011100),
+  #if defined LCD_IS_ILI9341_STANDARD
+  0b01011100,
+  #elif defined LCD_IS_ST7789_TYPE_A
+  0b11110100,
+  #endif
   TFT_CMD_PIXFMT, 1, 0x55,
   TFT_INVOFF, 0,
   TFT_CMD_FRMCTR1, 2, 0x00, 0x18,
