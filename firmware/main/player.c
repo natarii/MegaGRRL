@@ -430,7 +430,17 @@ static tinfl_status Player_Unvgz(char *FilePath, bool ReplaceOriginalFile) {
     return status;
 }
 
-#define CHECK_CLOCK(offset) if (Driver_PcmBuf[offset+3] & 0x40) { clocks_specified += 2; ESP_LOGI(TAG, "Dual-chip at %08x", offset); } else if (Driver_PcmBuf[offset] || Driver_PcmBuf[offset+1] || Driver_PcmBuf[offset+2] || Driver_PcmBuf[offset+3]) { clocks_specified +=1; ESP_LOGI(TAG, "Chip at %08x", offset); }
+//is_pcm sets whether or not the chip should be considered an "addon" - for example, the sega cd pcm chip
+#define CHECK_CLOCK(offset, is_pcm)\
+    if (Driver_PcmBuf[offset+3] & 0x40) {\
+        clocks_specified += 2;\
+        if (is_pcm) clocks_specified_pcm += 2;\
+        ESP_LOGI(TAG, "Dual-chip at %08x", offset);\
+    } else if (Driver_PcmBuf[offset] || Driver_PcmBuf[offset+1] || Driver_PcmBuf[offset+2] || Driver_PcmBuf[offset+3]) {\
+        clocks_specified++;\
+        if (is_pcm) clocks_specified_pcm++;\
+        ESP_LOGI(TAG, "Chip at %08x", offset);\
+    }
 
 static int Player_StartTrack(char *FilePath) {
     const char *OpenFilePath = FilePath;
@@ -578,52 +588,53 @@ static int Player_StartTrack(char *FilePath) {
     fseek(Player_VgmFile, 0, SEEK_SET);
     fread(Driver_PcmBuf, 1, 256, Player_VgmFile);
     uint8_t clocks_specified = 0;
+    uint8_t clocks_specified_pcm = 0;
     uint8_t clocks_used = 0;
-    CHECK_CLOCK(0x0c); //sn76489
-    CHECK_CLOCK(0x10); //ym2413
+    CHECK_CLOCK(0x0c, false); //sn76489
+    CHECK_CLOCK(0x10, false); //ym2413
     if (Player_Info.Version >= 110) {
-        CHECK_CLOCK(0x2c); //opn2
-        CHECK_CLOCK(0x30); //opm
+        CHECK_CLOCK(0x2c, false; //opn2
+        CHECK_CLOCK(0x30, false); //opm
         if (Player_Info.Version >= 151) {
-            CHECK_CLOCK(0x38); //spcm
-            CHECK_CLOCK(0x40); //rf5c68
-            CHECK_CLOCK(0x44); //opn
-            CHECK_CLOCK(0x48); //opna
-            CHECK_CLOCK(0x4c); //opnb
-            CHECK_CLOCK(0x50); //opl2
-            CHECK_CLOCK(0x54); //opl
-            CHECK_CLOCK(0x58); //y8950
-            CHECK_CLOCK(0x5c); //opl3
-            CHECK_CLOCK(0x60); //ymf278b
-            CHECK_CLOCK(0x64); //ymf271
-            CHECK_CLOCK(0x68); //ymz280b
-            CHECK_CLOCK(0x6c); //rf5c164
-            CHECK_CLOCK(0x70); //32x pwm
-            CHECK_CLOCK(0x74); //ay38910
+            CHECK_CLOCK(0x38, true); //spcm
+            CHECK_CLOCK(0x40, true); //rf5c68
+            CHECK_CLOCK(0x44, false); //opn
+            CHECK_CLOCK(0x48, false); //opna
+            CHECK_CLOCK(0x4c, false); //opnb
+            CHECK_CLOCK(0x50, false); //opl2
+            CHECK_CLOCK(0x54, false); //opl
+            CHECK_CLOCK(0x58, false); //y8950
+            CHECK_CLOCK(0x5c, false); //opl3
+            CHECK_CLOCK(0x60, false); //ymf278b
+            CHECK_CLOCK(0x64, false); //ymf271
+            CHECK_CLOCK(0x68, false); //ymz280b
+            CHECK_CLOCK(0x6c, true); //rf5c164
+            CHECK_CLOCK(0x70, true); //32x pwm
+            CHECK_CLOCK(0x74, false); //ay38910
             if (Player_Info.Version >= 161) {
-                CHECK_CLOCK(0x80); //dmg
-                CHECK_CLOCK(0x84); //nes apu
-                CHECK_CLOCK(0x88); //multipcm
-                CHECK_CLOCK(0x8c); //upd7759
-                CHECK_CLOCK(0x90); //msm6258
-                CHECK_CLOCK(0x96); //msm6295
-                CHECK_CLOCK(0x9c); //k051649 k052539
-                CHECK_CLOCK(0xa0); //k054539
-                CHECK_CLOCK(0xa4); //huc6280
-                CHECK_CLOCK(0xa8); //c140
-                CHECK_CLOCK(0xac); //k053260
-                CHECK_CLOCK(0xb0); //pokey
-                CHECK_CLOCK(0xb4); //qsound
+                CHECK_CLOCK(0x80, false); //dmg
+                CHECK_CLOCK(0x84, false); //nes apu
+                CHECK_CLOCK(0x88, true); //multipcm
+                CHECK_CLOCK(0x8c, true); //upd7759
+                CHECK_CLOCK(0x90, true); //msm6258
+                CHECK_CLOCK(0x96, true); //msm6295
+                CHECK_CLOCK(0x9c, false); //k051649 k052539
+                CHECK_CLOCK(0xa0, false); //k054539
+                CHECK_CLOCK(0xa4, true); //huc6280
+                CHECK_CLOCK(0xa8, true); //c140
+                CHECK_CLOCK(0xac, false); //k053260
+                CHECK_CLOCK(0xb0, false); //pokey
+                CHECK_CLOCK(0xb4, false); //qsound
                 if (Player_Info.Version >= 171) {
-                    CHECK_CLOCK(0xb8); //scsp
-                    CHECK_CLOCK(0xc0); //wonderswan
-                    CHECK_CLOCK(0xc4); //virtual boy
-                    CHECK_CLOCK(0xc8); //saa1099
-                    CHECK_CLOCK(0xcc); //es5503
-                    CHECK_CLOCK(0xd0); //es5505 5506
-                    CHECK_CLOCK(0xd8); //x1-010
-                    CHECK_CLOCK(0xdc); //c352
-                    CHECK_CLOCK(0xe0); //ga20
+                    CHECK_CLOCK(0xb8, false); //scsp
+                    CHECK_CLOCK(0xc0, false); //wonderswan
+                    CHECK_CLOCK(0xc4, false); //virtual boy
+                    CHECK_CLOCK(0xc8, false); //saa1099
+                    CHECK_CLOCK(0xcc, false); //es5503
+                    CHECK_CLOCK(0xd0, false); //es5505 5506
+                    CHECK_CLOCK(0xd8, false); //x1-010
+                    CHECK_CLOCK(0xdc, false); //c352
+                    CHECK_CLOCK(0xe0, false); //ga20
                 }
             }
         }
