@@ -44,7 +44,7 @@ static void wrap_leddrv_updatebrightness() {
 
 static bool loaded[OPTION_COUNT];
 
-//last used: 16
+//last used: 17
 const option_t Options[OPTION_COUNT] = {
     {
         0x0001,
@@ -177,6 +177,18 @@ const option_t Options[OPTION_COUNT] = {
         OPTION_TYPE_BOOL,
         OPTION_SUBTYPE_NONE,
         &Player_SkipUnsupported,
+        true,
+        NULL,
+        NULL
+    },
+    {
+        0x0017,
+        "Assume SEGA DCSG",
+        "Improve support for SEGA console VGM files by assuming the SN76489 is the SEGA type. This should only be disabled when playing VGMs from systems using discrete SN76489 chips.",
+        OPTION_CATEGORY_PLAYBACK,
+        OPTION_TYPE_BOOL,
+        OPTION_SUBTYPE_NONE,
+        &Driver_AssumeSegaDcsg,
         true,
         NULL,
         NULL

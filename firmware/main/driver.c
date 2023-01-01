@@ -57,9 +57,10 @@ volatile IRAM_ATTR uint32_t Driver_CpuPeriod = 0;
 volatile IRAM_ATTR uint32_t Driver_CpuUsageVgm = 0;
 volatile IRAM_ATTR uint32_t Driver_CpuUsageDs = 0;
 
-volatile bool Driver_FixDcsgFrequency = true;
-volatile bool Driver_FixDcsgPeriodic = true;
+volatile bool Driver_AssumeSegaDcsg = true;
 volatile bool Driver_MitigateVgmTrim = true;
+volatile uint8_t Driver_VgmDcsgSrWidth = 16;
+volatile bool Driver_VgmDcsgSpecialFreq0 = true; //true = sega
 
 volatile MegaMod_t Driver_DetectedMod = MEGAMOD_NONE;
 
@@ -345,10 +346,18 @@ void Driver_WriteDcsgCh3Freq() {
     uint32_t freq = dcsg_freq[2];
 
     //if the fix is enabled, and dcsg noise is set to "periodic" mode, and it gets its freq from ch3, and ch3 is muted, then adjust ch3 freq
-    if (Driver_FixDcsgPeriodic && Driver_DcsgNoisePeriodic && Driver_DcsgNoiseSourceCh3 && Driver_DcsgAttenuation[2] == 0b11011111) {
-        //increase the value by 6.25%, which actually decreases output freq, because dcsg freq regs are "upside down"
-        freq *= 10625;
-        freq /= 10000;
+    //note the ch3 mute check may need to go for strictly correct playback
+    bool wants_fix = Driver_AssumeSegaDcsg || (Driver_VgmDcsgSrWidth != 15);
+    if (wants_fix && Driver_DcsgNoisePeriodic && Driver_DcsgNoiseSourceCh3 && Driver_DcsgAttenuation[2] == 0b11011111) {
+        if (Driver_VgmDcsgSrWidth == 16 || Driver_AssumeSegaDcsg) {
+            //increase the value by 6.25%, which actually decreases output freq, because dcsg freq regs are "upside down"
+            freq *= 10625;
+            freq /= 10000;
+        } else if (Driver_VgmDcsgSrWidth == 17) {
+            freq *= 11333;
+            freq /= 10000;
+        }
+        //no need to check any other values as they are caught and clamped in player
     }
 
     if (freq == 0) freq = 1;
@@ -986,51 +995,45 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
 
     if (cmd[0] == 0x50) { //SN76489
         //dcsg writes need to be intercepted to fix frequency register differences between TI DCSG <-> SEGA VDP DCSG
-        //TODO: only do this for vgms where ver >= 1.51 and header 0x2b bit 0 is set
-        //TODO: fix all the logic here - it's fucked up if fixdcsgfreq = false
-        if (Driver_FixDcsgFrequency) {
-            if ((cmd[1] & 0x80) == 0) { //ch 1~3 frequency high byte write
-                //note: whether or not dcsg_latched_ch is actually still in the latch on the chip (ch3 updates might blow it away) doesn't matter, because we always rewrite the low byte anyway. it's what's latched from *our* POV
-                dcsg_freq[dcsg_latched_ch] = (dcsg_freq[dcsg_latched_ch] & 0b1111) | ((cmd[1] & 0b111111) << 4);
-                //write both registers now
-                if (dcsg_latched_ch == 2) { //ch3
-                    Driver_WriteDcsgCh3Freq();
-                } else {
-                    uint8_t low = 0x80 | (dcsg_latched_ch<<5) | (dcsg_freq[dcsg_latched_ch] & 0b1111);
-                    if (dcsg_freq[dcsg_latched_ch] == 0) low |= 1;
-                    Driver_DcsgOut(low);
-                    Driver_DcsgOut((dcsg_freq[dcsg_latched_ch] >> 4) & 0b111111);
-                }
-            } else if ((cmd[1] & 0b10010000) == 0b10000000 && (cmd[1]&0b01100000)>>5 != 3) { //ch 1~3 frequency low byte write
-                dcsg_latched_ch = (cmd[1]>>5)&3;
-                dcsg_freq[dcsg_latched_ch] = (dcsg_freq[dcsg_latched_ch] & 0b1111110000) | (cmd[1] & 0b1111);
-                uint8_t val = cmd[1];
-                if (dcsg_freq[dcsg_latched_ch] == 0) {
-                    val |= 1;
-                }
-                Driver_DcsgOut(val);
-            } else { //attenuation or noise ch control write
-                if ((cmd[1] & 0b10010000) == 0b10010000) { //attenuation
-                    uint8_t ch = (cmd[1]>>5)&0b00000011;
-                    Driver_DcsgAttenuation[ch] = cmd[1];
-                    cmd[1] = FilterDcsgAttenWrite(cmd[1]);
-                    if ((Driver_MitigateVgmTrim && Driver_FirstWait) || Driver_Slip) cmd[1] |= 0b00001111; //if we haven't reached the first wait, force full attenuation
-                    if (ch == 2) {
-                        //when ch 3 atten is updated, we also need to write frequency again. this is due to the periodic noise fix.
-                        //TODO: this would be better if it only does it if actually transitioning in or out of mute, rather than on every atten update
-                        Driver_WriteDcsgCh3Freq();
-                    }
-                } else if ((cmd[1] & 0b11110000) == 0b11100000) { //noise control
-                    Driver_DcsgNoisePeriodic = (cmd[1] & 0b00000100) == 0; //FB
-                    Driver_DcsgNoiseSourceCh3 = (cmd[1] & 0b00000011) == 0b00000011; //NF0, NF1
-                    //periodic noise fix: update ch3 frequency when noise control settings change
-                    //TODO: only update it when it matters :P
-                    Driver_WriteDcsgCh3Freq();
-                }
-                Driver_DcsgOut(cmd[1]);
+        if ((cmd[1] & 0x80) == 0) { //ch 1~3 frequency high byte write
+            //note: whether or not dcsg_latched_ch is actually still in the latch on the chip (ch3 updates might blow it away) doesn't matter, because we always rewrite the low byte anyway. it's what's latched from *our* POV
+            dcsg_freq[dcsg_latched_ch] = (dcsg_freq[dcsg_latched_ch] & 0b1111) | ((cmd[1] & 0b111111) << 4);
+            //write both registers now
+            if (dcsg_latched_ch == 2) { //ch3
+                Driver_WriteDcsgCh3Freq();
+            } else {
+                uint8_t low = 0x80 | (dcsg_latched_ch<<5) | (dcsg_freq[dcsg_latched_ch] & 0b1111);
+                if (dcsg_freq[dcsg_latched_ch] == 0) low |= 1;
+                Driver_DcsgOut(low);
+                Driver_DcsgOut((dcsg_freq[dcsg_latched_ch] >> 4) & 0b111111);
             }
-        } else { //not fixing dcsg frequency
-            Driver_DcsgOut(cmd[1]); //just write it normally
+        } else if ((cmd[1] & 0b10010000) == 0b10000000 && (cmd[1]&0b01100000)>>5 != 3) { //ch 1~3 frequency low byte write
+            dcsg_latched_ch = (cmd[1]>>5)&3;
+            dcsg_freq[dcsg_latched_ch] = (dcsg_freq[dcsg_latched_ch] & 0b1111110000) | (cmd[1] & 0b1111);
+            uint8_t val = cmd[1];
+            if ((Driver_VgmDcsgSpecialFreq0 || Driver_AssumeSegaDcsg) && dcsg_freq[dcsg_latched_ch] == 0) {
+                val |= 1;
+            }
+            Driver_DcsgOut(val);
+        } else { //attenuation or noise ch control write
+            if ((cmd[1] & 0b10010000) == 0b10010000) { //attenuation
+                uint8_t ch = (cmd[1]>>5)&0b00000011;
+                Driver_DcsgAttenuation[ch] = cmd[1];
+                cmd[1] = FilterDcsgAttenWrite(cmd[1]);
+                if ((Driver_MitigateVgmTrim && Driver_FirstWait) || Driver_Slip) cmd[1] |= 0b00001111; //if we haven't reached the first wait, force full attenuation
+                if (ch == 2) {
+                    //when ch 3 atten is updated, we also need to write frequency again. this is due to the periodic noise fix.
+                    //TODO: this would be better if it only does it if actually transitioning in or out of mute, rather than on every atten update
+                    Driver_WriteDcsgCh3Freq();
+                }
+            } else if ((cmd[1] & 0b11110000) == 0b11100000) { //noise control
+                Driver_DcsgNoisePeriodic = (cmd[1] & 0b00000100) == 0; //FB
+                Driver_DcsgNoiseSourceCh3 = (cmd[1] & 0b00000011) == 0b00000011; //NF0, NF1
+                //periodic noise fix: update ch3 frequency when noise control settings change
+                //TODO: only update it when it matters :P
+                Driver_WriteDcsgCh3Freq();
+            }
+            Driver_DcsgOut(cmd[1]);
         }
     } else if (cmd[0] == 0x51) {
         Driver_FmOutopl3(0, cmd[1], cmd[2]);

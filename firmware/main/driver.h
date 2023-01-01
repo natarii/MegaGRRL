@@ -51,8 +51,6 @@ extern uint8_t DacStreamId;
 extern volatile IRAM_ATTR uint32_t Driver_CpuPeriod;
 extern volatile IRAM_ATTR uint32_t Driver_CpuUsageVgm;
 extern volatile IRAM_ATTR uint32_t Driver_CpuUsageDs;
-extern volatile bool Driver_FixDcsgFrequency;
-extern volatile bool Driver_FixDcsgPeriodic;
 extern volatile bool Driver_MitigateVgmTrim;
 extern volatile bool Driver_FirstWait;
 extern volatile uint8_t Driver_FmMask;
@@ -64,6 +62,9 @@ extern FILE *Driver_Opna_PcmUploadFile;
 extern volatile int16_t Driver_SpeedMult;
 extern volatile bool Driver_FadeEnabled;
 extern volatile uint8_t Driver_FadeLength;
+extern volatile uint8_t Driver_VgmDcsgSrWidth;
+extern volatile bool Driver_VgmDcsgSpecialFreq0;
+extern volatile bool Driver_AssumeSegaDcsg;
 
 extern IRAM_ATTR uint32_t Driver_Sample;
 extern IRAM_ATTR uint32_t Driver_NextSample;

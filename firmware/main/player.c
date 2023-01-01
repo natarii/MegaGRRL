@@ -515,6 +515,8 @@ static int Player_StartTrack(char *FilePath) {
         return false;
     }
 
+    ESP_LOGI(TAG, "VGM VER = %d", Player_Info.Version);
+
     //known bad vgm header checksum
     fseek(Player_VgmFile, 0, SEEK_SET);
     fread(Driver_PcmBuf, 1, Player_Info.DataOffset, Player_VgmFile);
@@ -676,6 +678,25 @@ static int Player_StartTrack(char *FilePath) {
         }
 
         if (DcsgClock) clocks_used++;
+
+        //handle (some of) dcsg special flags
+        uint8_t dcsg_sr_width = 16;
+        uint8_t dcsg_flags = 0;
+        if (Player_Info.Version >= 110) {
+            fseek(Player_VgmFile, 0x2a, SEEK_SET);
+            fread(&dcsg_sr_width, 1, 1, Player_VgmFile);
+            if (dcsg_sr_width < 15 || dcsg_sr_width > 17) {
+                ESP_LOGE(TAG, "Invalid DCSG SR width (%d)!!! Assuming 16", dcsg_sr_width);
+                dcsg_sr_width = 16;
+            }
+            if (Player_Info.Version >= 151) {
+                fread(&dcsg_flags, 1, 1, Player_VgmFile);
+            }
+        }
+        ESP_LOGI(TAG, "DCSG SR width = %d", dcsg_sr_width);
+        ESP_LOGI(TAG, "DCSG flags = 0x%02x", dcsg_flags);
+        Driver_VgmDcsgSrWidth = dcsg_sr_width;
+        Driver_VgmDcsgSpecialFreq0 = (dcsg_flags & (1<<0)) == 0;
 
         if (DcsgClock == 0) DcsgClock = 3579545;
         else if (DcsgClock < 1000000) DcsgClock = 1000000;

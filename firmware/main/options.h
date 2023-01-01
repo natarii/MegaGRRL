@@ -48,7 +48,7 @@ typedef struct {
     void (*cb_initial)();
 } option_t;
 
-#define OPTION_COUNT 21
+#define OPTION_COUNT 22
 
 //options version. this was 0xA0 before the crc was added, so we will support 0xA0 files.
 #define OPTIONS_VER 0xA1
