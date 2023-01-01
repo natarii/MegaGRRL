@@ -26,7 +26,8 @@ const char *OptionCatNames[OPTION_CATEGORY_COUNT] = {
     "File Browser",
     "LEDs",
     "Playback",
-    "Advanced"
+    "Advanced",
+    "Beta Features",
     //"Screen", portable only, so getting rid of it for now
 };
 
@@ -44,7 +45,7 @@ static void wrap_leddrv_updatebrightness() {
 
 static bool loaded[OPTION_COUNT];
 
-//last used: 17
+//last used: 0018
 const option_t Options[OPTION_COUNT] = {
     {
         0x0001,
@@ -336,7 +337,19 @@ const option_t Options[OPTION_COUNT] = {
         0,
         logmgr_update_loglevel,
         NULL
-    }
+    },
+    {
+        0x0018,
+        "Enable fast-forwarding",
+        "Enables beta support for fast-forwarding through VGMs.",
+        OPTION_CATEGORY_BETA,
+        OPTION_TYPE_BOOL,
+        OPTION_SUBTYPE_NONE,
+        &Player_EnableFastForward,
+        false,
+        NULL,
+        NULL
+    },
 };
 
 static void file_error() {

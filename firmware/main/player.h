@@ -43,6 +43,7 @@ extern volatile uint8_t Player_LoopCount;
 extern volatile RepeatMode_t Player_RepeatMode;
 extern volatile bool Player_UnvgzReplaceOriginal;
 extern volatile bool Player_SkipUnsupported;
+extern volatile bool Player_EnableFastForward;
 
 void Player_Main();
 bool Player_Setup();

@@ -30,6 +30,7 @@ typedef enum {
     OPTION_CATEGORY_LEDS,
     OPTION_CATEGORY_PLAYBACK,
     OPTION_CATEGORY_ADVANCED,
+    OPTION_CATEGORY_BETA,
     //OPTION_CATEGORY_SCREEN, //disabling for now, portable only
     OPTION_CATEGORY_COUNT
 } optioncategory_t;
@@ -48,7 +49,7 @@ typedef struct {
     void (*cb_initial)();
 } option_t;
 
-#define OPTION_COUNT 22
+#define OPTION_COUNT 23
 
 //options version. this was 0xA0 before the crc was added, so we will support 0xA0 files.
 #define OPTIONS_VER 0xA1

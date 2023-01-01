@@ -84,6 +84,7 @@ volatile uint8_t Player_LoopCount = 2;
 volatile RepeatMode_t Player_RepeatMode = REPEAT_ALL;
 volatile bool Player_UnvgzReplaceOriginal = true;
 volatile bool Player_SkipUnsupported = true;
+volatile bool Player_EnableFastForward = false;
 
 EventGroupHandle_t Player_Status;
 StaticEventGroup_t Player_StatusBuf;
@@ -263,7 +264,7 @@ void Player_Main() {
                 }
                 xEventGroupClearBits(Player_Status, PLAYER_STATUS_PAUSED);
             } else if (notif == PLAYER_NOTIFY_FASTFORWARD) {
-                xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_FASTFORWARD);
+                if (Player_EnableFastForward) xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_FASTFORWARD);
             }
         } else { //no incoming notification
 
