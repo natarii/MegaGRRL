@@ -589,9 +589,14 @@ static uint32_t Player_StartTrack(char *FilePath) {
 
     ESP_LOGI(TAG, "vgm rate: %d", Player_Info.Rate);
 
-    //read in the first 256 bytes of the file, then go through it and figure out how many chip clocks are specified
+    //read in the entire header with all unused sections zero-filled. TODO: prevent double-reading this (see bad vgm checksum)
     fseek(Player_VgmFile, 0, SEEK_SET);
-    fread(Driver_PcmBuf, 1, 256, Player_VgmFile);
+    memset(Driver_PcmBuf, 0, sizeof(Driver_PcmBuf));
+    size_t maxread = Player_Info.DataOffset;
+    if (maxread > sizeof(Driver_PcmBuf)) maxread = sizeof(Driver_PcmBuf); //catch anything too wacky happening
+    fread(Driver_PcmBuf, 1, maxread, Player_VgmFile);
+
+    //go through the header and figure out how many chip clocks are specified
     uint8_t clocks_specified = 0;
     uint8_t clocks_specified_pcm = 0;
     uint8_t clocks_used = 0;
@@ -651,10 +656,8 @@ static uint32_t Player_StartTrack(char *FilePath) {
         ESP_LOGI(TAG, "MegaMod: none");
         uint32_t DcsgClock = 0;
         uint32_t FmClock = 0;
-        fseek(Player_VgmFile, 0x0c, SEEK_SET);
-        fread(&DcsgClock, 4, 1, Player_VgmFile);
-        fseek(Player_VgmFile, 0x2c, SEEK_SET);
-        fread(&FmClock, 4, 1, Player_VgmFile);
+        memcpy(&DcsgClock, &Driver_PcmBuf[0x0c], 4);
+        memcpy(&FmClock, &Driver_PcmBuf[0x2c], 4);
         FmClock &= ~(1<<31); //3438 bit, ffs...
         if (DcsgClock & (1<<30)) {
             ESP_LOGW(TAG, "Only one DCSG supported! Writes to the second chip will be dropped");
@@ -669,11 +672,10 @@ static uint32_t Player_StartTrack(char *FilePath) {
         if (!DcsgClock && !FmClock) {
             if (Player_Info.Version >= 151) {
                 ESP_LOGW(TAG, "Missing OPN2 and DCSG clocks, attempting OPN...");
-                fseek(Player_VgmFile, 0x44, SEEK_SET);
-                fread(&FmClock, 4, 1, Player_VgmFile);
+                memcpy(&FmClock, &Driver_PcmBuf[0x44], 4);
                 if (!FmClock) {
                     ESP_LOGW(TAG, "Attempting OPNA...");
-                    fread(&FmClock, 4, 1, Player_VgmFile);
+                    memcpy(&FmClock, &Driver_PcmBuf[0x48], 4);
                     if (!FmClock) {
                         ESP_LOGW(TAG, "It's not OPNA either");
                     } else {
@@ -699,14 +701,13 @@ static uint32_t Player_StartTrack(char *FilePath) {
         uint8_t dcsg_sr_width = 16;
         uint8_t dcsg_flags = 0;
         if (Player_Info.Version >= 110) {
-            fseek(Player_VgmFile, 0x2a, SEEK_SET);
-            fread(&dcsg_sr_width, 1, 1, Player_VgmFile);
+            memcpy(&dcsg_sr_width, &Driver_PcmBuf[0x2a], 1);
             if (dcsg_sr_width < 15 || dcsg_sr_width > 17) {
                 ESP_LOGE(TAG, "Invalid DCSG SR width (%d)!!! Assuming 16", dcsg_sr_width);
                 dcsg_sr_width = 16;
             }
             if (Player_Info.Version >= 151) {
-                fread(&dcsg_flags, 1, 1, Player_VgmFile);
+                memcpy(&dcsg_flags, &Driver_PcmBuf[0x2b], 1);
             }
         }
         ESP_LOGI(TAG, "DCSG SR width = %d", dcsg_sr_width);
@@ -728,9 +729,8 @@ static uint32_t Player_StartTrack(char *FilePath) {
         Clk_Set(CLK_DCSG, 0);
         uint32_t opll = 0;
         uint32_t dcsg = 0;
-        fseek(Player_VgmFile, 0x0c, SEEK_SET);
-        fread(&dcsg,4,1,Player_VgmFile);
-        fread(&opll,4,1,Player_VgmFile);
+        memcpy(&dcsg, &Driver_PcmBuf[0x0c], 4);
+        memcpy(&opll, &Driver_PcmBuf[0x10], 4);
         if ((dcsg & 0x40000000) || (opll & 0x40000000)) {
             ESP_LOGW(TAG, "Only one of each chip supported !!");
         } else if (dcsg && opll && (dcsg != opll)) {
@@ -751,15 +751,12 @@ static uint32_t Player_StartTrack(char *FilePath) {
         uint32_t opn = 0;
         uint32_t ay = 0;
         uint32_t opn2 = 0;
-        fseek(Player_VgmFile, 0x2c, SEEK_SET);
-        fread(&opn2, 4, 1, Player_VgmFile);
+        memcpy(&opn2, &Driver_PcmBuf[0x2c], 4);
         opn2 &= ~(1<<31); //3438 bit
         if (Player_Info.Version >= 151) {
-            fseek(Player_VgmFile, 0x44, SEEK_SET);
-            fread(&opn,4,1,Player_VgmFile);
-            fread(&opna,4,1,Player_VgmFile);
-            fseek(Player_VgmFile, 0x74, SEEK_SET);
-            fread(&ay,4,1,Player_VgmFile);
+            memcpy(&opn, &Driver_PcmBuf[0x44], 4);
+            memcpy(&opna, &Driver_PcmBuf[0x48], 4);
+            memcpy(&ay, &Driver_PcmBuf[0x74], 4);
         }
         if (opna & (1<<30) || opn2 & (1<<30) || ay & (1<<30)) {
             ESP_LOGE(TAG, "Only one opna/opn2/ay supported !!");
@@ -788,11 +785,9 @@ static uint32_t Player_StartTrack(char *FilePath) {
         uint32_t opl = 0;
         uint32_t opl2 = 0;
         uint32_t opl3 = 0;
-        fseek(Player_VgmFile, 0x50, SEEK_SET);
-        fread(&opl2,4,1,Player_VgmFile);
-        fread(&opl,4,1,Player_VgmFile);
-        fseek(Player_VgmFile, 0x5c, SEEK_SET);
-        fread(&opl3,4,1,Player_VgmFile);
+        memcpy(&opl2, &Driver_PcmBuf[0x50], 4);
+        memcpy(&opl, &Driver_PcmBuf[0x54], 4);
+        memcpy(&opl3, &Driver_PcmBuf[0x5c], 4);
         if ((opl & 0x40000000) || (opl2 & 0x40000000) || (opl3 & 0x40000000)) {
             ESP_LOGW(TAG, "Only one of each chip supported FOR NOW !!");
         }
@@ -816,8 +811,7 @@ static uint32_t Player_StartTrack(char *FilePath) {
         ESP_LOGI(TAG, "MegaMod: OPM");
         Clk_Set(CLK_DCSG, 0);
         uint32_t opm = 0;
-        fseek(Player_VgmFile, 0x30, SEEK_SET);
-        fread(&opm,4,1,Player_VgmFile);
+        memcpy(&opm, &Driver_PcmBuf[0x30], 4);
         if (opm & 0x40000000) {
             ESP_LOGW(TAG, "Only one opm supported !!");
         }
