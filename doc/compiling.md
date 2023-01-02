@@ -15,11 +15,12 @@
 5. Connect the MegaGRRL's UART to your computer. Ensure the SD card D2 pullup resistor is not populated (R999 on portable, RN2 on desktop), and no SD card is inserted.
 6. Burn the 3.3 volt flash efuse using `$IDF_PATH/components/esptool_py/esptool/espefuse.py set_flash_voltage 3.3V`.
 7. `make flash`. The firmware updater is now installed on the ESP32.
-8. Re-comment `#define FWUPDATE`.
-9. `make all`.
-10. Format an SD card as FAT32, then find the `megagrrl.bin` file in `firmware/build/`, rename it to `factory.mgf`, and copy it to the root of the card.
-11. Populate the SD card D2 pullup resistor.
-12. Insert the card into the MegaGRRL and power it on. The firmware will now self-flash, and reboot into the OS.
+8. If MegaGRRL's display appears sideways and corrupted, you will need to select an alternate LCD in `hal.h`.
+9. Re-comment `#define FWUPDATE`.
+10. `make all`.
+11. Format an SD card as FAT32, then find the `megagrrl.bin` file in `firmware/build/`, rename it to `factory.mgf`, and copy it to the root of the card.
+12. Populate the SD card D2 pullup resistor.
+13. Insert the card into the MegaGRRL and power it on. The firmware will now self-flash, and reboot into the OS.
 
 Note: If the default serial device (`/dev/ttyUSB0`) doesn't work on your machine, you may need to set it manually using the `--port` option (for Python scripts) or the `ESPPORT` environment variable (for `make`). On macOS, for example, the device path may take the form of `/dev/cu.usbserial-1420` (with the Apple driver in Mojave and later) or `/dev/cu.wchusbserial1420` (with the OEM CH34x driver). On BSD systems, a path like `/dev/cuaU0` may be used.
 
