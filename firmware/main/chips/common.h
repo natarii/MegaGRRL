@@ -1,9 +1,10 @@
 #pragma once
 
 //todo make fade len in samples
+//todo missing short circuit checks everywhere
 
 #define WRITE_COPY_IN_OUT(write) write->out_port = write->in_port; write->out_reg = write->in_reg; write->out_val = write->in_val;
-#define CHECK_SHORT_CIRCUIT if (write->short_circuit) return;
+#define WRITE_CHECK_SHORT_CIRCUIT(write) if (write->short_circuit) return;
 
 typedef struct {
     uint8_t in_port;
@@ -26,6 +27,7 @@ typedef enum {
     CHIP_IOCTL_UPDATE_PAUSE,
     CHIP_IOCTL_DCSG_SET_SR_WIDTH,
     CHIP_IOCTL_DCSG_SET_FIX_FLAGS,
+    CHIP_IOCTL_SET_VIRT_TYPE,
 } chip_ioctl_t;
 
 typedef uint32_t chip_muting_data_t;
