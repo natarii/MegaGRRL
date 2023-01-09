@@ -10,6 +10,8 @@
 static const char* TAG = "chip_opn_series";
 
 //todo pretty much all opna
+//todo fixup in/out, pmuch all should be out
+//todo force mono
 
 //untested etc etc:
 //mute
@@ -130,7 +132,7 @@ static void opn2_fix_dac(opn_series_state_t *state) {
 }
 
 static void opn_common_filter_pan_write(opn_series_state_t *state, chip_write_t *write) {
-    CHECK_SHORT_CIRCUIT;
+    WRITE_CHECK_SHORT_CIRCUIT(write);
     uint8_t in_ch = COMMON_PORT_REG_TO_CHAN(write->in_port, write->in_reg);
     state->fm_pan[in_ch] = write->in_val;
     uint8_t out_ch = COMMON_PORT_REG_TO_CHAN(write->out_port, write->out_reg);
@@ -158,7 +160,7 @@ static void opn_common_dump_tls(opn_series_state_t *state) {
 }
 
 static void opn_common_filter_tl_write(opn_series_state_t *state, chip_write_t *write) {
-    CHECK_SHORT_CIRCUIT;
+    WRITE_CHECK_SHORT_CIRCUIT(write);
     uint8_t op = opn_op_map[(write->out_reg-0x40)/4];
     uint8_t ch = (3*write->out_port)+((write->out_reg-0x40)-(opn_op_map[op]*4));
     if (op > 3 || ch > 5) return; //drop write?
@@ -169,7 +171,7 @@ static void opn_common_filter_tl_write(opn_series_state_t *state, chip_write_t *
 }
 
 static void opn_common_handle_algo_write(opn_series_state_t *state, chip_write_t *write) {
-    CHECK_SHORT_CIRCUIT;
+    WRITE_CHECK_SHORT_CIRCUIT(write);
     uint8_t ch = COMMON_PORT_REG_TO_CHAN(write->in_port, write->in_reg);
     uint8_t old = state->fm_algo[ch];
     uint8_t new = write->in_val & 7;
@@ -197,7 +199,7 @@ static void opn_common_virt_write_parts(opn_series_state_t *state, chip_write_t 
 }
 
 static inline void opn2_filter_dac_fade(opn_series_state_t *state, chip_write_t *write) {
-    CHECK_SHORT_CIRCUIT;
+    WRITE_CHECK_SHORT_CIRCUIT(write);
     if (!state->fade_pos) return;
     int32_t sgn = write->out_val;
     sgn -= 0x7f;
@@ -272,7 +274,7 @@ static void opn_common_update_fade_data(opn_series_state_t *state, chip_fade_dat
     if (data.pos) opn_common_dump_tls(state);
 }
 
-static inline void opn_common_handle_mute_ioctl(opn_series_type_t type, opn_series_state_t *state) {
+static inline void opn_common_handle_sysmute_ioctl(opn_series_type_t type, opn_series_state_t *state) {
     opn_common_dump_muting_data(state);
     if (type == OPN_TYPE_OPNA) opna_dump_muting_data(state);
     if (type == OPN_TYPE_OPN2) opn2_fix_dac(state);
@@ -289,15 +291,15 @@ void opn_common_ioctl(opn_series_type_t type, opn_series_state_t *state, chip_io
             break;
         case CHIP_IOCTL_PRE_PERIOD:
             state->in_pre_period = *(bool *)data;
-            opn_common_handle_mute_ioctl(type, state);
+            opn_common_handle_sysmute_ioctl(type, state);
             break;
         case CHIP_IOCTL_UPDATE_SLIP:
             state->slip = *(bool *)data;
-            opn_common_handle_mute_ioctl(type, state);
+            opn_common_handle_sysmute_ioctl(type, state);
             break;
         case CHIP_IOCTL_UPDATE_PAUSE:
             state->paused = *(bool *)data;
-            opn_common_handle_mute_ioctl(type, state);
+            opn_common_handle_sysmute_ioctl(type, state);
             break;
         case CHIP_IOCTL_OPN2_BLOCK_TEST_REG:
             state->test_reg_blocked = *(bool *)data;

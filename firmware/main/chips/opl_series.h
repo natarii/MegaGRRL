@@ -4,8 +4,8 @@
 #include "common.h"
 
 typedef enum {
-    //OPL_TYPE_OPL,
-    //OPL_TYPE_OPL2,
+    OPL_TYPE_OPL,
+    OPL_TYPE_OPL2,
     OPL_TYPE_OPL3,
     //OPL_TYPE_OPL4,
 } opl_series_type_t;
@@ -15,17 +15,22 @@ typedef struct opl_series_state_t {
     uint32_t clock;
     void (*write_func)(struct opl_series_state_t *state, uint8_t port, uint8_t reg, uint8_t val);
     opl_series_type_t type;
+    opl_series_type_t virt_type;
     
-    uint8_t fm_pan[6];
-    uint8_t fm_algo[6];
-    uint8_t fm_tl[4*6];
-    uint8_t mute_mask;
+    uint8_t fm_pan[18];
+    uint8_t fm_conn_bit[18];
+    uint8_t fm_tl[36];
+    uint32_t mute_mask;
     bool force_mono;
     bool in_pre_period;
     uint32_t fade_pos;
     uint32_t fade_len;
     bool slip;
     bool paused;
+    bool sum_to_ab;
+    bool is_opl3_mode;
+    uint8_t fourop_en;
+    bool drum_en;
 } opl_series_state_t;
 
 void opl3_init(opl_series_state_t *state, uint8_t hw_slot);
