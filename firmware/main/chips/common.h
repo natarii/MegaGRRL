@@ -4,7 +4,7 @@
 //todo missing short circuit checks everywhere
 
 #define WRITE_COPY_IN_OUT(write) write->out_port = write->in_port; write->out_reg = write->in_reg; write->out_val = write->in_val;
-#define WRITE_CHECK_SHORT_CIRCUIT(write) if (write->short_circuit) return;
+#define WRITE_CHECK_SHORT_CIRCUIT(write) if (write->drop || write->short_circuit) return;
 
 typedef struct {
     uint8_t in_port;

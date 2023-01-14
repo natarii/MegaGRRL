@@ -102,6 +102,7 @@ static void opn_common_dump_pans(opn_series_state_t *state) {
 }
 
 static inline void opn2_filter_dedup(opn_series_state_t *state, chip_write_t *write) {
+    WRITE_CHECK_SHORT_CIRCUIT(write);
     uint16_t idx = (write->out_port<<8)+write->out_reg;
     if ((write->out_reg >> 4) != 0xa) {
         if (state->dedup[idx] == write->out_val) {
@@ -114,12 +115,14 @@ static inline void opn2_filter_dedup(opn_series_state_t *state, chip_write_t *wr
 
 static inline void opn2_filter_test_reg(opn_series_state_t *state, chip_write_t *write) {
     if (state->test_reg_blocked && (write->out_reg == 0x21 || write->out_reg == 0x2c)) {
+        WRITE_CHECK_SHORT_CIRCUIT(write);
         write->drop = true;
     }
 }
 
 static inline void opn2_filter_dac_pre(opn_series_state_t *state, chip_write_t *write) {
     if (state->in_pre_period || state->slip) {
+        WRITE_CHECK_SHORT_CIRCUIT(write);
         state->opn2_dac_touched = true;
         state->opn2_dac_last = write->out_val;
         write->drop = true;
@@ -133,10 +136,9 @@ static void opn2_fix_dac(opn_series_state_t *state) {
 
 static void opn_common_filter_pan_write(opn_series_state_t *state, chip_write_t *write) {
     WRITE_CHECK_SHORT_CIRCUIT(write);
-    uint8_t in_ch = COMMON_PORT_REG_TO_CHAN(write->in_port, write->in_reg);
-    state->fm_pan[in_ch] = write->in_val;
-    uint8_t out_ch = COMMON_PORT_REG_TO_CHAN(write->out_port, write->out_reg);
-    write->out_val = opn_common_filter_pan(state, out_ch, write->out_val);
+    uint8_t ch = COMMON_PORT_REG_TO_CHAN(write->out_port, write->out_reg);
+    state->fm_pan[ch] = write->out_val;
+    write->out_val = opn_common_filter_pan(state, ch, write->out_val);
 }
 
 static uint8_t opn_common_apply_fade(opn_series_state_t *state, uint8_t tl) {
@@ -172,9 +174,9 @@ static void opn_common_filter_tl_write(opn_series_state_t *state, chip_write_t *
 
 static void opn_common_handle_algo_write(opn_series_state_t *state, chip_write_t *write) {
     WRITE_CHECK_SHORT_CIRCUIT(write);
-    uint8_t ch = COMMON_PORT_REG_TO_CHAN(write->in_port, write->in_reg);
+    uint8_t ch = COMMON_PORT_REG_TO_CHAN(write->out_port, write->out_reg);
     uint8_t old = state->fm_algo[ch];
-    uint8_t new = write->in_val & 7;
+    uint8_t new = write->out_val & 7;
 
     if (old != new) {
         //don't use opn_common_dump_tls here, only need to do it for the current ch
@@ -199,8 +201,8 @@ static void opn_common_virt_write_parts(opn_series_state_t *state, chip_write_t 
 }
 
 static inline void opn2_filter_dac_fade(opn_series_state_t *state, chip_write_t *write) {
-    WRITE_CHECK_SHORT_CIRCUIT(write);
     if (!state->fade_pos) return;
+    WRITE_CHECK_SHORT_CIRCUIT(write);
     int32_t sgn = write->out_val;
     sgn -= 0x7f;
     sgn *= 1000;
