@@ -252,7 +252,7 @@ void opn2_virt_write(opn_series_state_t *state, chip_write_t *write) {
     if (!write->drop) state->write_func(state, write->out_port, write->out_reg, write->out_val);
 }
 
-static uint8_t opna_apply_adpcm_muting(opn_series_state_t *state, uint8_t val) {
+static uint8_t opna_adpcm_apply_muting(opn_series_state_t *state, uint8_t val) {
     if (!GETBIT(state->mute_mask, 7)) val &= 0b00111111;
     if (state->force_mono) COMMON_FORCE_MONO(val);
     return val;
@@ -262,7 +262,7 @@ static void opna_handle_adpcm_config(opn_series_state_t *state, chip_write_t *wr
     WRITE_CHECK_SHORT_CIRCUIT(write);
     state->opna_adpcm_config.config = write->out_val;
     OPNA_SET_RAM_CONNECTION(write->out_val);
-    write->out_val = opna_apply_adpcm_muting(state, write->out_val);
+    write->out_val = opna_adpcm_apply_muting(state, write->out_val);
 }
 
 static void opna_handle_adpcm_start(opn_series_state_t *state, chip_write_t *write) {
@@ -317,7 +317,7 @@ static void opna_handle_rhythm_tl(opn_series_state_t *state, chip_write_t *write
     write->out_val = opna_rhythm_apply_fade(state, write->out_val);
 }
 
-static uint8_t opna_apply_rhythm_muting(opn_series_state_t *state, uint8_t reg) {
+static uint8_t opna_rhythm_apply_muting(opn_series_state_t *state, uint8_t reg) {
     if (!GETBIT(state->mute_mask, 6)) reg &= 0b00111111;
     if (state->force_mono) COMMON_FORCE_MONO(reg);
     return reg;
@@ -327,7 +327,7 @@ static void opna_handle_rhythm_il(opn_series_state_t *state, chip_write_t *write
     WRITE_CHECK_SHORT_CIRCUIT(write);
     uint8_t ch = write->out_reg-0x18;
     state->opna_rhythm_config.config[ch] = write->out_val;
-    write->out_val = opna_apply_rhythm_muting(state, write->out_val);
+    write->out_val = opna_rhythm_apply_muting(state, write->out_val);
 }
 
 void opna_virt_write(opn_series_state_t *state, chip_write_t *write) {
@@ -357,11 +357,11 @@ void opna_virt_write(opn_series_state_t *state, chip_write_t *write) {
 
 static void opna_dump_other_pans(opn_series_state_t *state) {
     //adpcm
-    state->write_func(state, 1, 1, opna_apply_adpcm_muting(state, state->opna_adpcm_config.config));
+    state->write_func(state, 1, 1, opna_adpcm_apply_muting(state, state->opna_adpcm_config.config));
 
     //rhythm
     for (uint8_t ch=0;ch<6;ch++) {
-        state->write_func(state, 0, 0x18+ch, opna_apply_rhythm_muting(state, state->opna_rhythm_config.config[ch]));
+        state->write_func(state, 0, 0x18+ch, opna_rhythm_apply_muting(state, state->opna_rhythm_config.config[ch]));
     }
 }
 
