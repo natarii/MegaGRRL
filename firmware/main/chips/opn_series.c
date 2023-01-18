@@ -13,6 +13,7 @@ static const char* TAG = "chip_opn_series";
 //todo pretty much all opna
 //todo fixup in/out, pmuch all should be out
 //todo force mono
+//todo verify opna start/stop regs don't affect currently playing sample
 
 //untested etc etc:
 //mute
@@ -24,7 +25,8 @@ static const char* TAG = "chip_opn_series";
 
 static const uint8_t opn_op_map[4] = {0,2,1,3};
 
-#define OPNA_RAM_CONNECTION(val) (val & 0b11111100) //hw wiring dependent
+#define OPNA_SET_RAM_CONNECTION(val) val &= 0b11111100; //hw wiring dependent
+#define OPNA_BAD_RAM_CONNECTION(val) (val & 3) //hw wiring dependent
 #define COMMON_FORCE_MONO(var) if (var & 0b11000000) var |= 0b11000000; //if either L/R is enabled, turn on both
 #define COMMON_PORT_REG_TO_CHAN(port, reg) ((port*3)+(reg&3))
 #define COMMON_CHAN_TO_PORT(ch) (ch/3)
@@ -41,7 +43,7 @@ static void opn2_phys_write(opn_series_state_t *state, uint8_t port, uint8_t reg
 }
 
 static void opna_phys_write(opn_series_state_t *state, uint8_t port, uint8_t reg, uint8_t val) {
-
+    Driver_FmOutopnaDEV(port, reg, val);
 }
 
 static void opn_common_init(opn_series_state_t *state, uint8_t hw_slot) {
@@ -50,7 +52,7 @@ static void opn_common_init(opn_series_state_t *state, uint8_t hw_slot) {
     state->hw_slot = hw_slot;
 
     for (uint8_t i=0;i<6;i++) state->fm_pan[i] = 0b11000000;
-    state->mute_mask = 0x7f;
+    state->mute_mask = 0xff;
 }
 
 void opn2_init(opn_series_state_t *state, uint8_t hw_slot) {
@@ -68,10 +70,9 @@ void opna_init(opn_series_state_t *state, uint8_t hw_slot) {
     //todo handle fail
     psg_opn_type_init(state->opna_psg_state, hw_slot);
 
-    state->opna_adpcm_config = 0b11000000; //needs hw verify
-    for (uint8_t i=0;i<6;i++) state->opna_rhythm_config[i] = 0b11000000; //needs hw verify
-    state->opna_rhythm_tl = 0; //needs hw verify
-    state->opna_adpcm_level = 0; //needs hw verify
+    state->opna_adpcm_config.config = 0b11000000; //needs hw verify
+    for (uint8_t i=0;i<6;i++) state->opna_rhythm_config.config[i] = 0b11000000; //needs hw verify
+    //also needs hw verify: rhythm & adpcm level reset states
 }
 
 static uint8_t opn_common_filter_pan(opn_series_state_t *state, uint8_t ch, uint8_t pan) {
@@ -149,6 +150,22 @@ static uint8_t opn_common_apply_fade(opn_series_state_t *state, uint8_t tl) {
     uint32_t scaled = tl & 0x7f;
     scaled += map(state->fade_pos, 0, 44100*state->fade_len, 0, 0x30);
     if (scaled > 0x7f) scaled = 0x7f;
+    return scaled;
+}
+
+static uint8_t opna_adpcm_apply_fade(opn_series_state_t *state, uint8_t level) {
+    if (!state->fade_pos) return level;
+    int32_t scaled = level;
+    scaled -= map(state->fade_pos, 0, 44100*state->fade_len, 0, 0xaf); //TODO determine val
+    if (scaled < 0) scaled = 0;
+    return scaled;
+}
+
+static uint8_t opna_rhythm_apply_fade(opn_series_state_t *state, uint8_t tl) {
+    if (!state->fade_pos) return tl;
+    int32_t scaled = tl & 0x3f;
+    scaled -= map(state->fade_pos, 0, 44100*state->fade_len, 0, 0x3f); //TODO determine val
+    if (scaled < 0) scaled = 0;
     return scaled;
 }
 
@@ -235,27 +252,116 @@ void opn2_virt_write(opn_series_state_t *state, chip_write_t *write) {
     if (!write->drop) state->write_func(state, write->out_port, write->out_reg, write->out_val);
 }
 
+static uint8_t opna_apply_adpcm_muting(opn_series_state_t *state, uint8_t val) {
+    if (!GETBIT(state->mute_mask, 7)) val &= 0b00111111;
+    if (state->force_mono) COMMON_FORCE_MONO(val);
+    return val;
+}
+
+static void opna_handle_adpcm_config(opn_series_state_t *state, chip_write_t *write) {
+    WRITE_CHECK_SHORT_CIRCUIT(write);
+    state->opna_adpcm_config.config = write->out_val;
+    OPNA_SET_RAM_CONNECTION(write->out_val);
+    write->out_val = opna_apply_adpcm_muting(state, write->out_val);
+}
+
+static void opna_handle_adpcm_start(opn_series_state_t *state, chip_write_t *write) {
+    WRITE_CHECK_SHORT_CIRCUIT(write);
+    if (!GETBIT(write->out_val, 7)) return;
+    uint16_t wr_start = state->opna_adpcm_config.start_addr;
+    uint16_t wr_stop = state->opna_adpcm_config.stop_addr;
+    if (OPNA_BAD_RAM_CONNECTION(write->out_val)) {
+        wr_start *= 8;
+        wr_stop *= 8;
+    }
+    state->write_func(state, 1, 0x02, wr_start&0xff);
+    state->write_func(state, 1, 0x03, wr_start>>8);
+    state->write_func(state, 1, 0x04, wr_stop&0xff);
+    state->write_func(state, 1, 0x05, wr_stop>>8);
+}
+
+static void opna_handle_adpcm_addr(opn_series_state_t *state, chip_write_t *write) {
+    WRITE_CHECK_SHORT_CIRCUIT(write);
+    switch (write->out_reg) {
+        case 0x02:
+            state->opna_adpcm_config.start_addr &= 0xff00;
+            state->opna_adpcm_config.start_addr |= write->out_val;
+            break;
+        case 0x03:
+            state->opna_adpcm_config.start_addr &= 0x00ff;
+            state->opna_adpcm_config.start_addr |= (write->out_val<<8);
+            break;
+        case 0x04:
+            state->opna_adpcm_config.stop_addr &= 0xff00;
+            state->opna_adpcm_config.stop_addr |= write->out_val;
+            break;
+        case 0x05:
+            state->opna_adpcm_config.stop_addr &= 0x00ff;
+            state->opna_adpcm_config.stop_addr |= (write->out_val<<8);
+            break;
+        default:
+            break;
+    }
+    write->drop = true;
+}
+
+static void opna_handle_adpcm_level(opn_series_state_t *state, chip_write_t *write) {
+    WRITE_CHECK_SHORT_CIRCUIT(write);
+    state->opna_adpcm_config.level = write->out_val;
+    write->out_val = opna_adpcm_apply_fade(state, write->out_val);
+}
+
+static void opna_handle_rhythm_tl(opn_series_state_t *state, chip_write_t *write) {
+    WRITE_CHECK_SHORT_CIRCUIT(write);
+    state->opna_rhythm_config.tl = write->out_val & 0x3f; //mask not strictly necessary...
+    write->out_val = opna_rhythm_apply_fade(state, write->out_val);
+}
+
+static uint8_t opna_apply_rhythm_muting(opn_series_state_t *state, uint8_t reg) {
+    if (!GETBIT(state->mute_mask, 6)) reg &= 0b00111111;
+    if (state->force_mono) COMMON_FORCE_MONO(reg);
+    return reg;
+}
+
+static void opna_handle_rhythm_il(opn_series_state_t *state, chip_write_t *write) {
+    WRITE_CHECK_SHORT_CIRCUIT(write);
+    uint8_t ch = write->out_reg-0x18;
+    state->opna_rhythm_config.config[ch] = write->out_val;
+    write->out_val = opna_apply_rhythm_muting(state, write->out_val);
+}
+
 void opna_virt_write(opn_series_state_t *state, chip_write_t *write) {
     WRITE_COPY_IN_OUT(write);
     if (write->out_port == 0 && write->out_reg <= 0x0d) {
         psg_virt_write(state->opna_psg_state, write);
         write->short_circuit = write->drop = true;
+    } else if (write->out_port == 0 && write->out_reg == 0x11) {
+        opna_handle_rhythm_tl(state, write);
+    } else if (write->out_port == 0 && INRANGE(write->out_reg, 0x18, 0x1d)) {
+        opna_handle_rhythm_il(state, write);
+    } else if (write->out_port == 1 && write->out_reg == 0x01) {
+        opna_handle_adpcm_config(state, write);
+    } else if (write->out_port == 1 && write->out_reg == 0x00) {
+        opna_handle_adpcm_start(state, write);
+    } else if (write->out_port == 1 && INRANGE(write->out_reg, 0x02, 0x05)) {
+        opna_handle_adpcm_addr(state, write);
+    } else if (write->out_port == 1 && INRANGE(write->out_reg, 0x0c, 0x0d)) {
+        //TODO LIMIT
+        write->drop = true;
+    } else if (write->out_port == 1 && write->out_reg == 0x0b) {
+        opna_handle_adpcm_level(state, write);
     }
     opn_common_virt_write_parts(state, write);
+    if (!write->drop) state->write_func(state, write->out_port, write->out_reg, write->out_val);
 }
+
 static void opna_dump_other_pans(opn_series_state_t *state) {
     //adpcm
-    uint8_t reg = state->opna_adpcm_config;
-    if (!GETBIT(state->mute_mask, 6)) reg &= 0b00111111;
-    if (state->force_mono) COMMON_FORCE_MONO(reg);
-    state->write_func(state, 1, 1, reg);
+    state->write_func(state, 1, 1, opna_apply_adpcm_muting(state, state->opna_adpcm_config.config));
 
     //rhythm
     for (uint8_t ch=0;ch<6;ch++) {
-        reg = state->opna_rhythm_config[ch];
-        if (!GETBIT(state->mute_mask, 6)) reg &= 0b00111111;
-        if (state->force_mono) COMMON_FORCE_MONO(reg);
-        state->write_func(state, 0, 0x18+ch, reg);
+        state->write_func(state, 0, 0x18+ch, opna_apply_rhythm_muting(state, state->opna_rhythm_config.config[ch]));
     }
 }
 
@@ -289,6 +395,13 @@ static inline void opn_common_handle_sysmute_ioctl(opn_series_type_t type, opn_s
     if (type == OPN_TYPE_OPN2) opn2_fix_dac(state);
 }
 
+static void opna_dump_other_levels(opn_series_state_t *state) {
+    state->write_func(state, 0, 0x11, opna_rhythm_apply_fade(state, state->opna_rhythm_config.tl));
+    state->write_func(state, 1, 0x0b, opna_adpcm_apply_fade(state, state->opna_adpcm_config.level));
+    //todo psg
+}
+
+//todo move opna specific into opna_ioctl
 void opn_common_ioctl(opn_series_type_t type, opn_series_state_t *state, chip_ioctl_t ioctl, void *data) {
     switch (ioctl) {
         case CHIP_IOCTL_UPDATE_MUTING:
@@ -297,6 +410,7 @@ void opn_common_ioctl(opn_series_type_t type, opn_series_state_t *state, chip_io
             break;
         case CHIP_IOCTL_UPDATE_FADE:
             opn_common_update_fade_data(state, *(chip_fade_data_t *)data);
+            if (type == OPN_TYPE_OPNA) opna_dump_other_levels(state);
             break;
         case CHIP_IOCTL_PRE_PERIOD:
             state->in_pre_period = *(bool *)data;
@@ -320,5 +434,9 @@ void opn_common_ioctl(opn_series_type_t type, opn_series_state_t *state, chip_io
 
 void opna_ioctl(opn_series_state_t *state, chip_ioctl_t ioctl, void *data) {
     opn_common_ioctl(OPN_TYPE_OPNA, state, ioctl, data);
+    if (ioctl == CHIP_IOCTL_UPDATE_MUTING) {
+        //psg_ioctl(state->opna_psg_state, CHIP_IOCTL_UPDATE_MUTING, /*get second byte*/); //TODO
+        return;
+    }
     psg_ioctl(state->opna_psg_state, ioctl, data);
 }

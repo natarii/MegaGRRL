@@ -11,6 +11,18 @@ typedef enum {
     //OPN_TYPE_OPNB,
 } opn_series_type_t;
 
+typedef struct {
+    uint8_t config;
+    uint8_t level;
+    uint16_t start_addr;
+    uint16_t stop_addr;
+} opna_adpcm_config_t;
+
+typedef struct {
+    uint8_t config[6];
+    uint8_t tl;
+} opna_rhythm_config_t;
+
 typedef struct opn_series_state_t {
     uint8_t hw_slot;
     uint32_t clock;
@@ -22,10 +34,6 @@ typedef struct opn_series_state_t {
     uint8_t fm_tl[4*6];
     uint8_t dedup[512];
     uint8_t mute_mask;
-    uint8_t opna_adpcm_config;
-    uint8_t opna_rhythm_config[6];
-    uint8_t opna_rhythm_tl;
-    uint8_t opna_adpcm_level;
     uint8_t ch6_is_dac;
     bool force_mono;
     bool in_pre_period;
@@ -38,6 +46,8 @@ typedef struct opn_series_state_t {
     bool paused;
 
     psg_state_t *opna_psg_state; //todo rename - used for opn as well, should we ever support it
+    opna_adpcm_config_t opna_adpcm_config;
+    opna_rhythm_config_t opna_rhythm_config;
 } opn_series_state_t;
 
 void opn2_init(opn_series_state_t *state, uint8_t hw_slot);
