@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include "common.h"
 #include "opn_series.h"
+#include "psg.h"
 #include "natutils.h"
 #include "esp_log.h"
 #include "../driver.h" //only until board stuff is rewritten
@@ -63,7 +64,9 @@ void opna_init(opn_series_state_t *state, uint8_t hw_slot) {
     state->type = OPN_TYPE_OPNA;
     state->write_func = (void *)opna_phys_write;
 
-    //todo create ay state
+    state->opna_psg_state = calloc(1, sizeof(psg_state_t));
+    //todo handle fail
+    psg_opn_type_init(state->opna_psg_state, hw_slot);
 
     state->opna_adpcm_config = 0b11000000; //needs hw verify
     for (uint8_t i=0;i<6;i++) state->opna_rhythm_config[i] = 0b11000000; //needs hw verify
@@ -231,9 +234,13 @@ void opn2_virt_write(opn_series_state_t *state, chip_write_t *write) {
     opn2_filter_dedup(state, write);
     if (!write->drop) state->write_func(state, write->out_port, write->out_reg, write->out_val);
 }
+
 void opna_virt_write(opn_series_state_t *state, chip_write_t *write) {
     WRITE_COPY_IN_OUT(write);
-    //
+    if (write->out_port == 0 && write->out_reg <= 0x0d) {
+        psg_virt_write(state->opna_psg_state, write);
+        write->short_circuit = write->drop = true;
+    }
     opn_common_virt_write_parts(state, write);
 }
 static void opna_dump_other_pans(opn_series_state_t *state) {
@@ -309,4 +316,9 @@ void opn_common_ioctl(opn_series_type_t type, opn_series_state_t *state, chip_io
         default:
             break;
     }
+}
+
+void opna_ioctl(opn_series_state_t *state, chip_ioctl_t ioctl, void *data) {
+    opn_common_ioctl(OPN_TYPE_OPNA, state, ioctl, data);
+    psg_ioctl(state->opna_psg_state, ioctl, data);
 }
