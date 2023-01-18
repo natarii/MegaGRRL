@@ -8,6 +8,10 @@ typedef enum {
     OPL_TYPE_OPL2,
     OPL_TYPE_OPL3,
     //OPL_TYPE_OPL4,
+    OPL_TYPE_OPLL,
+    //OPL_TYPE_OPLLP, //YMF281
+    //OPL_TYPE_OPLLX, //YM2423
+    //OPL_TYPE_VRC7,
 } opl_series_type_t;
 
 typedef struct opl_series_state_t {

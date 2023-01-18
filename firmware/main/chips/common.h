@@ -2,6 +2,8 @@
 
 //todo make fade len in samples
 //todo missing short circuit checks everywhere
+//todo clock stuff
+//todo change ioctls to not use defines so they can be referred to by using fn ptrs? each variant should have its own fn and virtwrite prolly
 
 #define WRITE_COPY_IN_OUT(write) write->out_port = write->in_port; write->out_reg = write->in_reg; write->out_val = write->in_val;
 #define WRITE_CHECK_SHORT_CIRCUIT(write) if (write->drop || write->short_circuit) return;
