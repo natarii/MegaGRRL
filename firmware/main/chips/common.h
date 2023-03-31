@@ -5,15 +5,15 @@
 //todo clock stuff
 //todo change ioctls to not use defines so they can be referred to by using fn ptrs? each variant should have its own fn and virtwrite prolly
 
-#define WRITE_COPY_IN_OUT(write) write->out_port = write->in_port; write->out_reg = write->in_reg; write->out_val = write->in_val;
+#define WRITE_COPY_IN_OUT(write) write->out_addr = write->in_addr; write->out_reg = write->in_reg; write->out_val = write->in_val;
 #define WRITE_CHECK_SHORT_CIRCUIT(write) if (write->drop || write->short_circuit) return;
 
 typedef struct {
-    uint8_t in_port;
+    uint8_t in_addr;
     uint8_t in_reg;
     uint8_t in_val;
     bool direct;
-    uint8_t out_port;
+    uint8_t out_addr;
     uint8_t out_reg;
     uint8_t out_val;
     bool drop;

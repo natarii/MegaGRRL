@@ -17,7 +17,7 @@ static const char* TAG = "chip_opl_series";
 //force mono
 //op/algo/ch determination cleanup
 
-#define COMMON_PORT_REG_TO_CHAN(port, reg) ((port*9)+LONIB(reg))
+#define COMMON_ADDR_REG_TO_CHAN(addr, reg) ((addr*9)+LONIB(reg))
 
 static const uint8_t op_lut_4op[18*4] = {
     0,1,2,255,255,255,12,13,14,18,19,20,255,255,255,30,31,32,
@@ -90,8 +90,8 @@ static bool opl3_4op_ch_is_low(uint8_t ch) {
 
 
 
-static void opl3_phys_write(opl_series_state_t *state, uint8_t port, uint8_t reg, uint8_t val) {
-    Driver_FmOutopl3(port, reg, val);
+static void opl3_phys_write(opl_series_state_t *state, uint8_t addr, uint8_t reg, uint8_t val) {
+    Driver_FmOutopl3(addr, reg, val);
 }
 
 static void opl_common_init(opl_series_state_t *state, uint8_t hw_slot) {
@@ -174,7 +174,7 @@ static void opl_common_filter_tl_write(opl_series_state_t *state, chip_write_t *
         return;
     }
     //finally, apply offset for the second bank (step 2)
-    if (write->out_port) opslot += 18;
+    if (write->out_addr) opslot += 18;
     assert(opslot<36);
 
     //save the unmodified value
@@ -185,11 +185,11 @@ static void opl_common_filter_tl_write(opl_series_state_t *state, chip_write_t *
 
 static void opl_common_dump_tls(opl_series_state_t *state) {
     uint8_t banks = (state->type==OPL_TYPE_OPL3)?2:1;
-    for (uint8_t port=0;port<banks;port++) {
+    for (uint8_t addr=0;addr<banks;addr++) {
         for (uint8_t off=0;off<18;off++) {
-            uint8_t opslot = (port*18)+off;
+            uint8_t opslot = (addr*18)+off;
             uint8_t reg = 0x40+op_to_reg[off];
-            if (opl_common_op_slot_is_output(state, opslot)) state->write_func(state, port, reg, opl_common_apply_fade(state, state->fm_tl[opslot]));
+            if (opl_common_op_slot_is_output(state, opslot)) state->write_func(state, addr, reg, opl_common_apply_fade(state, state->fm_tl[opslot]));
         }
     }
 }
@@ -204,7 +204,7 @@ static void opl_common_filter_drum_write(opl_series_state_t *state, chip_write_t
 }
 
 static void opl_common_filter_conn_write(opl_series_state_t *state, chip_write_t *write) {
-    uint8_t ch = COMMON_PORT_REG_TO_CHAN(write->out_port, write->out_reg);
+    uint8_t ch = COMMON_ADDR_REG_TO_CHAN(write->out_addr, write->out_reg);
     uint8_t oldalgo = opl3_get_ch_theoretical_algo(state, ch);
     state->fm_conn_bit[ch] = GETBIT(write->out_val, 0);
     uint8_t newalgo = opl3_get_ch_theoretical_algo(state, ch);
@@ -242,7 +242,7 @@ static void opl_common_apply_opl2_compat_hacks(opl_series_state_t *state, chip_w
 
     //upper bank of registers does not exist on opl2
     //an opl < 3 tune is not capable of writing to the upper bank, so skip this check
-    //if (write->out_port) write->drop = true;
+    //if (write->out_addr) write->drop = true;
 
     //opl2 has no pan bits at all - force LR on
     if (INRANGE(write->out_reg, 0xc0, 0xc8)) write->out_val |= 0b00110000;
@@ -265,10 +265,10 @@ static uint8_t opl_common_filter_pan(opl_series_state_t *state, uint8_t ch, uint
 
 static void opl_common_dump_pans(opl_series_state_t *state) {
     uint8_t banks = (state->type==OPL_TYPE_OPL3)?2:1;
-    for (uint8_t port=0;port<banks;port++) {
+    for (uint8_t addr=0;addr<banks;addr++) {
         for (uint8_t off=0;off<9;off++) {
-            uint8_t ch = COMMON_PORT_REG_TO_CHAN(port, off);
-            state->write_func(state, port, 0xc0+off, opl_common_filter_pan(state, ch, state->fm_pan[ch]));
+            uint8_t ch = COMMON_ADDR_REG_TO_CHAN(addr, off);
+            state->write_func(state, addr, 0xc0+off, opl_common_filter_pan(state, ch, state->fm_pan[ch]));
         }
     }
 }
@@ -280,17 +280,17 @@ static inline void opl_common_dump_muting_data(opl_series_state_t *state) {
 static void opl_common_filter_pan_write(opl_series_state_t *state, chip_write_t *write) {
     WRITE_CHECK_SHORT_CIRCUIT(write);
 
-    uint8_t ch = COMMON_PORT_REG_TO_CHAN(write->out_port, write->out_reg);
+    uint8_t ch = COMMON_ADDR_REG_TO_CHAN(write->out_addr, write->out_reg);
     state->fm_pan[ch] = write->out_val;
 
     write->out_val = opl_common_filter_pan(state, ch, write->out_val);
 }
 
 static void opl_common_virt_write(opl_series_state_t *state, chip_write_t *write) {
-    if (write->out_port && write->out_reg == 0x05) {
+    if (write->out_addr && write->out_reg == 0x05) {
         state->is_opl3_mode = GETBIT(write->out_val, 0);
         //todo update whatever
-    } else if (write->out_port && write->out_reg == 0x04) {
+    } else if (write->out_addr && write->out_reg == 0x04) {
         state->fourop_en = write->out_val;
         //todo update whatever
     } else if (INRANGE(write->out_reg, 0xc0, 0xc8)) {
@@ -298,11 +298,11 @@ static void opl_common_virt_write(opl_series_state_t *state, chip_write_t *write
         opl_common_filter_pan_write(state, write);
     } else if (INRANGE(write->out_reg, 0x40, 0x55)) {
         opl_common_filter_tl_write(state, write);
-    } else if (write->out_port == 0 && write->out_reg == 0xbd) {
+    } else if (write->out_addr == 0 && write->out_reg == 0xbd) {
         opl_common_filter_drum_write(state, write);
     }
 
-    if (!write->drop) state->write_func(state, write->out_port, write->out_reg, write->out_val);
+    if (!write->drop) state->write_func(state, write->out_addr, write->out_reg, write->out_val);
 }
 
 void opl3_virt_write(opl_series_state_t *state, chip_write_t *write) {

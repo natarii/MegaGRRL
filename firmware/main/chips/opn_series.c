@@ -28,8 +28,8 @@ static const uint8_t opn_op_map[4] = {0,2,1,3};
 #define OPNA_SET_RAM_CONNECTION(val) val &= 0b11111100; //hw wiring dependent
 #define OPNA_BAD_RAM_CONNECTION(val) (val & 3) //hw wiring dependent
 #define COMMON_FORCE_MONO(var) if (var & 0b11000000) var |= 0b11000000; //if either L/R is enabled, turn on both
-#define COMMON_PORT_REG_TO_CHAN(port, reg) ((port*3)+(reg&3))
-#define COMMON_CHAN_TO_PORT(ch) (ch/3)
+#define COMMON_ADDR_REG_TO_CHAN(addr, reg) ((addr*3)+(reg&3))
+#define COMMON_CHAN_TO_ADDR(ch) (ch/3)
 #define COMMON_CHAN_TO_REG(base, ch) (base+(ch%3))
 #define COMMON_OP_ALGO_IS_SLOT(op, algo) !((op == 0 && algo <= 6) || (op == 1 && algo <= 3) || (op == 2 && algo <= 4))
 
@@ -37,13 +37,13 @@ static void opn_common_phys_reset(opn_series_state_t *state) {
 
 }
 
-static void opn2_phys_write(opn_series_state_t *state, uint8_t port, uint8_t reg, uint8_t val) {
-    //ESP_LOGI(TAG, "opn2 wr %d %02x %02x", port, reg, val);
-    Driver_FmOutDEV(port, reg, val);
+static void opn2_phys_write(opn_series_state_t *state, uint8_t addr, uint8_t reg, uint8_t val) {
+    //ESP_LOGI(TAG, "opn2 wr %d %02x %02x", addr, reg, val);
+    Driver_FmOutDEV(addr, reg, val);
 }
 
-static void opna_phys_write(opn_series_state_t *state, uint8_t port, uint8_t reg, uint8_t val) {
-    Driver_FmOutopnaDEV(port, reg, val);
+static void opna_phys_write(opn_series_state_t *state, uint8_t addr, uint8_t reg, uint8_t val) {
+    Driver_FmOutopnaDEV(addr, reg, val);
 }
 
 static void opn_common_init(opn_series_state_t *state, uint8_t hw_slot) {
@@ -101,13 +101,13 @@ static void opn_common_dump_pans(opn_series_state_t *state) {
     for (uint8_t ch=0;ch<6;ch++) {
         uint8_t pan = opn_common_filter_pan(state, ch, state->fm_pan[ch]);
 
-        state->write_func(state, COMMON_CHAN_TO_PORT(ch), COMMON_CHAN_TO_REG(0xb4, ch), pan);
+        state->write_func(state, COMMON_CHAN_TO_ADDR(ch), COMMON_CHAN_TO_REG(0xb4, ch), pan);
     }
 }
 
 static inline void opn2_filter_dedup(opn_series_state_t *state, chip_write_t *write) {
     WRITE_CHECK_SHORT_CIRCUIT(write);
-    uint16_t idx = (write->out_port<<8)+write->out_reg;
+    uint16_t idx = (write->out_addr<<8)+write->out_reg;
     if ((write->out_reg >> 4) != 0xa) {
         if (state->dedup[idx] == write->out_val) {
             write->drop = true;
@@ -140,7 +140,7 @@ static void opn2_fix_dac(opn_series_state_t *state) {
 
 static void opn_common_filter_pan_write(opn_series_state_t *state, chip_write_t *write) {
     WRITE_CHECK_SHORT_CIRCUIT(write);
-    uint8_t ch = COMMON_PORT_REG_TO_CHAN(write->out_port, write->out_reg);
+    uint8_t ch = COMMON_PORT_REG_TO_CHAN(write->out_addr, write->out_reg);
     state->fm_pan[ch] = write->out_val;
     write->out_val = opn_common_filter_pan(state, ch, write->out_val);
 }
@@ -176,7 +176,7 @@ static void opn_common_dump_tls(opn_series_state_t *state) {
             uint8_t tl = state->fm_tl[(ch*4)+op];
             if (COMMON_OP_ALGO_IS_SLOT(op, algo)) tl = opn_common_apply_fade(state, tl);
             //on old driver this is only done for slot ops:
-            state->write_func(state, COMMON_CHAN_TO_PORT(ch), COMMON_CHAN_TO_REG(0x40, ch)+(4*opn_op_map[op]), tl);
+            state->write_func(state, COMMON_CHAN_TO_ADDR(ch), COMMON_CHAN_TO_REG(0x40, ch)+(4*opn_op_map[op]), tl);
         }
     }
 }
@@ -184,7 +184,7 @@ static void opn_common_dump_tls(opn_series_state_t *state) {
 static void opn_common_filter_tl_write(opn_series_state_t *state, chip_write_t *write) {
     WRITE_CHECK_SHORT_CIRCUIT(write);
     uint8_t op = opn_op_map[(write->out_reg-0x40)/4];
-    uint8_t ch = (3*write->out_port)+((write->out_reg-0x40)-(opn_op_map[op]*4));
+    uint8_t ch = (3*write->out_addr)+((write->out_reg-0x40)-(opn_op_map[op]*4));
     if (op > 3 || ch > 5) return; //drop write?
     uint8_t idx = (ch*4)+op;
     uint8_t algo = state->fm_algo[ch];
@@ -194,7 +194,7 @@ static void opn_common_filter_tl_write(opn_series_state_t *state, chip_write_t *
 
 static void opn_common_handle_algo_write(opn_series_state_t *state, chip_write_t *write) {
     WRITE_CHECK_SHORT_CIRCUIT(write);
-    uint8_t ch = COMMON_PORT_REG_TO_CHAN(write->out_port, write->out_reg);
+    uint8_t ch = COMMON_ADDR_REG_TO_CHAN(write->out_addr, write->out_reg);
     uint8_t old = state->fm_algo[ch];
     uint8_t new = write->out_val & 7;
 
@@ -203,7 +203,7 @@ static void opn_common_handle_algo_write(opn_series_state_t *state, chip_write_t
         for (uint8_t op=0;op<4;op++) {
             uint8_t savedtl = state->fm_tl[(ch*4)+op];
             if (COMMON_OP_ALGO_IS_SLOT(op, new)) savedtl = opn_common_apply_fade(state, savedtl);
-            state->write_func(state, COMMON_CHAN_TO_PORT(ch), COMMON_CHAN_TO_REG(0x40, ch)+(4*opn_op_map[op]), savedtl);
+            state->write_func(state, COMMON_CHAN_TO_ADDR(ch), COMMON_CHAN_TO_REG(0x40, ch)+(4*opn_op_map[op]), savedtl);
         }
     }
 
@@ -249,7 +249,7 @@ void opn2_virt_write(opn_series_state_t *state, chip_write_t *write) {
     opn2_filter_test_reg(state, write);
     opn_common_virt_write_parts(state, write);
     opn2_filter_dedup(state, write);
-    if (!write->drop) state->write_func(state, write->out_port, write->out_reg, write->out_val);
+    if (!write->drop) state->write_func(state, write->out_addr, write->out_reg, write->out_val);
 }
 
 static uint8_t opna_adpcm_apply_muting(opn_series_state_t *state, uint8_t val) {
@@ -332,27 +332,27 @@ static void opna_handle_rhythm_il(opn_series_state_t *state, chip_write_t *write
 
 void opna_virt_write(opn_series_state_t *state, chip_write_t *write) {
     WRITE_COPY_IN_OUT(write);
-    if (write->out_port == 0 && write->out_reg <= 0x0d) {
+    if (write->out_addr == 0 && write->out_reg <= 0x0d) {
         psg_virt_write(state->opna_psg_state, write);
         write->short_circuit = write->drop = true;
-    } else if (write->out_port == 0 && write->out_reg == 0x11) {
+    } else if (write->out_addr == 0 && write->out_reg == 0x11) {
         opna_handle_rhythm_tl(state, write);
-    } else if (write->out_port == 0 && INRANGE(write->out_reg, 0x18, 0x1d)) {
+    } else if (write->out_addr == 0 && INRANGE(write->out_reg, 0x18, 0x1d)) {
         opna_handle_rhythm_il(state, write);
-    } else if (write->out_port == 1 && write->out_reg == 0x01) {
+    } else if (write->out_addr == 1 && write->out_reg == 0x01) {
         opna_handle_adpcm_config(state, write);
-    } else if (write->out_port == 1 && write->out_reg == 0x00) {
+    } else if (write->out_addr == 1 && write->out_reg == 0x00) {
         opna_handle_adpcm_start(state, write);
-    } else if (write->out_port == 1 && INRANGE(write->out_reg, 0x02, 0x05)) {
+    } else if (write->out_addr == 1 && INRANGE(write->out_reg, 0x02, 0x05)) {
         opna_handle_adpcm_addr(state, write);
-    } else if (write->out_port == 1 && INRANGE(write->out_reg, 0x0c, 0x0d)) {
+    } else if (write->out_addr == 1 && INRANGE(write->out_reg, 0x0c, 0x0d)) {
         //TODO LIMIT
         write->drop = true;
-    } else if (write->out_port == 1 && write->out_reg == 0x0b) {
+    } else if (write->out_addr == 1 && write->out_reg == 0x0b) {
         opna_handle_adpcm_level(state, write);
     }
     opn_common_virt_write_parts(state, write);
-    if (!write->drop) state->write_func(state, write->out_port, write->out_reg, write->out_val);
+    if (!write->drop) state->write_func(state, write->out_addr, write->out_reg, write->out_val);
 }
 
 static void opna_dump_other_pans(opn_series_state_t *state) {
