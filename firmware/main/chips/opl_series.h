@@ -17,7 +17,7 @@ typedef enum {
 typedef struct opl_series_state_t {
     uint8_t hw_slot;
     uint32_t clock;
-    void (*write_func)(struct opl_series_state_t *state, uint8_t port, uint8_t reg, uint8_t val);
+    void (*write_func)(struct opl_series_state_t *state, uint8_t addr, uint8_t reg, uint8_t val);
     opl_series_type_t type;
     opl_series_type_t virt_type;
     

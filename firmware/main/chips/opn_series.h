@@ -26,7 +26,7 @@ typedef struct {
 typedef struct opn_series_state_t {
     uint8_t hw_slot;
     uint32_t clock;
-    void (*write_func)(struct opn_series_state_t *state, uint8_t port, uint8_t reg, uint8_t val);
+    void (*write_func)(struct opn_series_state_t *state, uint8_t addr, uint8_t reg, uint8_t val);
     opn_series_type_t type;
     
     uint8_t fm_pan[6];
