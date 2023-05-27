@@ -43,69 +43,35 @@ static float i2s_apll_get_fi2s(int bits_per_sample, int sdm0, int sdm1, int sdm2
     return fpll/2;
 }
 
-static esp_err_t i2s_apll_calculate_fi2s(int rate, int bits_per_sample, int *sdm0, int *sdm1, int *sdm2, int *odir)
-{
-    int _odir, _sdm0, _sdm1, _sdm2;
-    float avg;
-    float min_rate, max_rate, min_diff;
-    if (rate/bits_per_sample/2/8 < APLL_I2S_MIN_RATE) {
-        return ESP_ERR_INVALID_ARG;
-    }
+//https://github.com/espressif/esp-idf/issues/2634#issuecomment-499752912
+static esp_err_t i2s_apll_calculate_fi2s(int rate, int bits_per_sample, int *sdm0, int *sdm1, int *sdm2, int *odir) {
+    double xtal = rtc_clk_xtal_freq_get() * 1000000;
 
-    *sdm0 = 0;
-    *sdm1 = 0;
-    *sdm2 = 0;
-    *odir = 0;
-    min_diff = APLL_MAX_FREQ;
+    double odir_max = ((double)(APLL_MAX_FREQ) / (4 * rate)) - 2;
+    double odir_min = ((double)(APLL_MIN_FREQ) / (4 * rate)) - 2;
+    if (odir_min > 31 || odir_max < 0) {
+        //ESP_LOGE(I2S_TAG, "Requested frequency not supported");
+        return ESP_FAIL;
+    }
+    *odir = (int) (odir_max);
+    if (*odir > 0 && (odir_max - *odir) == 0) {
+        *odir -= 1;
+    }
+    if (*odir > 31) {
+        *odir = 31;
+    }
+    double sdm = ((4 * (*odir + 2) * rate) / xtal) - 4;
+    *sdm2 = (uint8_t) sdm;
+    double sdm21 = (sdm - *sdm2) * 256;
+    *sdm1 = (uint8_t) sdm21;
+    double sdm10 = (sdm21 - *sdm1) * 256;
+    *sdm0 = (uint8_t) sdm10;
 
-    for (_sdm2 = 4; _sdm2 < 9; _sdm2 ++) {
-        max_rate = i2s_apll_get_fi2s(bits_per_sample, 255, 255, _sdm2, 0);
-        min_rate = i2s_apll_get_fi2s(bits_per_sample, 0, 0, _sdm2, 31);
-        avg = (max_rate + min_rate)/2;
-        if (abs(avg - rate) < min_diff) {
-            min_diff = abs(avg - rate);
-            *sdm2 = _sdm2;
-        }
-    }
-    min_diff = APLL_MAX_FREQ;
-    for (_odir = 0; _odir < 32; _odir ++) {
-        max_rate = i2s_apll_get_fi2s(bits_per_sample, 255, 255, *sdm2, _odir);
-        min_rate = i2s_apll_get_fi2s(bits_per_sample, 0, 0, *sdm2, _odir);
-        avg = (max_rate + min_rate)/2;
-        if (abs(avg - rate) < min_diff) {
-            min_diff = abs(avg - rate);
-            *odir = _odir;
-        }
-    }
-    min_diff = APLL_MAX_FREQ;
-    for (_sdm2 = 4; _sdm2 < 9; _sdm2 ++) {
-        max_rate = i2s_apll_get_fi2s(bits_per_sample, 255, 255, _sdm2, *odir);
-        min_rate = i2s_apll_get_fi2s(bits_per_sample, 0, 0, _sdm2, *odir);
-        avg = (max_rate + min_rate)/2;
-        if (abs(avg - rate) < min_diff) {
-            min_diff = abs(avg - rate);
-            *sdm2 = _sdm2;
-        }
-    }
-
-    min_diff = APLL_MAX_FREQ;
-    for (_sdm1 = 0; _sdm1 < 256; _sdm1 ++) {
-        max_rate = i2s_apll_get_fi2s(bits_per_sample, 255, _sdm1, *sdm2, *odir);
-        min_rate = i2s_apll_get_fi2s(bits_per_sample, 0, _sdm1, *sdm2, *odir);
-        avg = (max_rate + min_rate)/2;
-        if (abs(avg - rate) < min_diff) {
-            min_diff = abs(avg - rate);
-            *sdm1 = _sdm1;
-        }
-    }
-
-    min_diff = APLL_MAX_FREQ;
-    for (_sdm0 = 0; _sdm0 < 256; _sdm0 ++) {
-        avg = i2s_apll_get_fi2s(bits_per_sample, _sdm0, *sdm1, *sdm2, *odir);
-        if (abs(avg - rate) < min_diff) {
-            min_diff = abs(avg - rate);
-            *sdm0 = _sdm0;
-        }
+    uint32_t is_rev0 = (GET_PERI_REG_BITS2(EFUSE_BLK0_RDATA3_REG, 1, 15) == 0);
+    if (is_rev0) {
+        //ESP_LOGW(I2S_TAG, "Rev0 chip, hence sdm0 and sdm1 dividers are not applicable");
+        *sdm0 = 0;
+        *sdm1 = 0;
     }
 
     return ESP_OK;
@@ -237,13 +203,14 @@ static bool test_i2s_freq(uint32_t f) {
         return false;
     }
     int sdm0=0, sdm1=0, sdm2=0, odir=0;
-    i2s_apll_calculate_fi2s(f*2, 1, &sdm0, &sdm1, &sdm2, &odir);
+    esp_err_t ret = i2s_apll_calculate_fi2s(f*2, 1, &sdm0, &sdm1, &sdm2, &odir);
+    if (ret != ESP_OK) return false;
+    ESP_LOGI(TAG, "apll conf: sdm0 %d, sdm1 %d, sdm2 %d, odir %d", sdm0, sdm1, sdm2, odir);
     double fi2s_rate = i2s_apll_get_fi2s(1, sdm0, sdm1, sdm2, odir);
-    uint32_t r = (uint32_t)fi2s_rate;
-    r /= 2;
-    int32_t d = f - r;
-    if (d < 0) d = -d;
-    return (d < 10);
+    double err = (((double)(f*2) / fi2s_rate) - 1.0) * 100.0;
+    ESP_LOGI(TAG, "test_i2s_freq(%d) calced %d, err %f%%", f, (uint32_t)(fi2s_rate/2.0), err);
+    if (err < 0) err = -err;
+    return (err < 0.1);
 }
 
 static void set_freq(uint8_t ch, uint32_t f) {
