@@ -347,8 +347,38 @@ static tinfl_status Player_Unvgz(char *FilePath, bool ReplaceOriginalFile) {
 
     //get compressed size
     fseek(reader, 0, SEEK_END);
-    size_t in_remaining = ftell(reader) - 18; //18 = gzip header size. TODO check gzip header for sanity
-    fseek(reader, 10, SEEK_SET);
+    size_t in_remaining = ftell(reader) - 18; //18 = base gzip header size + crc32 & isize at end
+
+    //read in the header to do flags check
+    fseek(reader, 0, SEEK_SET);
+    fread(Driver_CommandStreamBuf, 1, 10, reader);
+    uint8_t gzip_flags = Driver_CommandStreamBuf[3];
+    ESP_LOGI(TAG, "gzip flags: %02x", gzip_flags);
+    if (gzip_flags & (1<<2)) { //FEXTRA
+        uint16_t xlen = 0;
+        fread(&xlen, 1, 2, reader);
+        fseek(reader, xlen, SEEK_CUR);
+        in_remaining -= 2 + xlen;
+    }
+    uint8_t z = 0xff;
+    if (gzip_flags & (1<<3)) { //FNAME
+        do {
+            fread(&z, 1, 1, reader);
+            in_remaining--;
+        } while (z);
+    }
+    if (gzip_flags & (1<<4)) { //FCOMMENT
+        do {
+            fread(&z, 1, 1, reader);
+            in_remaining--;
+        } while (z);
+    }
+    if (gzip_flags & (1<<1)) { //FHCRC
+        fseek(reader, 2, SEEK_CUR);
+        in_remaining -= 2;
+    }
+
+    //after flags check, file pos is in the right place
 
     tinfl_init(&decomp);
     const void *next_in = Driver_CommandStreamBuf;
