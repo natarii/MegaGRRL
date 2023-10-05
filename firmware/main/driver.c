@@ -424,6 +424,31 @@ void Driver_FmOutopl3(uint8_t Port, uint8_t Register, uint8_t Value) {
     Driver_Sleep(20);
 }
 
+void Driver_FmOutopll(uint8_t Register, uint8_t Value) {
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_A0; //clear A0
+    Driver_Output();
+    Driver_Sleep(20);
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_DCSG_CS; // /cs low
+    Driver_SrBuf[SR_DATABUS] = Register;
+    Driver_Output();
+    Driver_Sleep(20);
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR; // /wr low
+    Driver_Output();
+    Driver_Sleep(20);
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; // /wr high
+    Driver_Output();
+    Driver_Sleep(20);
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_A0; //set A0
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR; // /wr low
+    Driver_SrBuf[SR_DATABUS] = Value;
+    Driver_Output();
+    Driver_Sleep(20);
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; // /wr high
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_DCSG_CS; // /cs high
+    Driver_Output();
+    Driver_Sleep(20);
+}
+
 void Driver_FmOutopna(uint8_t Port, uint8_t Register, uint8_t Value) {
     if (Port == 0) {
         Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_A1; //clear A1
@@ -1036,7 +1061,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
             Driver_DcsgOut(cmd[1]);
         }
     } else if (cmd[0] == 0x51) {
-        Driver_FmOutopl3(0, cmd[1], cmd[2]);
+        Driver_FmOutopll(cmd[1], cmd[2]);
     } else if (cmd[0] == 0x54) { //opm
         Driver_FmOutopl3(0, cmd[1], cmd[2]); //todo: proper timing for this
     } else if (cmd[0] == 0x5e || cmd[0] == 0x5b || cmd[0] == 0x5a) { //ymf262 port 0, ym3812, ym3526
