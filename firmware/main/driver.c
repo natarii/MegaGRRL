@@ -372,6 +372,7 @@ void Driver_WriteDcsgCh3Freq() {
 }
 
 void Driver_ResetChips() {
+    if (Driver_DetectedMod == MEGAMOD_NONE || Driver_DetectedMod == MEGAMOD_OPLLDCSG) {
         for (uint8_t i=0;i<4;i++) {
             Driver_DcsgOut(0x80 | (i<<5) | 0x10 | 0xf); //full atten
             if (i != 3) { //set freq to 0
@@ -379,19 +380,20 @@ void Driver_ResetChips() {
                 Driver_DcsgOut(0);
             }
         }
-        Driver_SrBuf[SR_CONTROL] ^= SR_BIT_IC;
-        Driver_Output();
-        Driver_Sleep(1000);
-        Driver_SrBuf[SR_CONTROL] |= SR_BIT_IC;
-        Driver_Output();
-        Driver_Sleep(1000);
-        memset(opn2_regs_dedup, 0, sizeof(opn2_regs_dedup));
-        opn2_regs_dedup[0xb4] = 0b11000000;
-        opn2_regs_dedup[0xb5] = 0b11000000;
-        opn2_regs_dedup[0xb6] = 0b11000000;
-        opn2_regs_dedup[0x1b4] = 0b11000000;
-        opn2_regs_dedup[0x1b5] = 0b11000000;
-        opn2_regs_dedup[0x1b6] = 0b11000000;
+    }
+    Driver_SrBuf[SR_CONTROL] ^= SR_BIT_IC;
+    Driver_Output();
+    Driver_Sleep(1000);
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_IC;
+    Driver_Output();
+    Driver_Sleep(1000);
+    memset(opn2_regs_dedup, 0, sizeof(opn2_regs_dedup));
+    opn2_regs_dedup[0xb4] = 0b11000000;
+    opn2_regs_dedup[0xb5] = 0b11000000;
+    opn2_regs_dedup[0xb6] = 0b11000000;
+    opn2_regs_dedup[0x1b4] = 0b11000000;
+    opn2_regs_dedup[0x1b5] = 0b11000000;
+    opn2_regs_dedup[0x1b6] = 0b11000000;
 }
 
 void Driver_FmOutopl3(uint8_t Port, uint8_t Register, uint8_t Value) {
