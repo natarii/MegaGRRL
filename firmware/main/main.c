@@ -291,7 +291,7 @@ void app_main(void) {
             Clk_Set(CLK_FM, 3579545);
             break;
         case MEGAMOD_OPNOPLL:
-            ESP_LOGI(TAG, "OPM detected, switching FM clock to OPN");
+            ESP_LOGI(TAG, "OPN+OPLL detected, switching FM clock to OPN");
             Clk_Set(CLK_FM, 4000000);
             break;
         default:
