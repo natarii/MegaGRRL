@@ -801,7 +801,7 @@ static uint32_t Player_StartTrack(char *FilePath) {
         if (ay) clocks_used++;
 
         //try opn first, fall back to ay
-        if (opn == 0) opn = ay;
+        if (opn == 0) opn = ay<<1;
         
         if (opn < 2000000) opn = 2000000;
         else if (opn > 6000000) opn = 6000000;
