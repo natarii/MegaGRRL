@@ -774,6 +774,39 @@ static uint32_t Player_StartTrack(char *FilePath) {
         else if (dcsg > 4100000) dcsg = 4100000;
         ESP_LOGI(TAG, "Clock clamped: %d", dcsg);
         Clk_Set(CLK_FM, dcsg);
+    } else if (Driver_DetectedMod == MEGAMOD_OPNOPLL) {
+        ESP_LOGI(TAG, "MegaMod: OPN+OPLL");
+        Clk_Set(CLK_DCSG, 0);
+        uint32_t opn = 0;
+        uint32_t opll = 0;
+        uint32_t ay = 0;
+        memcpy(&opn, &Driver_PcmBuf[0x44], 4);
+        memcpy(&opll, &Driver_PcmBuf[0x10], 4);
+        memcpy(&ay, &Driver_PcmBuf[0x74], 4);
+
+        if ((opn & 0x40000000) || (opll & 0x40000000) || (ay & 0x40000000)) {
+            ESP_LOGW(TAG, "Only one of each chip supported !!");
+        }
+
+        //clear dual chip bits
+        opn &= ~(1<<30);
+        opll &= ~(1<<30);
+        ay &= ~(1<<30);
+
+        opll &= ~(1<<31); //clear VRC7 bit
+
+        ESP_LOGI(TAG, "Clock from vgm: OPN: %d, OPLL: %d, AY: %d", opn, opll, ay);
+        if (opn) clocks_used++;
+        if (opll) clocks_used++;
+        if (ay) clocks_used++;
+
+        //try opn first, fall back to ay
+        if (opn == 0) opn = ay<<1;
+        
+        if (opn < 2000000) opn = 2000000;
+        else if (opn > 6000000) opn = 6000000;
+        ESP_LOGI(TAG, "Clock clamped: %d", opn);
+        Clk_Set(CLK_FM, opn);
     } else if (Driver_DetectedMod == MEGAMOD_OPNA) {
         ESP_LOGI(TAG, "MegaMod: OPNA");
         Clk_Set(CLK_DCSG, 0);
