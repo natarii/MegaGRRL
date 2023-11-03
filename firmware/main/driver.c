@@ -1317,6 +1317,8 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
         //ignore msm6258
     } else if (cmd[0] == 0xb8) {
         //ignore msm6295
+    } else if (cmd[0] == 0xd2) {
+        //ignore scc
     } else if (cmd[0] == 0xff) { //receiving bad flags
         if (cmd[1] & PLAYER_BADVGM_OPN2_TESTREG) Driver_BlockOpn2TestReg = true;
     } else {
