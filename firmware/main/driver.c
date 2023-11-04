@@ -151,6 +151,8 @@ static bool Driver_BlockOpn2TestReg = false;
 
 static bool opn2_on_opna_mode = false;
 
+static bool reset_flag = false;
+
 #define min(a,b) ((a) < (b) ? (a) : (b)) //sigh.
 
 void Driver_ResetChips();
@@ -372,6 +374,7 @@ void Driver_WriteDcsgCh3Freq() {
 }
 
 void Driver_ResetChips() {
+    if (reset_flag) return;
     if (Driver_DetectedMod == MEGAMOD_NONE || Driver_DetectedMod == MEGAMOD_OPLLDCSG) {
         for (uint8_t i=0;i<4;i++) {
             Driver_DcsgOut(0x80 | (i<<5) | 0x10 | 0xf); //full atten
@@ -394,6 +397,7 @@ void Driver_ResetChips() {
     opn2_regs_dedup[0x1b4] = 0b11000000;
     opn2_regs_dedup[0x1b5] = 0b11000000;
     opn2_regs_dedup[0x1b6] = 0b11000000;
+    reset_flag = true;
 }
 
 void Driver_FmOutopl3(uint8_t Port, uint8_t Register, uint8_t Value) {
@@ -1377,9 +1381,11 @@ void Driver_Main() {
             xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_RUNNING);
             commandeventbits &= ~DRIVER_EVENT_START_REQUEST;
             commandeventbits |= DRIVER_EVENT_RUNNING;
+            reset_flag = false;
         } else if (commandeventbits & DRIVER_EVENT_UPDATE_MUTING) {
             ESP_LOGD(TAG, "updating muting upon request");
             Driver_UpdateMuting();
+            reset_flag = false;
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_UPDATE_MUTING);
             commandeventbits &= ~DRIVER_EVENT_UPDATE_MUTING;
         } else if (commandeventbits & DRIVER_EVENT_RESET_REQUEST) {
