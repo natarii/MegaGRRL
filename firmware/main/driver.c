@@ -155,7 +155,7 @@ static bool reset_flag = false;
 
 #define min(a,b) ((a) < (b) ? (a) : (b)) //sigh.
 
-void Driver_ResetChips();
+void Driver_ResetChips(bool force);
 void Driver_Sleep(uint32_t us);
 
 void Driver_Output() { //output data to shift registers
@@ -216,7 +216,7 @@ bool Driver_Setup() {
     //and now output initial values
     Driver_Output();
 
-    Driver_ResetChips();
+    Driver_ResetChips(true);
 
     /*ESP_LOGW(TAG, "Benchmarking output");
     uint32_t s = xthal_get_ccount();
@@ -373,8 +373,8 @@ void Driver_WriteDcsgCh3Freq() {
     Driver_DcsgOut(out);
 }
 
-void Driver_ResetChips() {
-    if (reset_flag) return;
+void Driver_ResetChips(bool force) {
+    if (reset_flag && !force) return;
     if (Driver_DetectedMod == MEGAMOD_NONE || Driver_DetectedMod == MEGAMOD_OPLLDCSG) {
         for (uint8_t i=0;i<4;i++) {
             Driver_DcsgOut(0x80 | (i<<5) | 0x10 | 0xf); //full atten
@@ -996,7 +996,7 @@ uint8_t Driver_SeqToSlot(uint32_t seq) {
 
 static void Stop() {
     ESP_LOGI(TAG, "Stopping the world...");
-    Driver_ResetChips();
+    Driver_ResetChips(false);
     xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_RUNNING);
     xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_FINISHED);
 }
@@ -1389,7 +1389,7 @@ void Driver_Main() {
             xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_UPDATE_MUTING);
             commandeventbits &= ~DRIVER_EVENT_UPDATE_MUTING;
         } else if (commandeventbits & DRIVER_EVENT_RESET_REQUEST) {
-            Driver_ResetChips();
+            Driver_ResetChips(false);
             for (uint8_t i=0;i<6+4;i++) {
                 ChannelMgr_States[i] = 0;
             }

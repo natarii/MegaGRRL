@@ -300,7 +300,7 @@ void app_main(void) {
     }
 
     ESP_LOGI(TAG, "Driver reset no.2");
-    Driver_ResetChips();
+    Driver_ResetChips(true);
 
     ESP_LOGI(TAG, "Clear I2C...");
     uint8_t i2cclearresult = I2cMgr_Clear();

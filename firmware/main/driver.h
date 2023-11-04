@@ -73,6 +73,6 @@ extern IRAM_ATTR uint32_t Driver_NextSample;
 bool Driver_Setup();
 void Driver_Main();
 void Driver_ModDetect();
-void Driver_ResetChips();
+void Driver_ResetChips(bool force);
 
 #endif
