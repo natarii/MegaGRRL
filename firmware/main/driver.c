@@ -455,6 +455,31 @@ void Driver_FmOutopll(uint8_t Register, uint8_t Value) {
     Driver_Sleep(20);
 }
 
+void Driver_FmOutopn(uint8_t Device, uint8_t Register, uint8_t Value) {
+    uint8_t csbit = SR_BIT_FM_CS;
+    if (Device) {
+        csbit = SR_BIT_DCSG_CS;
+    }
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_A0; //clear A0
+    Driver_Output();
+    Driver_SrBuf[SR_CONTROL] &= ~csbit; // /cs low
+    Driver_SrBuf[SR_DATABUS] = Register;
+    Driver_Output();
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR; // /wr low
+    Driver_Output();
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; // /wr high
+    Driver_Output();
+    Driver_Sleep(10);
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_A0; //set A0
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR; // /wr low
+    Driver_SrBuf[SR_DATABUS] = Value;
+    Driver_Output();
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; // /wr high
+    Driver_SrBuf[SR_CONTROL] |= csbit; // /cs high
+    Driver_Output();
+    Driver_Sleep(20);
+}
+
 void Driver_FmOutopna(uint8_t Port, uint8_t Register, uint8_t Value) {
     if (Port == 0) {
         Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_A1; //clear A1
@@ -1074,7 +1099,9 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
         Driver_FmOutopl3(0, cmd[1], cmd[2]);
     } else if (cmd[0] == 0x5f) { //ymf262 port 1
         Driver_FmOutopl3(1, cmd[1], cmd[2]);
-    } else if (cmd[0] == 0x56 || cmd[0] == 0x57 || cmd[0] == 0x55 || cmd[0] == 0xa0) { //opna both banks, opn, AY-3-8910
+    } else if (Driver_DetectedMod == MEGAMOD_2XOPN && cmd[0] == 0x55 || cmd[0] == 0xa5 || cmd[0] == 0xa0) { //opn, 2nd opn, ay38910
+        Driver_FmOutopn((cmd[0]&0xf0)==0xa0?1:0, cmd[1], cmd[2]);
+    } else if ((Driver_DetectedMod == MEGAMOD_NONE || Driver_DetectedMod == MEGAMOD_OPNA || Driver_DetectedMod == MEGAMOD_OPNOPLL) && cmd[0] == 0x56 || cmd[0] == 0x57 || cmd[0] == 0x55 || cmd[0] == 0xa0) { //opna both banks, opn, AY-3-8910
         if (cmd[0] == 0x57) {
             if (cmd[1] == 0x01) { //control/config
                 Driver_Opna_AdpcmConfig = cmd[2]; //don't force type=dram and width=1bit in the backup
@@ -1537,10 +1564,13 @@ void Driver_Main() {
                     if (Driver_Sample_Ds > DacStreamSamplesPlayed) {
                         uint8_t sample;
                         MegaStream_Recv((MegaStreamContext_t *)&DacStreamEntries[DacStreamId].Stream, &sample, 1);
-                        if (Driver_DetectedMod == MEGAMOD_OPNA) {
-                            Driver_FmOutopna(DacStreamPort, DacStreamCommand, sample);
-                        } else {
+                        if (Driver_DetectedMod == MEGAMOD_NONE) {
                             Driver_FmOut(DacStreamPort, DacStreamCommand, sample);
+                        } else if (Driver_DetectedMod == MEGAMOD_OPNA) {
+                            Driver_FmOutopna(DacStreamPort, DacStreamCommand, sample);
+                        } else if (Driver_DetectedMod == MEGAMOD_2XOPN) {
+                            //TODO handle second chip
+                            Driver_FmOutopn(DacStreamPort, DacStreamCommand, sample);
                         }
                         DacStreamSamplesPlayed++;
                         if (DacStreamSamplesPlayed == DacStreamDataLength && (DacStreamLengthMode == 0 || DacStreamLengthMode == 1 || DacStreamLengthMode == 3)) {
