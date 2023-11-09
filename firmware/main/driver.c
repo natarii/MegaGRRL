@@ -1099,9 +1099,9 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
         Driver_FmOutopl3(0, cmd[1], cmd[2]);
     } else if (cmd[0] == 0x5f) { //ymf262 port 1
         Driver_FmOutopl3(1, cmd[1], cmd[2]);
-    } else if (Driver_DetectedMod == MEGAMOD_2XOPN && cmd[0] == 0x55 || cmd[0] == 0xa5 || cmd[0] == 0xa0) { //opn, 2nd opn, ay38910
+    } else if (Driver_DetectedMod == MEGAMOD_2XOPN && (cmd[0] == 0x55 || cmd[0] == 0xa5 || cmd[0] == 0xa0)) { //opn, 2nd opn, ay38910
         Driver_FmOutopn((cmd[0]&0xf0)==0xa0?1:0, cmd[1], cmd[2]);
-    } else if ((Driver_DetectedMod == MEGAMOD_NONE || Driver_DetectedMod == MEGAMOD_OPNA || Driver_DetectedMod == MEGAMOD_OPNOPLL) && cmd[0] == 0x56 || cmd[0] == 0x57 || cmd[0] == 0x55 || cmd[0] == 0xa0) { //opna both banks, opn, AY-3-8910
+    } else if ((Driver_DetectedMod == MEGAMOD_NONE || Driver_DetectedMod == MEGAMOD_OPNA || Driver_DetectedMod == MEGAMOD_OPNOPLL) && (cmd[0] == 0x56 || cmd[0] == 0x57 || cmd[0] == 0x55 || cmd[0] == 0xa0)) { //opna both banks, opn, AY-3-8910
         if (cmd[0] == 0x57) {
             if (cmd[1] == 0x01) { //control/config
                 Driver_Opna_AdpcmConfig = cmd[2]; //don't force type=dram and width=1bit in the backup
