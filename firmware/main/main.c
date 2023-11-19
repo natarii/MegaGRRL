@@ -294,6 +294,10 @@ void app_main(void) {
             ESP_LOGI(TAG, "OPN+OPLL detected, switching FM clock to OPN");
             Clk_Set(CLK_FM, 4000000);
             break;
+        case MEGAMOD_2XOPN:
+            ESP_LOGI(TAG, "2xOPN detected, switching FM clock to OPN");
+            Clk_Set(CLK_FM, 4000000);
+            break;
         default:
             ESP_LOGE(TAG, "Unsupported mod (ID %d)", Driver_DetectedMod);
             break;
@@ -731,6 +735,9 @@ void app_main(void) {
                 break;
             case MEGAMOD_OPNOPLL:
                 lv_label_set_static_text(mmlabel, "OPN+OPLL MegaMod");
+                break;
+            case MEGAMOD_2XOPN:
+                lv_label_set_static_text(mmlabel, "2xOPN MegaMod");
                 break;
             default:
                 lv_label_set_static_text(mmlabel, "ERROR: Unknown MegaMod");
