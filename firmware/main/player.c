@@ -844,6 +844,35 @@ static uint32_t Player_StartTrack(char *FilePath) {
             ESP_LOGI(TAG, "Clock from vgm: AY %d", ay<<2);
             Clk_Set(CLK_FM, (ay&~(1<<30))<<2);
         }
+    } else if (Driver_DetectedMod == MEGAMOD_2XOPN) {
+        ESP_LOGI(TAG, "MegaMod: 2xOPN");
+        Clk_Set(CLK_DCSG, 0);
+        uint32_t opn = 0;
+        uint32_t ay = 0;
+        if (Player_Info.Version >= 151) {
+            memcpy(&opn, &Driver_PcmBuf[0x44], 4);
+            memcpy(&ay, &Driver_PcmBuf[0x74], 4);
+        }
+        if (opn) {
+            clocks_used++;
+            if (opn & (1<<30)) clocks_used++;
+        }
+        if (ay) {
+            clocks_used++;
+            if (ay & (1<<30)) clocks_used++;
+        }
+        if (!opn && ay) {
+            ESP_LOGW(TAG, "2xOPN MegaMod: No opn clock, using ay");
+            opn = (ay&~(1<<30))<<1;
+        }
+
+
+        opn &= ~(1<<30);
+        ESP_LOGI(TAG, "Clock from vgm: %d", opn);
+        if (opn < 2000000) opn = 2000000;
+        else if (opn > 6000000) opn = 6000000;
+        ESP_LOGI(TAG, "Clock clamped: %d", opn);
+        Clk_Set(CLK_FM, opn);
     } else if (Driver_DetectedMod == MEGAMOD_OPL3) {
         uint32_t opl = 0;
         uint32_t opl2 = 0;
