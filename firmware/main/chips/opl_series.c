@@ -6,6 +6,7 @@
 #include "natutils.h"
 #include "esp_log.h"
 #include "../driver.h" //only until board stuff is rewritten
+#include "../phys_write/phys_write.h"
 
 static const char* TAG = "chip_opl_series";
 
@@ -90,8 +91,14 @@ static bool opl3_4op_ch_is_low(uint8_t ch) {
 
 
 
-static void opl3_phys_write(opl_series_state_t *state, uint8_t addr, uint8_t reg, uint8_t val) {
-    Driver_FmOutopl3(addr, reg, val);
+static void opl_common_create_write(opl_series_state_t *state, uint8_t addr, uint8_t reg, uint8_t val) {
+    chip_write_t write;
+    //todo init?
+    write.out_addr = addr;
+    write.out_reg = reg;
+    write.out_val = val;
+    write.hw_slot = state->hw_slot;
+    phys_write(&write);
 }
 
 static void opl_common_init(opl_series_state_t *state, uint8_t hw_slot) {
@@ -189,7 +196,7 @@ static void opl_common_dump_tls(opl_series_state_t *state) {
         for (uint8_t off=0;off<18;off++) {
             uint8_t opslot = (addr*18)+off;
             uint8_t reg = 0x40+op_to_reg[off];
-            if (opl_common_op_slot_is_output(state, opslot)) state->write_func(state, addr, reg, opl_common_apply_fade(state, state->fm_tl[opslot]));
+            if (opl_common_op_slot_is_output(state, opslot)) opl_common_create_write(state, addr, reg, opl_common_apply_fade(state, state->fm_tl[opslot]));
         }
     }
 }
@@ -206,6 +213,7 @@ static void opl_common_filter_drum_write(opl_series_state_t *state, chip_write_t
 static void opl_common_filter_conn_write(opl_series_state_t *state, chip_write_t *write) {
     uint8_t ch = COMMON_ADDR_REG_TO_CHAN(write->out_addr, write->out_reg);
     uint8_t oldalgo = opl3_get_ch_theoretical_algo(state, ch);
+    assert(ch<19);
     state->fm_conn_bit[ch] = GETBIT(write->out_val, 0);
     uint8_t newalgo = opl3_get_ch_theoretical_algo(state, ch);
     if (oldalgo != newalgo) {
@@ -213,12 +221,6 @@ static void opl_common_filter_conn_write(opl_series_state_t *state, chip_write_t
         //todo: just doing all for now, probably ok?
         opl_common_dump_tls(state);
     }
-}
-
-void opl3_init(opl_series_state_t *state, uint8_t hw_slot) {
-    opl_common_init(state, hw_slot);
-    state->type = OPL_TYPE_OPL3;
-    state->write_func = (void *)opl3_phys_write;
 }
 
 static void opl_common_apply_opl_compat_hacks(opl_series_state_t *state, chip_write_t *write) {
@@ -236,15 +238,16 @@ static void opl_common_apply_opl_compat_hacks(opl_series_state_t *state, chip_wr
 }
 
 static void opl_common_apply_opl2_compat_hacks(opl_series_state_t *state, chip_write_t *write) {
-    //hacks for opl2 playback on opl3
+    //hacks for opl2 (or opl->opl2) playback on opl3
 
     WRITE_CHECK_SHORT_CIRCUIT(write);
 
     //upper bank of registers does not exist on opl2
-    //an opl < 3 tune is not capable of writing to the upper bank, so skip this check
+    //an opl < 3 tune is not capable of writing to the upper bank, as in it's not possible to get through the MIF layer, so skip this check
+    //TODO delete this line probably:
     //if (write->out_addr) write->drop = true;
 
-    //opl2 has no pan bits at all - force LR on
+    //opl/opl2 has no pan bits at all - force LR on. required since we force NEW mode.
     if (INRANGE(write->out_reg, 0xc0, 0xc8)) write->out_val |= 0b00110000;
 
     //opl2 doesn't have the extra four waveforms that opl3 does
@@ -268,7 +271,7 @@ static void opl_common_dump_pans(opl_series_state_t *state) {
     for (uint8_t addr=0;addr<banks;addr++) {
         for (uint8_t off=0;off<9;off++) {
             uint8_t ch = COMMON_ADDR_REG_TO_CHAN(addr, off);
-            state->write_func(state, addr, 0xc0+off, opl_common_filter_pan(state, ch, state->fm_pan[ch]));
+            opl_common_create_write(state, addr, 0xc0+off, opl_common_filter_pan(state, ch, state->fm_pan[ch]));
         }
     }
 }
@@ -277,10 +280,29 @@ static inline void opl_common_dump_muting_data(opl_series_state_t *state) {
     opl_common_dump_pans(state);
 }
 
+void opl3_init(opl_series_state_t *state, uint8_t hw_slot) {
+    opl_common_init(state, hw_slot);
+    state->type = OPL_TYPE_OPL3;
+
+    //inject a write to set "NEW" mode, so we have access to panning.
+    //this must be done regardless of the virt_type, because there's
+    //no guarantee that opl3 vgms will actually set this register.
+    opl_common_create_write(state, 1, 0x05, 1);
+    opl_common_dump_muting_data(state);
+}
+
 static void opl_common_filter_pan_write(opl_series_state_t *state, chip_write_t *write) {
     WRITE_CHECK_SHORT_CIRCUIT(write);
 
+    //pre-opl3 tunes, or opl3 tunes that do not enable NEW, always want cha and chb on.
+    //we need those set for muting to work properly
+    //TODO: chc and chd?
+    if (state->type == OPL_TYPE_OPL3 && !state->is_opl3_mode) {
+        write->out_val |= 0b00110000;
+    }
+
     uint8_t ch = COMMON_ADDR_REG_TO_CHAN(write->out_addr, write->out_reg);
+    assert(ch<18);
     state->fm_pan[ch] = write->out_val;
 
     write->out_val = opl_common_filter_pan(state, ch, write->out_val);
@@ -289,6 +311,7 @@ static void opl_common_filter_pan_write(opl_series_state_t *state, chip_write_t 
 static void opl_common_virt_write(opl_series_state_t *state, chip_write_t *write) {
     if (write->out_addr && write->out_reg == 0x05) {
         state->is_opl3_mode = GETBIT(write->out_val, 0);
+        write->drop = true;
         //todo update whatever
     } else if (write->out_addr && write->out_reg == 0x04) {
         state->fourop_en = write->out_val;
@@ -302,7 +325,10 @@ static void opl_common_virt_write(opl_series_state_t *state, chip_write_t *write
         opl_common_filter_drum_write(state, write);
     }
 
-    if (!write->drop) state->write_func(state, write->out_addr, write->out_reg, write->out_val);
+    if (!write->drop) {
+        write->hw_slot = state->hw_slot;
+        phys_write(write);
+    }
 }
 
 void opl3_virt_write(opl_series_state_t *state, chip_write_t *write) {
@@ -324,16 +350,18 @@ void opl3_virt_write(opl_series_state_t *state, chip_write_t *write) {
 
 void opl_common_setup_virt_type(opl_series_type_t type, opl_series_state_t *state, opl_series_type_t virt_type) {
     state->virt_type = virt_type;
+    /*ESP_LOGE(TAG, "hw type %d virt type %d", state->type, state->virt_type);
     if (state->type == OPL_TYPE_OPL3) {
         if (virt_type != OPL_TYPE_OPL3) {
             //playing opl/opl2 tune on opl3
 
             //inject a write to set "NEW" mode, so we have access to panning
-            state->write_func(state, 1, 0x05, 1);
+            ESP_LOGE(TAG, "inserted new");
+            opl_common_create_write(state, 1, 0x05, 1);
 
             opl_common_dump_muting_data(state);
         }
-    }
+    }*/
 }
 
 static void opl_common_update_muting_data(opl_series_state_t *state, chip_muting_data_t data) {
