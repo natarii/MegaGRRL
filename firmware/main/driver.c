@@ -73,11 +73,11 @@ spi_bus_config_t Driver_SpiBusConfig = {
     .quadhd_io_num=-1,
 };
 spi_device_interface_config_t Driver_SpiDeviceConfig = {
-    .clock_speed_hz=26600000, /*incredibly loud green hill zone music plays*/
+    .clock_speed_hz=40000000, /*incredibly loud green hill zone music plays*/
     .mode=0,
     .spics_io_num=PIN_DRIVER_SHSTO,
     .queue_size=10,
-    //.flags = SPI_DEVICE_NO_DUMMY
+    .flags = SPI_DEVICE_NO_DUMMY
 };
 spi_device_handle_t Driver_SpiDevice;
 
@@ -489,13 +489,11 @@ void Driver_FmOutopna(uint8_t Port, uint8_t Register, uint8_t Value) {
     Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_A0; //clear A0
     Driver_Output();
     Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_FM_CS; // /cs low
-    Driver_SrBuf[SR_DATABUS] = Register;
-    Driver_Output();
     Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR; // /wr low
+    Driver_SrBuf[SR_DATABUS] = Register;
     Driver_Output();
     Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; // /wr high
     Driver_Output();
-    Driver_Sleep(10);
     Driver_SrBuf[SR_CONTROL] |= SR_BIT_A0; //set A0
     Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR; // /wr low
     Driver_SrBuf[SR_DATABUS] = Value;
@@ -580,7 +578,7 @@ void Driver_FmOutopna(uint8_t Port, uint8_t Register, uint8_t Value) {
     if (Port == 0 && Register == 0x10) {
         Driver_Sleep(100);
     } else {
-        Driver_Sleep(20);
+        Driver_Sleep(15);
     }
 }
 
