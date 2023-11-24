@@ -298,6 +298,10 @@ void app_main(void) {
             ESP_LOGI(TAG, "2xOPN detected, switching FM clock to OPN");
             Clk_Set(CLK_FM, 4000000);
             break;
+        case MEGAMOD_2XPSG:
+            ESP_LOGI(TAG, "2xPSG detected, switching FM clock to PSG");
+            Clk_Set(CLK_FM, 1500000);
+            break;
         default:
             ESP_LOGE(TAG, "Unsupported mod (ID %d)", Driver_DetectedMod);
             break;
@@ -738,6 +742,9 @@ void app_main(void) {
                 break;
             case MEGAMOD_2XOPN:
                 lv_label_set_static_text(mmlabel, "2xOPN MegaMod");
+                break;
+            case MEGAMOD_2XPSG:
+                lv_label_set_static_text(mmlabel, "2xPSG MegaMod");
                 break;
             default:
                 lv_label_set_static_text(mmlabel, "ERROR: Unknown MegaMod");

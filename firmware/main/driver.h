@@ -15,6 +15,7 @@
 typedef enum {
     MEGAMOD_NONE = 0xff,
     MEGAMOD_FAULT = 0xfe,
+    MEGAMOD_2XPSG = 0,
     MEGAMOD_2XOPN = 1,
     MEGAMOD_OPNA = 2,
     MEGAMOD_OPL3 = 3,

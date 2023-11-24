@@ -873,6 +873,25 @@ static uint32_t Player_StartTrack(char *FilePath) {
         else if (opn > 6000000) opn = 6000000;
         ESP_LOGI(TAG, "Clock clamped: %d", opn);
         Clk_Set(CLK_FM, opn);
+    } else if (Driver_DetectedMod == MEGAMOD_2XPSG) {
+        ESP_LOGI(TAG, "MegaMod: 2xPSG");
+        Clk_Set(CLK_DCSG, 0);
+        uint32_t ay = 0;
+        if (Player_Info.Version >= 151) {
+            memcpy(&ay, &Driver_PcmBuf[0x74], 4);
+        }
+
+        if (ay) {
+            clocks_used++;
+            if (ay & (1<<30)) clocks_used++;
+            ay &= ~(1<<30);
+        }
+
+        ESP_LOGI(TAG, "Clock from vgm: %d", ay);
+        if (ay < 750000) ay = 750000;
+        else if (ay > 2250000) ay = 2250000;
+        ESP_LOGI(TAG, "Clock clamped: %d", ay);
+        Clk_Set(CLK_FM, ay);
     } else if (Driver_DetectedMod == MEGAMOD_OPL3) {
         uint32_t opl = 0;
         uint32_t opl2 = 0;
