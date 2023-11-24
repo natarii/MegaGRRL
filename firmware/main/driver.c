@@ -456,10 +456,10 @@ void Driver_FmOutopna(uint8_t Port, uint8_t Register, uint8_t Value) {
         Driver_SrBuf[SR_CONTROL] |= SR_BIT_A1; //set A1
     }
     Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_A0; //clear A0
-    Driver_Output();
+    //Driver_Output();
     Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_FM_CS; // /cs low
     Driver_SrBuf[SR_DATABUS] = Register;
-    Driver_Output();
+    //Driver_Output();
     Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR; // /wr low
     Driver_Output();
     Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; // /wr high
@@ -548,6 +548,8 @@ void Driver_FmOutopna(uint8_t Port, uint8_t Register, uint8_t Value) {
 
     if (Port == 0 && Register == 0x10) {
         Driver_Sleep(100);
+    } else if (Port == 0 && Register <= 0x0f) {
+        Driver_Sleep(1);
     } else {
         Driver_Sleep(20);
     }
@@ -1031,6 +1033,7 @@ enum mif_cmds {
     MIF_16BIT_WAIT = 0x61,
     MIF_60HZ_WAIT = 0x62,
     MIF_50HZ_WAIT = 0x63,
+    MIF_END = 0x66,
     MIF_4BIT_WAIT_1 = 0x70,
     MIF_4BIT_WAIT_2 = 0x71,
     MIF_4BIT_WAIT_3 = 0x72,
@@ -1095,6 +1098,25 @@ static bool mif_exec_ignores(mif_cmd_t *cmd) {
     return false;
 }
 
+static void Stop() {
+    ESP_LOGI(TAG, "Stopping the world...");
+    Driver_ResetChips(false);
+    xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_RUNNING);
+    xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_FINISHED);
+}
+
+static void StartFade() {
+    ESP_LOGD(TAG, "Starting fadeout...");
+    if (FadeActive) { //this catches cases where there are short loops and loop count is changed during the fade period
+        ESP_LOGW(TAG, "Started fading, but already fading");
+        return;
+    }
+    FadeActive = true;
+    FadePos = 0; //should be redundant
+    FadeStart = Driver_Sample;
+    FadeTimer = Driver_Sample;
+}
+
 static bool mif_exec_timing(mif_cmd_t *cmd) {
     switch (cmd->cmd) {
         case MIF_16BIT_WAIT:
@@ -1109,6 +1131,30 @@ static bool mif_exec_timing(mif_cmd_t *cmd) {
             break;
         case MIF_4BIT_WAIT_1 ... MIF_4BIT_WAIT_16:
             Driver_NextSample += (cmd->cmd & 0x0f) + 1;
+            break;
+        case MIF_END:
+            ESP_LOGD(TAG, "reached end of music / loop point");
+            if (FadeActive) {
+                ESP_LOGD(TAG, "in fadeout period, not doing anything");
+            } else {
+                if (Loader_VgmInfo->LoopOffset == 0 || (Loader_IgnoreZeroSampleLoops && Loader_VgmInfo->LoopSamples == 0)) { //there is no loop point at all
+                    ESP_LOGI(TAG, "no loop point");
+                    Stop();
+                }
+                if (Player_LoopCount != 255 && ++Driver_CurLoop >= Player_LoopCount) {
+                    if (Driver_FadeEnabled) {
+                        ESP_LOGD(TAG, "looped enough, starting fadeout");
+                        StartFade();
+                    } else {
+                        ESP_LOGI(TAG, "Fading not enabled, just stopping");
+                        Stop();
+                    }
+                }
+                if (!Loader_IgnoreZeroSampleLoops || Loader_VgmInfo->LoopSamples > 0) {
+                    ESP_LOGD(TAG, "looping");
+                    if (Loader_VgmInfo->LoopSamples == 0) ESP_LOGW(TAG, "looping despite LoopSamples == 0 !!");
+                }
+            }
             break;
         default:
             return false;
@@ -1445,6 +1491,11 @@ static bool module_opnamm_mif_exec_fn(mif_cmd_t *cmd) {
             write_opna(0, cmd->data.reg_val.reg, cmd->data.reg_val.val);
             return true;
             break;
+        case MIF_WR_OPN2_0:
+        case MIF_WR_OPN2_1:
+            write_opn2(cmd->cmd & 1, cmd->data.reg_val.reg, cmd->data.reg_val.val);
+            return true;
+            break;
         case MIF_WR_OPNA_0:
         case MIF_WR_OPNA_1:
             write_opna(cmd->cmd & 1, cmd->data.reg_val.reg, cmd->data.reg_val.val);
@@ -1514,25 +1565,6 @@ void Driver_ModDetect() {
     } else {
         mif_exec_fn = module_mgdnullmm_mif_exec_fn;
     }
-}
-
-static void Stop() {
-    ESP_LOGI(TAG, "Stopping the world...");
-    Driver_ResetChips(false);
-    xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_RUNNING);
-    xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_FINISHED);
-}
-
-static void StartFade() {
-    ESP_LOGD(TAG, "Starting fadeout...");
-    if (FadeActive) { //this catches cases where there are short loops and loop count is changed during the fade period
-        ESP_LOGW(TAG, "Started fading, but already fading");
-        return;
-    }
-    FadeActive = true;
-    FadePos = 0; //should be redundant
-    FadeStart = Driver_Sample;
-    FadeTimer = Driver_Sample;
 }
 bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the stream. command length as a parameter just to avoid looking it up a second time
     uint8_t cmd[CommandLength]; //buffer for command + attached data
@@ -1714,28 +1746,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
     } else if (cmd[0] == 0xc2) {
         //RF5C164 RAM write, just ignore it...
     } else if (cmd[0] == 0x66) { //end of music (loop point)
-        ESP_LOGD(TAG, "reached end of music / loop point");
-        if (FadeActive) {
-            ESP_LOGD(TAG, "in fadeout period, not doing anything");
-        } else {
-            if (Loader_VgmInfo->LoopOffset == 0 || (Loader_IgnoreZeroSampleLoops && Loader_VgmInfo->LoopSamples == 0)) { //there is no loop point at all
-                ESP_LOGI(TAG, "no loop point");
-                Stop();
-            }
-            if (Player_LoopCount != 255 && ++Driver_CurLoop >= Player_LoopCount) {
-                if (Driver_FadeEnabled) {
-                    ESP_LOGD(TAG, "looped enough, starting fadeout");
-                    StartFade();
-                } else {
-                    ESP_LOGI(TAG, "Fading not enabled, just stopping");
-                    Stop();
-                }
-            }
-            if (!Loader_IgnoreZeroSampleLoops || Loader_VgmInfo->LoopSamples > 0) {
-                ESP_LOGD(TAG, "looping");
-                if (Loader_VgmInfo->LoopSamples == 0) ESP_LOGW(TAG, "looping despite LoopSamples == 0 !!");
-            }
-        }
+        
     } else if (cmd[0] == 0x31) {
         //ignore AY-3-8910 stereo mask
     } else if (cmd[0] == 0x30) {
