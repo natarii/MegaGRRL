@@ -1586,155 +1586,20 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
     } else if (Driver_DetectedMod == MEGAMOD_2XOPN && (cmd[0] == 0x55 || cmd[0] == 0xa5 || cmd[0] == 0xa0)) { //opn, 2nd opn, ay38910
         Driver_FmOutopn((cmd[0]&0xf0)==0xa0?1:0, cmd[1], cmd[2]);
     } else if ((Driver_DetectedMod == MEGAMOD_NONE || Driver_DetectedMod == MEGAMOD_OPNA || Driver_DetectedMod == MEGAMOD_OPNOPLL) && (cmd[0] == 0x56 || cmd[0] == 0x57 || cmd[0] == 0x55 || cmd[0] == 0xa0)) { //opna both banks, opn, AY-3-8910
-        if (cmd[0] == 0x57) {
-            if (cmd[1] == 0x01) { //control/config
-                Driver_Opna_AdpcmConfig = cmd[2]; //don't force type=dram and width=1bit in the backup
-                cmd[2] &= 0b11111100; //but do it on the write
-                //todo vgm_trim mitigation
-                cmd[2] &= (Driver_FmMask&(1<<6))?0b11111111:0b00111111; //muting mask
-                if (Driver_ForceMono && (cmd[2] & 0b11000000)) cmd[2] |= 0b11000000;
-            } else if (cmd[1] == 0x02) { //start L
-                ESP_LOGD(TAG, "start    %02x", cmd[2]);
-                opnastart = (opnastart & 0xff00) | cmd[2];
-                nw = true;
-            } else if (cmd[1] == 0x03) { //start H
-                ESP_LOGD(TAG, "start  %02x", cmd[2]);
-                opnastart = (((uint16_t)cmd[2])<<8) | (opnastart & 0xff);
-                nw = true;
-            } else if (cmd[1] == 0x04) { //stop L
-                ESP_LOGD(TAG, "stop     %02x", cmd[2]);
-                opnastop = (opnastop & 0xff00) | cmd[2];
-                nw = true;
-            } else if (cmd[1] == 0x05) { //stop H
-                ESP_LOGD(TAG, "stop   %02x", cmd[2]);
-                opnastop = (((uint16_t)cmd[2])<<8) | (opnastop & 0xff);
-                nw = true;
-            } else if (cmd[1] == 0x00 && cmd[2] & 0x80) { //pcm start
-                if (Driver_Opna_AdpcmConfig & 0b00000011) { //if in rom or 8bit dram mode, convert addresses
-                    ESP_LOGD(TAG, "converting opna pcm addresses");
-                    opnastart_hacked = opnastart * 8;
-                    Driver_FmOutopna(1,0x02,opnastart_hacked&0xff);
-                    Driver_FmOutopna(1,0x03,opnastart_hacked>>8);
-                    opnastop_hacked = opnastop * 8;
-                    opnastop_hacked |= 0b00000111;
-                    Driver_FmOutopna(1,0x04,opnastop_hacked&0xff);
-                    Driver_FmOutopna(1,0x05,opnastop_hacked>>8);
-                } else { //write as-is
-                    Driver_FmOutopna(1,0x02,opnastart&0xff);
-                    Driver_FmOutopna(1,0x03,opnastart>>8);
-                    Driver_FmOutopna(1,0x04,opnastop&0xff);
-                    Driver_FmOutopna(1,0x05,opnastop>>8);
-                }
-                ChannelMgr_PcmAccu = 127;
-                ChannelMgr_PcmCount = 1;
-            } else if (cmd[1] == 0x0c || cmd[1] == 0x0d) { //limit
-                nw = true;
-            } else if (cmd[1] == 0x0b) { //level
-                cmd[2] = FilterAdpcmLevelWrite(cmd[2]);
-            }
-        }
-        if (cmd[1] >= 0xb4 && cmd[1] <= 0xb6) { //pan, AMS, PMS
-            //todo vgm_trim mitigation
-            uint8_t i = ((cmd[0]&1)?3:0)+cmd[1]-0xb4;
-            Driver_FmPans[i] = cmd[2];
-            cmd[2] &= (Driver_FmMask & (1<<i))?0b11111111:0b00111111;
-            if (Driver_ForceMono && (cmd[2] & 0b11000000)) cmd[2] |= 0b11000000;
-        } else if (cmd[0] == 0x56 && cmd[1] >= 0x18 && cmd[1] <= 0x1d) { //rhythm pan/level
-            //todo vgm_trim mitigation
-            uint8_t i = cmd[1]-0x18;
-            Driver_Opna_RhythmConfig[i] = cmd[2];
-            cmd[2] &= (Driver_FmMask & (1<<6))?0b11111111:0b00111111;
-            if (Driver_ForceMono && (cmd[2] & 0b11000000)) cmd[2] |= 0b11000000;
-        } else if ((cmd[0] == 0x56 || cmd[0] == 0x55 || cmd[0] == 0xa0) && cmd[1] == 0x07) { //ssg tone enable
-            //todo vgm_trim mitigation
-            Driver_Opna_SsgConfig = cmd[2];
-            cmd[2] = Driver_ProcessSsgControlWrite(cmd[2]); //this handles masks
-        } else if (cmd[0] == 0x56 && cmd[1] == 0x10) { //rhythm
-            if (cmd[2] & 0b00111111) {
-                ChannelMgr_PcmAccu = 127;
-                ChannelMgr_PcmCount = 1;
-            }
-        } else if (cmd[0] == 0x56 && cmd[1] == 0x11) { //rhythm TL
-            cmd[2] = FilterRhythmTLWrite(cmd[2]);
-        } else if ((cmd[0] == 0x56 || cmd[0] == 0x55 || cmd[0] == 0xa0) && cmd[1] >= 0x08 && cmd[1] <= 0x0a) {
-            Driver_Opna_SsgLevel[cmd[1] - 0x08] = cmd[2];
-            
-            //block writes to ssg level registers during mute, to avoid level change pops:
-            if ((Driver_DcsgMask & (1<<(cmd[1]-8))) == 0) nw = true;
-            
-            cmd[2] = FilterSsgLevelWrite(cmd[1], cmd[2]);
-        } else if (cmd[0] >= 0x55 && cmd[0] <= 0x57 && cmd[1] >= 0xb0 && cmd[1] <= 0xb2) { //algo
-            ESP_LOGD(TAG, "algo write");
-            HandleAlgoWrite((cmd[0]==0x57)?1:0, cmd[1], cmd[2]);
-        }
-        if (cmd[0] >= 0x55 && cmd[0] <= 0x57 && ((cmd[1] >= 0x40 && cmd[1] <= 0x42) || (cmd[1] >= 0x48 && cmd[1] <= 0x4a) || (cmd[1] >= 0x44 && cmd[1] <= 0x46) || (cmd[1] >= 0x4c && cmd[1] <= 0x4e))) { //TL
-            ESP_LOGD(TAG, "tl write");
-            cmd[2] = FilterTLWrite((cmd[0]==0x57)?1:0, cmd[1], cmd[2]);
-        }
-        if (!nw) Driver_FmOutopna((cmd[0] == 0x57)?1:0, cmd[1], cmd[2]); //not just checking the low bit because of opn
+        
     } else if (cmd[0] == 0x52) { //YM2612 port 0
         
     } else if (cmd[0] == 0x53) { //YM2612 port 1
         
     } else if (cmd[0] == 0x61) { //16bit wait
-        _Pragma("GCC diagnostic push")
-        _Pragma("GCC diagnostic ignored \"-Wstrict-aliasing\"")
-        Driver_NextSample += *(uint16_t*)&cmd[1];
-        if (Driver_FirstWait && *(uint16_t*)&cmd[1] > 0) {
-            Driver_SetFirstWait();
-        }
-        _Pragma("GCC diagnostic pop")
     } else if (cmd[0] == 0x62) { //60Hz wait
-        Driver_NextSample += 735;
-        if (Driver_FirstWait) Driver_SetFirstWait();
     } else if (cmd[0] == 0x63) { //50Hz wait
-        Driver_NextSample += 882;
-        if (Driver_FirstWait) Driver_SetFirstWait();
     } else if ((cmd[0] & 0xf0) == 0x70) { //4bit wait
-        Driver_NextSample += (cmd[0] & 0x0f) + 1;
-        if (Driver_FirstWait) Driver_SetFirstWait();
     } else if ((cmd[0] & 0xf0) == 0x80) { //YM2612 DAC + wait
 
     } else if (cmd[0] == 0x93 || cmd[0] == 0x95) { //dac stream start
-        DacStreamSeq++;
-        if (DacStreamLastSeqPlayed > 0) {
-            for (uint32_t s=DacStreamLastSeqPlayed;s<DacStreamSeq;s++) {
-                uint8_t id = Driver_SeqToSlot(s);
-                if (id != 0xff) {
-                    DacStreamEntries[id].SlotFree = true;
-                }
-            }
-        }
-        uint8_t id;
-        id = Driver_SeqToSlot(DacStreamSeq);
-        if (id == 0xff) {
-            ESP_LOGW(TAG, "DacStreamEntries under !!");
-        } else {
-            DacStreamId = id;
-            DacStreamSampleRate = DacStreamEntries[DacStreamId].SampleRate;
-            DacStreamPort = DacStreamEntries[DacStreamId].ChipPort;
-            DacStreamCommand = DacStreamEntries[DacStreamId].ChipCommand;
-            DacStreamLastSeqPlayed = DacStreamSeq;
-            DacStreamSamplesPlayed = 0;
-            Driver_Cycle_Ds = 0;
-            DacStreamLengthMode = DacStreamEntries[DacStreamId].LengthMode;
-            DacStreamDataLength = DacStreamEntries[DacStreamId].DataLength;
-            ESP_LOGD(TAG, "playing %d q size %d rate %d LM %d len %d", DacStreamSeq, MegaStream_Used((MegaStreamContext_t *)&DacStreamEntries[DacStreamId].Stream), DacStreamSampleRate, DacStreamLengthMode, DacStreamDataLength);
-            DacStreamActive = true;
-        }
     } else if (cmd[0] == 0x94) { //dac stream stop
-        DacStreamActive = false;
     } else if (cmd[0] == 0x92) { //set sample rate
-        if (DacStreamActive) {
-            _Pragma("GCC diagnostic push")
-            _Pragma("GCC diagnostic ignored \"-Wstrict-aliasing\"")
-            DacStreamSampleRate = *(uint32_t*)&cmd[2];
-            _Pragma("GCC diagnostic pop")
-            ESP_LOGD(TAG, "Dacstream samplerate updated to %d", DacStreamSampleRate);
-            //TODO: handle the math for updating the current sample number, if sample rate changes mid-stream
-        } else {
-            ESP_LOGD(TAG, "Not updating dacstream samplerate, not playing");
-        }
     } else if (cmd[0] == 0x90 || cmd[0] == 0x91) { //dacstream commands we don't need to worry about here
 
     } else if (cmd[0] == 0x4f) { //gamegear dcsg stereo
