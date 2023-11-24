@@ -1288,6 +1288,11 @@ static bool mif_exec_next_cmd(mif_cmd_t *cmd) {
             ret = mif_exec_fn(cmd);
             //fallback to ignores
             if (!ret) ret = mif_exec_ignores(cmd);
+            //kinda hacky badflags impl
+            if (!ret && cmd->cmd == 0xff) {
+                if (cmd->data.val & PLAYER_BADVGM_OPN2_TESTREG) Driver_BlockOpn2TestReg = true;
+                return true;
+            }
             return ret;
             break;
     }
