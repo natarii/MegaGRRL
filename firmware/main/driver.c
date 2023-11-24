@@ -233,39 +233,8 @@ bool Driver_Setup() {
     return true;
 }
 
-void Driver_ModDetect() {
-    gpio_config_t det;
-    det.intr_type = GPIO_PIN_INTR_DISABLE;
-    det.mode = GPIO_MODE_INPUT;
-    det.pull_down_en = 0;
-    det.pull_up_en = 1;
-    det.pin_bit_mask = 1ULL<<PIN_CLK_DCSG;
-    gpio_config(&det);
-    uint8_t foundbit = 0xff;
-    uint8_t lastbit = 0xff;
-    for (uint8_t attempts=0;attempts<8;attempts++) {
-        for (uint8_t bit=0;bit<=7;bit++) {
-            Driver_SrBuf[SR_DATABUS] = ~(1<<bit);
-            Driver_Output();
-            Driver_Sleep(1000);
-            if (gpio_get_level(PIN_CLK_DCSG) == 0) {
-                ESP_LOGD(TAG, "Mod detect bit %d low", bit);
-                if (lastbit != 0xff && lastbit != bit) {
-                    ESP_LOGE(TAG, "Driver_ModDetect() noisy detect pin");
-                    Driver_DetectedMod = MEGAMOD_FAULT;
-                    return;
-                }
-                foundbit = bit;
-            }
-        }
-    }
-    if (foundbit == 0xff) { //nothing detected, it's probably DCSG
-        ESP_LOGI(TAG, "Driver_ModDetect() nothing found");
-        Driver_DetectedMod = MEGAMOD_NONE;
-        return;
-    }
-    Driver_DetectedMod = foundbit;
-}
+
+
 
 void Driver_Sleep(uint32_t us) { //quick and dirty spin sleep
     uint32_t s = xthal_get_ccount();
@@ -1009,6 +978,146 @@ void Driver_SetFirstWait() {
     Driver_LastCc = Driver_Cc = xthal_get_ccount();
 }
 
+typedef struct __attribute__((packed)) {
+    uint16_t samples;
+} mif_16bit_wait_t;
+
+typedef struct __attribute__((packed)) {
+    uint8_t reg;
+    uint8_t val;
+} mif_reg_val_t;
+
+typedef struct __attribute__((packed)) {
+    uint8_t stream_id;
+    uint32_t sample_rate;
+} mif_dacstream_sample_rate_t;
+
+typedef union {
+    mif_dacstream_sample_rate_t sample_rate;
+} mif_cmd_dacstream_data_t;
+
+typedef union {
+    mif_16bit_wait_t timing_16bit_wait;
+    mif_reg_val_t reg_val;
+    uint8_t val;
+    mif_cmd_dacstream_data_t dacstream;
+} mif_cmd_data_t;
+
+typedef struct __attribute__((packed)) {
+    uint8_t cmd;
+    mif_cmd_data_t data;
+} mif_cmd_t;
+
+enum mif_cmds {
+    MIF_WR_DCSG_DUAL = 0x30,
+    MIF_WR_PSG_OPTIONS = 0x31,
+    MIF_WR_GG_STEREO = 0x4f,
+    MIF_WR_DCSG = 0x50,
+    MIF_WR_OPLL = 0x51,
+    MIF_WR_OPN2_0 = 0x52,
+    MIF_WR_OPN2_1 = 0x53,
+    MIF_WR_OPM = 0x54,
+    MIF_WR_OPN = 0x55,
+    MIF_WR_OPNA_0 = 0x56,
+    MIF_WR_OPNA_1 = 0x57,
+    MIF_WR_OPNB_0 = 0x58,
+    MIF_WR_OPNB_1 = 0x59,
+    MIF_WR_OPL2 = 0x5a,
+    MIF_WR_OPL = 0x5b,
+    MIF_WR_MSX_AUDIO = 0x5c,
+    MIF_WR_PCMD8 = 0x5d,
+    MIF_WR_OPL3_0 = 0x5e,
+    MIF_WR_OPL3_1 = 0x5f,
+    MIF_16BIT_WAIT = 0x61,
+    MIF_60HZ_WAIT = 0x62,
+    MIF_50HZ_WAIT = 0x63,
+    MIF_4BIT_WAIT_1 = 0x70,
+    MIF_4BIT_WAIT_2 = 0x71,
+    MIF_4BIT_WAIT_3 = 0x72,
+    MIF_4BIT_WAIT_4 = 0x73,
+    MIF_4BIT_WAIT_5 = 0x74,
+    MIF_4BIT_WAIT_6 = 0x75,
+    MIF_4BIT_WAIT_7 = 0x76,
+    MIF_4BIT_WAIT_8 = 0x77,
+    MIF_4BIT_WAIT_9 = 0x78,
+    MIF_4BIT_WAIT_10 = 0x79,
+    MIF_4BIT_WAIT_11 = 0x7a,
+    MIF_4BIT_WAIT_12 = 0x7b,
+    MIF_4BIT_WAIT_13 = 0x7c,
+    MIF_4BIT_WAIT_14 = 0x7d,
+    MIF_4BIT_WAIT_15 = 0x7e,
+    MIF_4BIT_WAIT_16 = 0x7f,
+    MIF_OPN2_PCM_WAIT_0 = 0x80,
+    MIF_OPN2_PCM_WAIT_1 = 0x81,
+    MIF_OPN2_PCM_WAIT_2 = 0x82,
+    MIF_OPN2_PCM_WAIT_3 = 0x83,
+    MIF_OPN2_PCM_WAIT_4 = 0x84,
+    MIF_OPN2_PCM_WAIT_5 = 0x85,
+    MIF_OPN2_PCM_WAIT_6 = 0x86,
+    MIF_OPN2_PCM_WAIT_7 = 0x87,
+    MIF_OPN2_PCM_WAIT_8 = 0x88,
+    MIF_OPN2_PCM_WAIT_9 = 0x89,
+    MIF_OPN2_PCM_WAIT_10 = 0x8a,
+    MIF_OPN2_PCM_WAIT_11 = 0x8b,
+    MIF_OPN2_PCM_WAIT_12 = 0x8c,
+    MIF_OPN2_PCM_WAIT_13 = 0x8d,
+    MIF_OPN2_PCM_WAIT_14 = 0x8e,
+    MIF_OPN2_PCM_WAIT_15 = 0x8f,
+    MIF_DACSTREAM_SETUP = 0x90,
+    MIF_DACSTREAM_SET_DATA = 0x91,
+    MIF_DACSTREAM_SET_SR = 0x92,
+    MIF_DACSTREAM_START = 0x93,
+    MIF_DACSTREAM_STOP = 0x94,
+    MIF_DACSTREAM_FASTSTART = 0x95,
+    MIF_WR_PSG = 0xa0,
+    MIF_WR_RF5C164 = 0xb1,
+    MIF_WR_32X = 0xb2,
+    MIF_WR_MSM6258 = 0xb7,
+    MIF_WR_MSM6295 = 0xb8,
+    MIF_WR_SCC = 0xd2,
+};
+
+static bool mif_exec_ignores(mif_cmd_t *cmd) {
+    switch (cmd->cmd) {
+        case MIF_WR_DCSG_DUAL:
+        case MIF_WR_PSG_OPTIONS:
+        case MIF_WR_GG_STEREO:
+        case MIF_WR_RF5C164:
+        case MIF_WR_32X:
+        case MIF_WR_MSM6258:
+        case MIF_WR_MSM6295:
+        case MIF_WR_SCC:
+            return true;
+            break;
+        default:
+            break;
+    }
+    return false;
+}
+
+static bool mif_exec_timing(mif_cmd_t *cmd) {
+    switch (cmd->cmd) {
+        case MIF_16BIT_WAIT:
+            Driver_NextSample += cmd->data.timing_16bit_wait.samples;
+            if (cmd->data.timing_16bit_wait.samples == 0) return true;
+            break;
+        case MIF_60HZ_WAIT:
+            Driver_NextSample += 735;
+            break;
+        case MIF_50HZ_WAIT:
+            Driver_NextSample += 882;
+            break;
+        case MIF_4BIT_WAIT_1 ... MIF_4BIT_WAIT_16:
+            Driver_NextSample += (cmd->cmd & 0x0f) + 1;
+            break;
+        default:
+            return false;
+            break;
+    }
+    if (Driver_FirstWait) Driver_SetFirstWait();
+    return true;
+}
+
 uint8_t Driver_SeqToSlot(uint32_t seq) {
     for (uint8_t i=0;i<DACSTREAM_PRE_COUNT;i++) {
         if (!DacStreamEntries[i].SlotFree && DacStreamEntries[i].Seq == seq) {
@@ -1017,6 +1126,394 @@ uint8_t Driver_SeqToSlot(uint32_t seq) {
     }
     ESP_LOGE(TAG, "Dacstream sync error - failed to find entry for seq %d !!", seq);
     return 0xff;
+}
+
+static bool mif_exec_dacstream(mif_cmd_t *cmd) {
+    switch (cmd->cmd) {
+        case MIF_DACSTREAM_START:
+        case MIF_DACSTREAM_FASTSTART:
+            DacStreamSeq++;
+            if (DacStreamLastSeqPlayed > 0) {
+                for (uint32_t s=DacStreamLastSeqPlayed;s<DacStreamSeq;s++) {
+                    uint8_t id = Driver_SeqToSlot(s);
+                    if (id != 0xff) {
+                        DacStreamEntries[id].SlotFree = true;
+                    }
+                }
+            }
+            uint8_t id;
+            id = Driver_SeqToSlot(DacStreamSeq);
+            if (id == 0xff) {
+                ESP_LOGW(TAG, "DacStreamEntries under !!");
+            } else {
+                DacStreamId = id;
+                DacStreamSampleRate = DacStreamEntries[DacStreamId].SampleRate;
+                DacStreamPort = DacStreamEntries[DacStreamId].ChipPort;
+                DacStreamCommand = DacStreamEntries[DacStreamId].ChipCommand;
+                DacStreamLastSeqPlayed = DacStreamSeq;
+                DacStreamSamplesPlayed = 0;
+                Driver_Cycle_Ds = 0;
+                DacStreamLengthMode = DacStreamEntries[DacStreamId].LengthMode;
+                DacStreamDataLength = DacStreamEntries[DacStreamId].DataLength;
+                ESP_LOGD(TAG, "playing %d q size %d rate %d LM %d len %d", DacStreamSeq, MegaStream_Used((MegaStreamContext_t *)&DacStreamEntries[DacStreamId].Stream), DacStreamSampleRate, DacStreamLengthMode, DacStreamDataLength);
+                DacStreamActive = true;
+            }
+            return true;
+            break;
+        case MIF_DACSTREAM_STOP:
+            DacStreamActive = false;
+            return true;
+            break;
+        case MIF_DACSTREAM_SET_SR:
+            if (DacStreamActive) {
+                DacStreamSampleRate = cmd->data.dacstream.sample_rate.sample_rate;
+                ESP_LOGD(TAG, "Dacstream samplerate updated to %d", DacStreamSampleRate);
+                //TODO: handle the math for updating the current sample number, if sample rate changes mid-stream
+            } else {
+                ESP_LOGD(TAG, "Not updating dacstream samplerate, not playing");
+            }
+            return true;
+            break;
+        case MIF_DACSTREAM_SETUP:
+        case MIF_DACSTREAM_SET_DATA:
+            //dacstream commands we don't need to worry about
+            return true;
+            break;
+        default:
+            break;
+    }
+    return false;
+}
+
+static bool (*mif_exec_fn)(mif_cmd_t *) = NULL;
+
+static void mif_special_opn2_pcm(uint8_t raw_cmd) {
+    uint8_t sample;
+    MegaStream_Recv(&Driver_PcmStream, &sample, 1);
+    Driver_FmOut(0, 0x2a, sample);
+    Driver_NextSample += raw_cmd & 0x0f;
+    if (Driver_FirstWait && (raw_cmd & 0x0f) > 0) {
+        Driver_SetFirstWait();
+    }
+}
+
+static bool mif_exec_next_cmd(mif_cmd_t *cmd) {
+    bool ret = false;
+    switch (cmd->cmd >> 4) {
+        //timing, control
+        case 0x6:
+        case 0x7:
+            return mif_exec_timing(cmd);
+            break;
+        case 0x8:
+            mif_special_opn2_pcm(cmd->cmd);
+            return true;
+        case 0x9:
+            return mif_exec_dacstream(cmd);
+            break;
+        default:
+            //handle fn ptr
+            ret = mif_exec_fn(cmd);
+            //fallback to ignores
+            if (!ret) ret = mif_exec_ignores(cmd);
+            return ret;
+            break;
+    }
+    return false;
+}
+
+
+
+uint16_t opnastart = 0;
+uint16_t opnastart_hacked = 0;
+uint16_t opnastop = 0;
+uint16_t opnastop_hacked = 0;
+static void write_opna(uint8_t addr, uint8_t reg, uint8_t val) {
+    bool nw = false;
+    if (addr) {
+        if (reg == 0x01) { //control/config
+            Driver_Opna_AdpcmConfig = val; //don't force type=dram and width=1bit in the backup
+            val &= 0b11111100; //but do it on the write
+            //todo vgm_trim mitigation
+            val &= (Driver_FmMask&(1<<6))?0b11111111:0b00111111; //muting mask
+            if (Driver_ForceMono && (val & 0b11000000)) val |= 0b11000000;
+        } else if (reg == 0x02) { //start L
+            ESP_LOGD(TAG, "start    %02x", val);
+            opnastart = (opnastart & 0xff00) | val;
+            nw = true;
+        } else if (reg == 0x03) { //start H
+            ESP_LOGD(TAG, "start  %02x", val);
+            opnastart = (((uint16_t)val)<<8) | (opnastart & 0xff);
+            nw = true;
+        } else if (reg == 0x04) { //stop L
+            ESP_LOGD(TAG, "stop     %02x", val);
+            opnastop = (opnastop & 0xff00) | val;
+            nw = true;
+        } else if (reg == 0x05) { //stop H
+            ESP_LOGD(TAG, "stop   %02x", val);
+            opnastop = (((uint16_t)val)<<8) | (opnastop & 0xff);
+            nw = true;
+        } else if (reg == 0x00 && val & 0x80) { //pcm start
+            if (Driver_Opna_AdpcmConfig & 0b00000011) { //if in rom or 8bit dram mode, convert addresses
+                ESP_LOGD(TAG, "converting opna pcm addresses");
+                opnastart_hacked = opnastart * 8;
+                Driver_FmOutopna(1,0x02,opnastart_hacked&0xff);
+                Driver_FmOutopna(1,0x03,opnastart_hacked>>8);
+                opnastop_hacked = opnastop * 8;
+                opnastop_hacked |= 0b00000111;
+                Driver_FmOutopna(1,0x04,opnastop_hacked&0xff);
+                Driver_FmOutopna(1,0x05,opnastop_hacked>>8);
+            } else { //write as-is
+                Driver_FmOutopna(1,0x02,opnastart&0xff);
+                Driver_FmOutopna(1,0x03,opnastart>>8);
+                Driver_FmOutopna(1,0x04,opnastop&0xff);
+                Driver_FmOutopna(1,0x05,opnastop>>8);
+            }
+            ChannelMgr_PcmAccu = 127;
+            ChannelMgr_PcmCount = 1;
+        } else if (reg == 0x0c || reg == 0x0d) { //limit
+            nw = true;
+        } else if (reg == 0x0b) { //level
+            val = FilterAdpcmLevelWrite(val);
+        }
+    }
+    if (reg >= 0xb4 && reg <= 0xb6) { //pan, AMS, PMS
+        //todo vgm_trim mitigation
+        uint8_t i = (addr?3:0)+reg-0xb4;
+        Driver_FmPans[i] = val;
+        val &= (Driver_FmMask & (1<<i))?0b11111111:0b00111111;
+        if (Driver_ForceMono && (val & 0b11000000)) val |= 0b11000000;
+    } else if (addr == 0 && reg >= 0x18 && reg <= 0x1d) { //rhythm pan/level
+        //todo vgm_trim mitigation
+        uint8_t i = reg-0x18;
+        Driver_Opna_RhythmConfig[i] = val;
+        val &= (Driver_FmMask & (1<<6))?0b11111111:0b00111111;
+        if (Driver_ForceMono && (val & 0b11000000)) val |= 0b11000000;
+    } else if (addr == 0 && reg == 0x07) { //ssg tone enable
+        //todo vgm_trim mitigation
+        Driver_Opna_SsgConfig = val;
+        val = Driver_ProcessSsgControlWrite(val); //this handles masks
+    } else if (addr == 0 && reg == 0x10) { //rhythm
+        if (val & 0b00111111) {
+            ChannelMgr_PcmAccu = 127;
+            ChannelMgr_PcmCount = 1;
+        }
+    } else if (addr == 0 && reg == 0x11) { //rhythm TL
+        val = FilterRhythmTLWrite(val);
+    } else if (addr == 0 && reg >= 0x08 && reg <= 0x0a) {
+        Driver_Opna_SsgLevel[reg - 0x08] = val;
+        
+        //block writes to ssg level registers during mute, to avoid level change pops:
+        if ((Driver_DcsgMask & (1<<(reg-8))) == 0) nw = true;
+        
+        val = FilterSsgLevelWrite(reg, val);
+    } else if (reg >= 0xb0 && reg <= 0xb2) { //algo
+        ESP_LOGD(TAG, "algo write");
+        HandleAlgoWrite(addr, reg, val);
+    }
+    if (((reg >= 0x40 && reg <= 0x42) || (reg >= 0x48 && reg <= 0x4a) || (reg >= 0x44 && reg <= 0x46) || (reg >= 0x4c && reg <= 0x4e))) { //TL
+        ESP_LOGD(TAG, "tl write");
+        val = FilterTLWrite(addr, reg, val);
+    }
+    if (!nw) Driver_FmOutopna(addr, reg, val); //not just checking the low bit because of opn
+}
+
+static void write_opn2(uint8_t addr, uint8_t reg, uint8_t val) {
+    if (addr == 0) {
+        if (Driver_DetectedMod == MEGAMOD_OPNA) { //opn2 write when opna mod detected
+            if (!opn2_on_opna_mode) { //insert a command to enable 6ch mode, and enable opn2_on_opna_mode
+                ESP_LOGW(TAG, "Playing OPN2 tune on OPNA hardware");
+                Driver_FmOut(0, 0x29, 0x80);
+                opn2_on_opna_mode = true;
+            } else if (reg == 0x29) { //mask on the 6ch bit for any writes to this reg, should they exist in the vgm
+                val |= 0x80;
+            }
+        }
+        if (reg >= 0xb4 && reg <= 0xb6) { //pan, FMS, AMS
+            Driver_FmPans[reg-0xb4] = val;
+            if ((Driver_MitigateVgmTrim && Driver_FirstWait) || Driver_Slip) val &= 0b00111111; //if we haven't reached the first wait, disable both L and R
+            val &= (Driver_FmMask & (1<<(reg-0xb4)))?0b11111111:0b00111111;
+            if (Driver_ForceMono && (val & 0b11000000)) val |= 0b11000000;
+        }
+        if (reg == 0x2b && (val & 0x80) != Driver_DacEn) {
+            Driver_DacEn = val & 0x80; //we shouldn't have to mask off the other bits but who knows what kind of crazy shit games do
+            ESP_LOGD(TAG, "dac mode change %02x", Driver_DacEn);
+            Driver_UpdateCh6Muting();
+        }
+        if ((reg >= 0x40 && reg <= 0x42) || (reg >= 0x48 && reg <= 0x4a) || (reg >= 0x44 && reg <= 0x46) || (reg >= 0x4c && reg <= 0x4e)) { //TL
+            ESP_LOGD(TAG, "tl write bank0");
+            val = FilterTLWrite(0, reg, val);
+        }
+        if (reg >= 0xb0 && reg <= 0xb2) { //algorithm
+            ESP_LOGD(TAG, "algo write bank0");
+            HandleAlgoWrite(0, reg, val);
+        }
+        Driver_FmOut(0, reg, val);
+    } else {
+        if (reg >= 0xb4 && reg <= 0xb6) { //pan, FMS, AMS
+            Driver_FmPans[3+reg-0xb4] = val;
+            if (reg == 0xb6) { //ch6, we need to check if it's in dac mode or not
+                if (Driver_DacEn) {
+                    val &= (Driver_FmMask & (1<<6))?0b11111111:0b00111111;
+                } else {
+                    val &= (Driver_FmMask & (1<<5))?0b11111111:0b00111111;
+                }
+            } else { //otherwise apply muting masks as normal
+                val &= (Driver_FmMask & (1<<(3+(reg-0xb4))))?0b11111111:0b00111111;
+            }
+            if ((Driver_MitigateVgmTrim && Driver_FirstWait) || Driver_Slip) val &= 0b00111111; //if we haven't reached the first wait, disable both L and R. do this after the muting logic
+            if (Driver_ForceMono && (val & 0b11000000)) val |= 0b11000000;
+        }
+        if ((reg >= 0x40 && reg <= 0x42) || (reg >= 0x48 && reg <= 0x4a) || (reg >= 0x44 && reg <= 0x46) || (reg >= 0x4c && reg <= 0x4e)) { //TL
+            ESP_LOGD(TAG, "tl write bank1");
+            val = FilterTLWrite(1, reg, val);
+        }
+        if (reg >= 0xb0 && reg <= 0xb2) { //algorithm
+            ESP_LOGD(TAG, "algo write bank1");
+            HandleAlgoWrite(1, reg, val);
+        }
+        Driver_FmOut(1, reg, val);
+    }
+}
+
+static void write_dcsg(uint8_t val) {
+    //dcsg writes need to be intercepted to fix frequency register differences between TI DCSG <-> SEGA VDP DCSG
+    if ((val & 0x80) == 0) { //ch 1~3 frequency high byte write
+        //note: whether or not dcsg_latched_ch is actually still in the latch on the chip (ch3 updates might blow it away) doesn't matter, because we always rewrite the low byte anyway. it's what's latched from *our* POV
+        dcsg_freq[dcsg_latched_ch] = (dcsg_freq[dcsg_latched_ch] & 0b1111) | ((val & 0b111111) << 4);
+        //write both registers now
+        if (dcsg_latched_ch == 2) { //ch3
+            Driver_WriteDcsgCh3Freq();
+        } else {
+            uint8_t low = 0x80 | (dcsg_latched_ch<<5) | (dcsg_freq[dcsg_latched_ch] & 0b1111);
+            if (dcsg_freq[dcsg_latched_ch] == 0) low |= 1;
+            Driver_DcsgOut(low);
+            Driver_DcsgOut((dcsg_freq[dcsg_latched_ch] >> 4) & 0b111111);
+        }
+    } else if ((val & 0b10010000) == 0b10000000 && (val & 0b01100000)>>5 != 3) { //ch 1~3 frequency low byte write
+        dcsg_latched_ch = (val>>5)&3;
+        dcsg_freq[dcsg_latched_ch] = (dcsg_freq[dcsg_latched_ch] & 0b1111110000) | (val & 0b1111);
+        //uint8_t val = cmd[1];
+        if ((Driver_VgmDcsgSpecialFreq0 || Driver_AssumeSegaDcsg) && dcsg_freq[dcsg_latched_ch] == 0) {
+            val |= 1;
+        }
+        Driver_DcsgOut(val);
+    } else { //attenuation or noise ch control write
+        if ((val & 0b10010000) == 0b10010000) { //attenuation
+            uint8_t ch = (val>>5)&0b00000011;
+            Driver_DcsgAttenuation[ch] = val;
+            val = FilterDcsgAttenWrite(val);
+            if ((Driver_MitigateVgmTrim && Driver_FirstWait) || Driver_Slip) val |= 0b00001111; //if we haven't reached the first wait, force full attenuation
+            if (ch == 2) {
+                //when ch 3 atten is updated, we also need to write frequency again. this is due to the periodic noise fix.
+                //TODO: this would be better if it only does it if actually transitioning in or out of mute, rather than on every atten update
+                Driver_WriteDcsgCh3Freq();
+            }
+        } else if ((val & 0b11110000) == 0b11100000) { //noise control
+            Driver_DcsgNoisePeriodic = (val & 0b00000100) == 0; //FB
+            Driver_DcsgNoiseSourceCh3 = (val & 0b00000011) == 0b00000011; //NF0, NF1
+            //periodic noise fix: update ch3 frequency when noise control settings change
+            //TODO: only update it when it matters :P
+            Driver_WriteDcsgCh3Freq();
+        }
+        Driver_DcsgOut(val);
+    }
+}
+
+static bool module_opl3mm_mif_exec_fn(mif_cmd_t *cmd) {
+    switch (cmd->cmd) {
+        case MIF_WR_OPL:
+        case MIF_WR_OPL2:
+        case MIF_WR_OPL3_0:
+            Driver_FmOutopl3(0, cmd->data.reg_val.reg, cmd->data.reg_val.val);
+            return true;
+            break;
+        case MIF_WR_OPL3_1:
+            Driver_FmOutopl3(1, cmd->data.reg_val.reg, cmd->data.reg_val.val);
+            return true;
+            break;
+        default:
+            break;
+    }
+    return false;
+}
+
+static bool module_opnamm_mif_exec_fn(mif_cmd_t *cmd) {
+    switch (cmd->cmd) {
+        case MIF_WR_PSG:
+        case MIF_WR_OPN:
+            write_opna(0, cmd->data.reg_val.reg, cmd->data.reg_val.val);
+            return true;
+            break;
+        case MIF_WR_OPNA_0:
+        case MIF_WR_OPNA_1:
+            write_opna(cmd->cmd & 1, cmd->data.reg_val.reg, cmd->data.reg_val.val);
+            return true;
+            break;
+        default:
+            break;
+    }
+    return false;
+}
+
+static bool module_mgdnullmm_mif_exec_fn(mif_cmd_t *cmd) {
+    switch (cmd->cmd) {
+        case MIF_WR_OPN2_0:
+        case MIF_WR_OPN2_1:
+            write_opn2(cmd->cmd & 1, cmd->data.reg_val.reg, cmd->data.reg_val.val);
+            return true;
+            break;
+        case MIF_WR_DCSG:
+            write_dcsg(cmd->data.val);
+            return true;
+            break;
+        default:
+            break;
+    }
+    return false;
+}
+
+
+
+void Driver_ModDetect() {
+    gpio_config_t det;
+    det.intr_type = GPIO_PIN_INTR_DISABLE;
+    det.mode = GPIO_MODE_INPUT;
+    det.pull_down_en = 0;
+    det.pull_up_en = 1;
+    det.pin_bit_mask = 1ULL<<PIN_CLK_DCSG;
+    gpio_config(&det);
+    uint8_t foundbit = 0xff;
+    uint8_t lastbit = 0xff;
+    for (uint8_t attempts=0;attempts<8;attempts++) {
+        for (uint8_t bit=0;bit<=7;bit++) {
+            Driver_SrBuf[SR_DATABUS] = ~(1<<bit);
+            Driver_Output();
+            Driver_Sleep(1000);
+            if (gpio_get_level(PIN_CLK_DCSG) == 0) {
+                ESP_LOGD(TAG, "Mod detect bit %d low", bit);
+                if (lastbit != 0xff && lastbit != bit) {
+                    ESP_LOGE(TAG, "Driver_ModDetect() noisy detect pin");
+                    Driver_DetectedMod = MEGAMOD_FAULT;
+                    return;
+                }
+                foundbit = bit;
+            }
+        }
+    }
+    if (foundbit == 0xff) { //nothing detected, it's probably DCSG
+        ESP_LOGI(TAG, "Driver_ModDetect() nothing found");
+        Driver_DetectedMod = MEGAMOD_NONE;
+    }
+    Driver_DetectedMod = foundbit;
+    //HACK
+    if (Driver_DetectedMod == MEGAMOD_OPL3) {
+        mif_exec_fn = module_opl3mm_mif_exec_fn;
+    } else if (Driver_DetectedMod == MEGAMOD_OPNA) {
+        mif_exec_fn = module_opnamm_mif_exec_fn;
+    } else {
+        mif_exec_fn = module_mgdnullmm_mif_exec_fn;
+    }
 }
 
 static void Stop() {
@@ -1037,11 +1534,6 @@ static void StartFade() {
     FadeStart = Driver_Sample;
     FadeTimer = Driver_Sample;
 }
-
-uint16_t opnastart = 0;
-uint16_t opnastart_hacked = 0;
-uint16_t opnastop = 0;
-uint16_t opnastop_hacked = 0;
 bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the stream. command length as a parameter just to avoid looking it up a second time
     uint8_t cmd[CommandLength]; //buffer for command + attached data
     bool nw = false; //skip write
@@ -1050,47 +1542,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
     MegaStream_Recv(&Driver_CommandStream, cmd, CommandLength);
 
     if (cmd[0] == 0x50) { //SN76489
-        //dcsg writes need to be intercepted to fix frequency register differences between TI DCSG <-> SEGA VDP DCSG
-        if ((cmd[1] & 0x80) == 0) { //ch 1~3 frequency high byte write
-            //note: whether or not dcsg_latched_ch is actually still in the latch on the chip (ch3 updates might blow it away) doesn't matter, because we always rewrite the low byte anyway. it's what's latched from *our* POV
-            dcsg_freq[dcsg_latched_ch] = (dcsg_freq[dcsg_latched_ch] & 0b1111) | ((cmd[1] & 0b111111) << 4);
-            //write both registers now
-            if (dcsg_latched_ch == 2) { //ch3
-                Driver_WriteDcsgCh3Freq();
-            } else {
-                uint8_t low = 0x80 | (dcsg_latched_ch<<5) | (dcsg_freq[dcsg_latched_ch] & 0b1111);
-                if (dcsg_freq[dcsg_latched_ch] == 0) low |= 1;
-                Driver_DcsgOut(low);
-                Driver_DcsgOut((dcsg_freq[dcsg_latched_ch] >> 4) & 0b111111);
-            }
-        } else if ((cmd[1] & 0b10010000) == 0b10000000 && (cmd[1]&0b01100000)>>5 != 3) { //ch 1~3 frequency low byte write
-            dcsg_latched_ch = (cmd[1]>>5)&3;
-            dcsg_freq[dcsg_latched_ch] = (dcsg_freq[dcsg_latched_ch] & 0b1111110000) | (cmd[1] & 0b1111);
-            uint8_t val = cmd[1];
-            if ((Driver_VgmDcsgSpecialFreq0 || Driver_AssumeSegaDcsg) && dcsg_freq[dcsg_latched_ch] == 0) {
-                val |= 1;
-            }
-            Driver_DcsgOut(val);
-        } else { //attenuation or noise ch control write
-            if ((cmd[1] & 0b10010000) == 0b10010000) { //attenuation
-                uint8_t ch = (cmd[1]>>5)&0b00000011;
-                Driver_DcsgAttenuation[ch] = cmd[1];
-                cmd[1] = FilterDcsgAttenWrite(cmd[1]);
-                if ((Driver_MitigateVgmTrim && Driver_FirstWait) || Driver_Slip) cmd[1] |= 0b00001111; //if we haven't reached the first wait, force full attenuation
-                if (ch == 2) {
-                    //when ch 3 atten is updated, we also need to write frequency again. this is due to the periodic noise fix.
-                    //TODO: this would be better if it only does it if actually transitioning in or out of mute, rather than on every atten update
-                    Driver_WriteDcsgCh3Freq();
-                }
-            } else if ((cmd[1] & 0b11110000) == 0b11100000) { //noise control
-                Driver_DcsgNoisePeriodic = (cmd[1] & 0b00000100) == 0; //FB
-                Driver_DcsgNoiseSourceCh3 = (cmd[1] & 0b00000011) == 0b00000011; //NF0, NF1
-                //periodic noise fix: update ch3 frequency when noise control settings change
-                //TODO: only update it when it matters :P
-                Driver_WriteDcsgCh3Freq();
-            }
-            Driver_DcsgOut(cmd[1]);
-        }
+        
     } else if (cmd[0] == 0x51) {
         Driver_FmOutopll(cmd[1], cmd[2]);
     } else if (cmd[0] == 0x54) { //opm
@@ -1189,59 +1641,9 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
         }
         if (!nw) Driver_FmOutopna((cmd[0] == 0x57)?1:0, cmd[1], cmd[2]); //not just checking the low bit because of opn
     } else if (cmd[0] == 0x52) { //YM2612 port 0
-        if (Driver_DetectedMod == MEGAMOD_OPNA) { //opn2 write when opna mod detected
-            if (!opn2_on_opna_mode) { //insert a command to enable 6ch mode, and enable opn2_on_opna_mode
-                ESP_LOGW(TAG, "Playing OPN2 tune on OPNA hardware");
-                Driver_FmOut(0, 0x29, 0x80);
-                opn2_on_opna_mode = true;
-            } else if (cmd[1] == 0x29) { //mask on the 6ch bit for any writes to this reg, should they exist in the vgm
-                cmd[2] |= 0x80;
-            }
-        }
-        if (cmd[1] >= 0xb4 && cmd[1] <= 0xb6) { //pan, FMS, AMS
-            Driver_FmPans[cmd[1]-0xb4] = cmd[2];
-            if ((Driver_MitigateVgmTrim && Driver_FirstWait) || Driver_Slip) cmd[2] &= 0b00111111; //if we haven't reached the first wait, disable both L and R
-            cmd[2] &= (Driver_FmMask & (1<<(cmd[1]-0xb4)))?0b11111111:0b00111111;
-            if (Driver_ForceMono && (cmd[2] & 0b11000000)) cmd[2] |= 0b11000000;
-        }
-        if (cmd[1] == 0x2b && (cmd[2] & 0x80) != Driver_DacEn) {
-            Driver_DacEn = cmd[2] & 0x80; //we shouldn't have to mask off the other bits but who knows what kind of crazy shit games do
-            ESP_LOGD(TAG, "dac mode change %02x", Driver_DacEn);
-            Driver_UpdateCh6Muting();
-        }
-        if ((cmd[1] >= 0x40 && cmd[1] <= 0x42) || (cmd[1] >= 0x48 && cmd[1] <= 0x4a) || (cmd[1] >= 0x44 && cmd[1] <= 0x46) || (cmd[1] >= 0x4c && cmd[1] <= 0x4e)) { //TL
-            ESP_LOGD(TAG, "tl write bank0");
-            cmd[2] = FilterTLWrite(0, cmd[1], cmd[2]);
-        }
-        if (cmd[1] >= 0xb0 && cmd[1] <= 0xb2) { //algorithm
-            ESP_LOGD(TAG, "algo write bank0");
-            HandleAlgoWrite(0, cmd[1], cmd[2]);
-        }
-        Driver_FmOut(0, cmd[1], cmd[2]);
+        
     } else if (cmd[0] == 0x53) { //YM2612 port 1
-        if (cmd[1] >= 0xb4 && cmd[1] <= 0xb6) { //pan, FMS, AMS
-            Driver_FmPans[3+cmd[1]-0xb4] = cmd[2];
-            if (cmd[1] == 0xb6) { //ch6, we need to check if it's in dac mode or not
-                if (Driver_DacEn) {
-                    cmd[2] &= (Driver_FmMask & (1<<6))?0b11111111:0b00111111;
-                } else {
-                    cmd[2] &= (Driver_FmMask & (1<<5))?0b11111111:0b00111111;
-                }
-            } else { //otherwise apply muting masks as normal
-                cmd[2] &= (Driver_FmMask & (1<<(3+(cmd[1]-0xb4))))?0b11111111:0b00111111;
-            }
-            if ((Driver_MitigateVgmTrim && Driver_FirstWait) || Driver_Slip) cmd[2] &= 0b00111111; //if we haven't reached the first wait, disable both L and R. do this after the muting logic
-            if (Driver_ForceMono && (cmd[2] & 0b11000000)) cmd[2] |= 0b11000000;
-        }
-        if ((cmd[1] >= 0x40 && cmd[1] <= 0x42) || (cmd[1] >= 0x48 && cmd[1] <= 0x4a) || (cmd[1] >= 0x44 && cmd[1] <= 0x46) || (cmd[1] >= 0x4c && cmd[1] <= 0x4e)) { //TL
-            ESP_LOGD(TAG, "tl write bank1");
-            cmd[2] = FilterTLWrite(1, cmd[1], cmd[2]);
-        }
-        if (cmd[1] >= 0xb0 && cmd[1] <= 0xb2) { //algorithm
-            ESP_LOGD(TAG, "algo write bank1");
-            HandleAlgoWrite(1, cmd[1], cmd[2]);
-        }
-        Driver_FmOut(1, cmd[1], cmd[2]);
+        
     } else if (cmd[0] == 0x61) { //16bit wait
         _Pragma("GCC diagnostic push")
         _Pragma("GCC diagnostic ignored \"-Wstrict-aliasing\"")
@@ -1260,13 +1662,7 @@ bool Driver_RunCommand(uint8_t CommandLength) { //run the next command in the st
         Driver_NextSample += (cmd[0] & 0x0f) + 1;
         if (Driver_FirstWait) Driver_SetFirstWait();
     } else if ((cmd[0] & 0xf0) == 0x80) { //YM2612 DAC + wait
-        uint8_t sample;
-        MegaStream_Recv(&Driver_PcmStream, &sample, 1);
-        Driver_FmOut(0, 0x2a, sample);
-        Driver_NextSample += cmd[0] & 0x0f;
-        if (Driver_FirstWait && (cmd[0] & 0x0f) > 0) {
-            Driver_SetFirstWait();
-        }
+
     } else if (cmd[0] == 0x93 || cmd[0] == 0x95) { //dac stream start
         DacStreamSeq++;
         if (DacStreamLastSeqPlayed > 0) {
@@ -1523,7 +1919,10 @@ void Driver_Main() {
                     uint8_t peeked = MegaStream_Peek(&Driver_CommandStream);
                     uint8_t cmdlen = VgmCommandLength(peeked); //look up the length of this command + attached data
                     if (waiting >= cmdlen) { //if the entire command + data is in the stream
-                        bool ret = Driver_RunCommand(cmdlen);
+                        //bool ret = Driver_RunCommand(cmdlen);
+                        uint8_t cmddata[cmdlen];
+                        MegaStream_Recv(&Driver_CommandStream, cmddata, cmdlen);
+                        bool ret = mif_exec_next_cmd((mif_cmd_t *)cmddata);
                         if (!ret) {
                             printf("ERR command run fail");
                             fflush(stdout);
