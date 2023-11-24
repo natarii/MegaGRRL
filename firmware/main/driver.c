@@ -430,10 +430,10 @@ void Driver_FmOutopn(uint8_t Device, uint8_t Register, uint8_t Value) {
         csbit = SR_BIT_DCSG_CS;
     }
     Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_A0; //clear A0
-    Driver_Output();
+    //Driver_Output();
     Driver_SrBuf[SR_CONTROL] &= ~csbit; // /cs low
     Driver_SrBuf[SR_DATABUS] = Register;
-    Driver_Output();
+    //Driver_Output();
     Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR; // /wr low
     Driver_Output();
     Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; // /wr high
@@ -446,7 +446,11 @@ void Driver_FmOutopn(uint8_t Device, uint8_t Register, uint8_t Value) {
     Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; // /wr high
     Driver_SrBuf[SR_CONTROL] |= csbit; // /cs high
     Driver_Output();
-    Driver_Sleep(20);
+    if (Register <= 0x0f) {
+        Driver_Sleep(1);
+    } else {
+        Driver_Sleep(20);
+    }
 }
 
 void Driver_FmOutopna(uint8_t Port, uint8_t Register, uint8_t Value) {
@@ -1073,6 +1077,7 @@ enum mif_cmds {
     MIF_DACSTREAM_STOP = 0x94,
     MIF_DACSTREAM_FASTSTART = 0x95,
     MIF_WR_PSG = 0xa0,
+    MIF_WR_OPN_DUAL = 0xa5,
     MIF_WR_RF5C164 = 0xb1,
     MIF_WR_32X = 0xb2,
     MIF_WR_MSM6258 = 0xb7,
@@ -1484,9 +1489,65 @@ static bool module_opl3mm_mif_exec_fn(mif_cmd_t *cmd) {
     return false;
 }
 
+static bool module_2xopnmm_mif_exec_fn(mif_cmd_t *cmd) {
+    switch (cmd->cmd) {
+        case MIF_WR_PSG:
+            Driver_FmOutopn(cmd->data.reg_val.reg >> 7, cmd->data.reg_val.reg & ~(1<<7), cmd->data.reg_val.val);
+            return true;
+            break;
+        case MIF_WR_OPN:
+            Driver_FmOutopn(0, cmd->data.reg_val.reg, cmd->data.reg_val.val);
+            return true;
+            break;
+        case MIF_WR_OPN_DUAL:
+            Driver_FmOutopn(1, cmd->data.reg_val.reg, cmd->data.reg_val.val);
+            return true;
+            break;
+        default:
+            break;
+    }
+    return false;
+}
+
+static bool module_opmmm_mif_exec_fn(mif_cmd_t *cmd) {
+    switch (cmd->cmd) {
+        case MIF_WR_OPM:
+            Driver_FmOutopl3(0, cmd->data.reg_val.reg, cmd->data.reg_val.val); //pending proper out
+            return true;
+            break;
+        default:
+            break;
+    }
+    return false;
+}
+
+static bool module_opnopllmm_mif_exec_fn(mif_cmd_t *cmd) {
+    switch (cmd->cmd) {
+        case MIF_WR_PSG:
+            //2nd psg not support
+            if (cmd->data.reg_val.reg & (1<<7)) {
+                return false;
+            }
+        case MIF_WR_OPN:
+            Driver_FmOutopn(0, cmd->data.reg_val.reg, cmd->data.reg_val.val);
+            return true;
+            break;
+        case MIF_WR_OPLL:
+            Driver_FmOutopll(cmd->data.reg_val.reg, cmd->data.reg_val.val);
+            break;
+        default:
+            break;
+    }
+    return false;
+}
+
 static bool module_opnamm_mif_exec_fn(mif_cmd_t *cmd) {
     switch (cmd->cmd) {
         case MIF_WR_PSG:
+            //2nd psg not support
+            if (cmd->data.reg_val.reg & (1<<7)) {
+                return false;
+            }
         case MIF_WR_OPN:
             write_opna(0, cmd->data.reg_val.reg, cmd->data.reg_val.val);
             return true;
@@ -1562,6 +1623,12 @@ void Driver_ModDetect() {
         mif_exec_fn = module_opl3mm_mif_exec_fn;
     } else if (Driver_DetectedMod == MEGAMOD_OPNA) {
         mif_exec_fn = module_opnamm_mif_exec_fn;
+    } else if (Driver_DetectedMod == MEGAMOD_2XOPN) {
+        mif_exec_fn = module_2xopnmm_mif_exec_fn;
+    } else if (Driver_DetectedMod == MEGAMOD_OPNOPLL) {
+        mif_exec_fn = module_opnopllmm_mif_exec_fn;
+    } else if (Driver_DetectedMod == MEGAMOD_OPM) {
+        mif_exec_fn = module_opmmm_mif_exec_fn;
     } else {
         mif_exec_fn = module_mgdnullmm_mif_exec_fn;
     }
