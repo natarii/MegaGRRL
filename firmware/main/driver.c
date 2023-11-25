@@ -1575,6 +1575,7 @@ static bool module_opnopllmm_mif_exec_fn(mif_cmd_t *cmd) {
             break;
         case MIF_WR_OPLL:
             Driver_FmOutopll(cmd->data.reg_val.reg, cmd->data.reg_val.val);
+            return true;
             break;
         default:
             break;
