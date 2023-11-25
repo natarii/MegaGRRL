@@ -434,10 +434,14 @@ void Driver_FmOutpsg(uint8_t Device, uint8_t Register, uint8_t Value) {
     Driver_SrBuf[SR_DATABUS] = Register;
     Driver_Output();
     Driver_Sleep(1);
-    Driver_SrBuf[SR_CONTROL] |= SR_BIT_A0; //set A0
+    Driver_SrBuf[SR_CONTROL] |= csbit; // /cs high
     Driver_Output();
     Driver_Sleep(1);
     Driver_SrBuf[SR_DATABUS] = Value;
+    Driver_Output();
+    Driver_Sleep(1);
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_A0; //set A0
+    Driver_SrBuf[SR_CONTROL] &= ~csbit; // /cs low
     Driver_Output();
     Driver_Sleep(1);
     Driver_SrBuf[SR_CONTROL] |= csbit; // /cs high
