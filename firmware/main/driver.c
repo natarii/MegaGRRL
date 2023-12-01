@@ -1610,6 +1610,22 @@ static bool module_opnamm_mif_exec_fn(mif_cmd_t *cmd) {
     return false;
 }
 
+static bool module_oplldcsg_mif_exec_fn(mif_cmd_t *cmd) {
+    switch (cmd->cmd) {
+        case MIF_WR_OPLL:
+            Driver_FmOutopll(cmd->data.reg_val.reg, cmd->data.reg_val.val);
+            return true;
+            break;
+        case MIF_WR_DCSG:
+            write_dcsg(cmd->data.val);
+            return true;
+            break;
+        default:
+            break;
+    }
+    return false;
+}
+
 static bool module_mgdnullmm_mif_exec_fn(mif_cmd_t *cmd) {
     switch (cmd->cmd) {
         case MIF_WR_OPN2_0:
@@ -1673,6 +1689,8 @@ void Driver_ModDetect() {
         mif_exec_fn = module_opmmm_mif_exec_fn;
     } else if (Driver_DetectedMod == MEGAMOD_2XPSG) {
         mif_exec_fn = module_2xpsg_mif_exec_fn;
+    } else if (Driver_DetectedMod == MEGAMOD_OPLLDCSG) {
+        mif_exec_fn = module_oplldcsg_mif_exec_fn;
     } else {
         mif_exec_fn = module_mgdnullmm_mif_exec_fn;
     }
