@@ -435,11 +435,15 @@ void Driver_FmOutopl3(uint8_t Port, uint8_t Register, uint8_t Value) {
     Driver_Sleep(20);
 }
 
-void Driver_FmOutopll(uint8_t Register, uint8_t Value) {
+void Driver_FmOutopll(uint8_t FmCs, uint8_t Register, uint8_t Value) {
+    uint8_t csbit = SR_BIT_DCSG_CS;
+    if (FmCs) {
+        csbit = SR_BIT_FM_CS;
+    }
     Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_A0; //clear A0
     Driver_Output();
     Driver_Sleep(20);
-    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_DCSG_CS; // /cs low
+    Driver_SrBuf[SR_CONTROL] &= ~csbit; // /cs low
     Driver_SrBuf[SR_DATABUS] = Register;
     Driver_Output();
     Driver_Sleep(20);
@@ -455,7 +459,7 @@ void Driver_FmOutopll(uint8_t Register, uint8_t Value) {
     Driver_Output();
     Driver_Sleep(20);
     Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; // /wr high
-    Driver_SrBuf[SR_CONTROL] |= SR_BIT_DCSG_CS; // /cs high
+    Driver_SrBuf[SR_CONTROL] |= csbit; // /cs high
     Driver_Output();
     Driver_Sleep(20);
 }
@@ -1611,7 +1615,7 @@ static bool module_opnopllmm_mif_exec_fn(mif_cmd_t *cmd) {
             return true;
             break;
         case MIF_WR_OPLL:
-            Driver_FmOutopll(cmd->data.reg_val.reg, cmd->data.reg_val.val);
+            Driver_FmOutopll(0, cmd->data.reg_val.reg, cmd->data.reg_val.val);
             return true;
             break;
         default:
@@ -1662,7 +1666,7 @@ static bool module_2xsaa1099_mif_exec_fn(mif_cmd_t *cmd) {
 static bool module_oplldcsg_mif_exec_fn(mif_cmd_t *cmd) {
     switch (cmd->cmd) {
         case MIF_WR_OPLL:
-            Driver_FmOutopll(cmd->data.reg_val.reg, cmd->data.reg_val.val);
+            Driver_FmOutopll(1, cmd->data.reg_val.reg, cmd->data.reg_val.val);
             return true;
             break;
         case MIF_WR_DCSG:
