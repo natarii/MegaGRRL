@@ -20,6 +20,7 @@ typedef enum {
     MEGAMOD_OPNA = 2,
     MEGAMOD_OPL3 = 3,
     MEGAMOD_OPLLDCSG = 4,
+    MEGAMOD_2XSAA1099 = 6,
     MEGAMOD_OPNOPLL = 5,
     MEGAMOD_OPM = 7,
 } MegaMod_t;

@@ -893,6 +893,8 @@ static uint32_t Player_StartTrack(char *FilePath) {
         ESP_LOGI(TAG, "Clock clamped: %d", ay);
         Clk_Set(CLK_FM, ay);
     } else if (Driver_DetectedMod == MEGAMOD_OPL3) {
+        ESP_LOGI(TAG, "MegaMod: OPL3");
+        Clk_Set(CLK_DCSG, 0);
         uint32_t opl = 0;
         uint32_t opl2 = 0;
         uint32_t opl3 = 0;
@@ -932,7 +934,24 @@ static uint32_t Player_StartTrack(char *FilePath) {
         else if (opm > 5000000) opm = 5000000;
         ESP_LOGI(TAG, "Clock clamped: %d", opm);
         Clk_Set(CLK_FM, opm);
+    } else if (Driver_DetectedMod == MEGAMOD_2XSAA1099) {
+        ESP_LOGI(TAG, "MegaMod: 2xSAA1099");
+        Clk_Set(CLK_DCSG, 0);
+        uint32_t saa = 0;
+        memcpy(&saa, &Driver_PcmBuf[0xc8], 4);
+        clocks_used++;
+        if (saa & (1<<30)) clocks_used++;
+        saa &= ~(1<<30);
+        ESP_LOGI(TAG, "Clock from vgm: %d", saa);
+        if (saa < 6000000) {
+            saa = 6000000;
+        } else if (saa > 10000000) {
+            saa = 10000000;
+        }
+        ESP_LOGI(TAG, "Clock clamped: %d", saa);
+        Clk_Set(CLK_FM, saa);
     }
+
     if (ferror(Player_VgmFile)) { //final check after all the clock stuff
         file_error(false);
         return PLAYER_ERR | PLAYER_ERR_INTERNAL;

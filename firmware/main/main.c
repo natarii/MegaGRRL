@@ -302,6 +302,10 @@ void app_main(void) {
             ESP_LOGI(TAG, "2xPSG detected, switching FM clock to PSG");
             Clk_Set(CLK_FM, 1500000);
             break;
+        case MEGAMOD_2XSAA1099:
+            ESP_LOGI(TAG, "2xSAA1099 detected, switching FM clock to PSG");
+            Clk_Set(CLK_FM, 8000000);
+            break;
         default:
             ESP_LOGE(TAG, "Unsupported mod (ID %d)", Driver_DetectedMod);
             break;
@@ -745,6 +749,9 @@ void app_main(void) {
                 break;
             case MEGAMOD_2XPSG:
                 lv_label_set_static_text(mmlabel, "2xPSG MegaMod");
+                break;
+            case MEGAMOD_2XSAA1099:
+                lv_label_set_static_text(mmlabel, "2xSAA1099 MegaMod");
                 break;
             default:
                 lv_label_set_static_text(mmlabel, "ERROR: Unknown MegaMod");

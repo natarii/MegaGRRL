@@ -342,6 +342,39 @@ void Driver_WriteDcsgCh3Freq() {
     Driver_DcsgOut(out);
 }
 
+static void write_saa1099(uint8_t device, uint8_t reg, uint8_t val) {
+    uint8_t csbit = SR_BIT_FM_CS;
+    if (device) {
+        csbit = SR_BIT_DCSG_CS;
+    }
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_A0;
+    Driver_Output();
+    Driver_SrBuf[SR_DATABUS] = reg;
+    Driver_Output();
+    Driver_SrBuf[SR_CONTROL] &= ~csbit;
+    Driver_Output();
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR;
+    Driver_Output();
+    Driver_Sleep(2);
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR;
+    Driver_SrBuf[SR_CONTROL] |= csbit;
+    Driver_Output();
+    Driver_Sleep(5);
+
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_A0;
+    Driver_SrBuf[SR_DATABUS] = val;
+    Driver_Output();
+    Driver_SrBuf[SR_CONTROL] &= ~csbit;
+    Driver_Output();
+    Driver_SrBuf[SR_CONTROL] &= ~SR_BIT_WR;
+    Driver_Output();
+    Driver_Sleep(2);
+    Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR;
+    Driver_SrBuf[SR_CONTROL] |= csbit;
+    Driver_Output();
+    Driver_Sleep(5);
+}
+
 void Driver_ResetChips(bool force) {
     if (reset_flag && !force) return;
     if (Driver_DetectedMod == MEGAMOD_NONE || Driver_DetectedMod == MEGAMOD_OPLLDCSG) {
@@ -352,6 +385,9 @@ void Driver_ResetChips(bool force) {
                 Driver_DcsgOut(0);
             }
         }
+    } else if (Driver_DetectedMod == MEGAMOD_2XSAA1099) {
+        write_saa1099(0, 0x1c, 0x02);
+        write_saa1099(1, 0x1c, 0x02);
     }
     Driver_SrBuf[SR_CONTROL] ^= SR_BIT_IC;
     Driver_Output();
@@ -1107,6 +1143,7 @@ enum mif_cmds {
     MIF_WR_32X = 0xb2,
     MIF_WR_MSM6258 = 0xb7,
     MIF_WR_MSM6295 = 0xb8,
+    MIF_WR_SAA1099 = 0xbd,
     MIF_WR_SCC = 0xd2,
 };
 
@@ -1610,6 +1647,18 @@ static bool module_opnamm_mif_exec_fn(mif_cmd_t *cmd) {
     return false;
 }
 
+static bool module_2xsaa1099_mif_exec_fn(mif_cmd_t *cmd) {
+    switch (cmd->cmd) {
+        case MIF_WR_SAA1099:
+            write_saa1099(cmd->data.reg_val.reg >> 7, cmd->data.reg_val.reg & ~(1<<7), cmd->data.reg_val.val);
+            return true;
+            break;
+        default:
+            break;
+    }
+    return false;
+}
+
 static bool module_oplldcsg_mif_exec_fn(mif_cmd_t *cmd) {
     switch (cmd->cmd) {
         case MIF_WR_OPLL:
@@ -1691,6 +1740,8 @@ void Driver_ModDetect() {
         mif_exec_fn = module_2xpsg_mif_exec_fn;
     } else if (Driver_DetectedMod == MEGAMOD_OPLLDCSG) {
         mif_exec_fn = module_oplldcsg_mif_exec_fn;
+    } else if (Driver_DetectedMod == MEGAMOD_2XSAA1099) {
+        mif_exec_fn = module_2xsaa1099_mif_exec_fn;
     } else {
         mif_exec_fn = module_mgdnullmm_mif_exec_fn;
     }
