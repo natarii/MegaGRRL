@@ -70,11 +70,17 @@ static DRAM_ATTR uint8_t ILI9341_init[] = {
   TFT_MADCTL, 1,									// Memory Access Control (orientation)
   #if defined LCD_IS_ILI9341_STANDARD
   0b01011100,
+  #elif defined LCD_IS_ILI9341_INV
+  0b01011100,
   #elif defined LCD_IS_ST7789_TYPE_A
   0b11110100,
   #endif
   TFT_CMD_PIXFMT, 1, 0x55,
+  #if defined LCD_IS_ILI9341_INV
+  TFT_INVON, 0,
+  #else
   TFT_INVOFF, 0,
+  #endif
   TFT_CMD_FRMCTR1, 2, 0x00, 0x18,
   TFT_CMD_DFUNCTR, 4, 0x08, 0x82, 0x27, 0x00,		// Display Function Control
   TFT_PTLAR, 4, 0x00, 0x00, 0x01, 0x3F,

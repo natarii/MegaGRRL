@@ -23,6 +23,7 @@
 //lcd type selection
 //only ONE of these should be uncommented.
 #define LCD_IS_ILI9341_STANDARD
+//#define LCD_IS_ILI9341_INV
 //#define LCD_IS_ST7789_TYPE_A
 
 #endif

@@ -9,7 +9,7 @@
 
 // ==== Display commands constants ====
 #define TFT_INVOFF     0x20
-#define TFT_INVONN     0x21
+#define TFT_INVON      0x21
 #define TFT_DISPOFF    0x28
 #define TFT_DISPON     0x29
 #define TFT_MADCTL	   0x36
