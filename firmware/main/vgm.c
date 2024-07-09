@@ -71,9 +71,23 @@ bool VgmParseHeader(FILE *f, VgmInfoStruct_t *info) {
     fread(&info->LoopSamples, 4, 1, f);
     if (info->Version >= 101) fread(&info->Rate, 4, 1, f);
 
+    //NB: finding the data offset is more confusing than you may think, due to errors/omissions in the vgm spec.
+    //from the spec:
+    //[VGM 1.50 additions:]
+    //0x34: VGM data offset (32 bits)
+    //        Relative offset to VGM data stream.
+    //        If the VGM data starts at absolute offset 0x40, this will contain
+    //        value 0x0000000C. For versions prior to 1.50, it should be 0 and the
+    //        VGM data must start at offset 0x40.
+    //however, this is not the full story
+    //official vgm tools (vgmplay, vgm2txt) consider a value of 0 on a >=1.50 vgm to be equivalent to an 0x40 start offset (absolute)
+    //this is implemented differently depending on the software. vgm2txt silently considers a value of 0 to be equivalent to 0x0c regardless of version
+    //however vgmplay considers 0 to be an error, forces the start offset to 0x40, and outputs a warning message
+    //i have seen this value be 0 on 1.51 vgms "in the wild", so we must handle it even though it's not actually part of the spec.
     if (info->Version >= 150) {
         fseek(f, 0x34, SEEK_SET);
         fread(&info->DataOffset, 4, 1, f);
+        if (info->DataOffset == 0) info->DataOffset = 0x0c; //handle strange maybe-not-compliant vgms
         info->DataOffset += 0x34;
     } else {
         info->DataOffset = 0x40;
