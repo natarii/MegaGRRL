@@ -33,9 +33,9 @@ void UserLedMgr_Main() {
     while (1) {
         xTaskNotifyWait(0,0xffffffff, NULL, pdMS_TO_TICKS(50));
 
-        bool set = false;
         EventBits_t playerevents;
         for (uint8_t led=0;led<3;led++) {
+            bool set = false;
             switch (UserLedMgr_Source[led]) {
                 case USERLED_SRC_NONE:
                     LedDrv_States[7+4+led] = 0;
