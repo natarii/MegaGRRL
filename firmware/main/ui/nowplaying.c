@@ -72,6 +72,10 @@ static const char *loading = "Nothing playing...";
 static const char *broken_vgm_time_warning_text = " Playback time unavailable  due to broken VGM file";
 static IRAM_ATTR uint32_t lastelapsedsecs = 0xffffffff;
 static IRAM_ATTR uint32_t lastelapsedmins = 0xffffffff;
+static lv_style_t style_preloadbg;
+static IRAM_ATTR lv_obj_t *preload;
+static IRAM_ATTR lv_obj_t *preloadbg;
+static bool lastloading = false;
 
 static char loopbuf[11]; //size?
 
@@ -320,9 +324,22 @@ bool Ui_NowPlaying_Setup(lv_obj_t *uiscreen) {
     lv_label_set_static_text(dpadtext[3], LV_SYMBOL_RIGHT);
     lv_obj_set_pos(dpadtext[3], 11, 5);
     
+    lv_style_copy(&style_preloadbg, &lv_style_plain);
+    style_preloadbg.body.main_color = LV_COLOR_MAKE(0,0,0);
+    style_preloadbg.body.grad_color = LV_COLOR_MAKE(0,0,0);
+    style_preloadbg.body.radius = LV_RADIUS_CIRCLE;
+    preloadbg = lv_obj_create(container, NULL);
+    lv_obj_set_style(preloadbg, &style_preloadbg);
+    lv_obj_set_size(preloadbg, 56, 56);
+    lv_obj_set_pos(preloadbg, 92, 97);
+
+    preload = lv_preload_create(container, NULL);
+    lv_obj_set_pos(preload, 95, 100);
+    lv_obj_set_size(preload, 50, 50);
 
 
-
+    lv_obj_set_hidden(preload, true);
+    lv_obj_set_hidden(preloadbg, true);
 
     Ui_SoftBar_Update(2, true, "Settings", false);
     Ui_SoftBar_Update(1, true, "Browser", false);
@@ -573,6 +590,14 @@ void Ui_NowPlaying_Tick() {
             do_tick();
         }
         nptimer = esp_timer_get_time();
+    }
+    bool loading = (xEventGroupGetBits(Player_Status) & PLAYER_STATUS_LOADING) != 0;
+    if (loading != lastloading) {
+        if (!tookmutex) LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
+        tookmutex = true;
+        lv_obj_set_hidden(preload, !loading);
+        lv_obj_set_hidden(preloadbg, !loading);
+        lastloading = loading;
     }
     if (tookmutex) LcdDma_Mutex_Give();
 }

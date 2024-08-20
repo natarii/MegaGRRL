@@ -31,6 +31,7 @@ enum {
 #define PLAYER_STATUS_RUNNING       0x02
 #define PLAYER_STATUS_PAUSED        0x08
 #define PLAYER_STATUS_RAN_OUT       0x10
+#define PLAYER_STATUS_LOADING       0x20
 
 #define PLAYER_BADVGM_OPN2_TESTREG  0x01
 

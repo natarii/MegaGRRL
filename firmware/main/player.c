@@ -175,11 +175,13 @@ void Player_Main() {
                 xEventGroupClearBits(Player_Status, PLAYER_STATUS_PAUSED);
                 if ((xEventGroupGetBits(Player_Status) & PLAYER_STATUS_RUNNING) == 0) {
                     xEventGroupSetBits(Player_Status, PLAYER_STATUS_RUNNING); //do this now, Player_StartTrack could take longer than the timeout of the task waiting for this event.
+                    xEventGroupSetBits(Player_Status, PLAYER_STATUS_LOADING);
                     QueueSetupEntry(false, true);
                     if (Player_StartTrack(&QueuePlayingFilename[0]) & PLAYER_ERR) {
                         failed = true;
                         failed_plays++;
                     }
+                    xEventGroupClearBits(Player_Status, PLAYER_STATUS_LOADING);
                 } else {
                     //already running. yikes!
                 }
@@ -200,10 +202,12 @@ void Player_Main() {
                     ESP_LOGI(TAG, "next track proceeding");
                     xEventGroupSetBits(Player_Status, PLAYER_STATUS_RUNNING);
                     xEventGroupClearBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
+                    xEventGroupSetBits(Player_Status, PLAYER_STATUS_LOADING);
                     if (Player_StartTrack(QueuePlayingFilename) & PLAYER_ERR) {
                         failed = true;
                         failed_plays++;
                     }
+                    xEventGroupClearBits(Player_Status, PLAYER_STATUS_LOADING);
                 } else {
                     ESP_LOGI(TAG, "next track failed");
                     xEventGroupClearBits(Player_Status, PLAYER_STATUS_RUNNING);
@@ -220,10 +224,12 @@ void Player_Main() {
                         ESP_LOGI(TAG, "prev track proceeding");
                         xEventGroupSetBits(Player_Status, PLAYER_STATUS_RUNNING);
                         xEventGroupClearBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
+                        xEventGroupSetBits(Player_Status, PLAYER_STATUS_LOADING);
                         if (Player_StartTrack(QueuePlayingFilename) & PLAYER_ERR) {
                             failed = true;
                             failed_plays++;
                         }
+                        xEventGroupClearBits(Player_Status, PLAYER_STATUS_LOADING);
                     } else {
                         ESP_LOGI(TAG, "prev track failed");
                         xEventGroupClearBits(Player_Status, PLAYER_STATUS_RUNNING);
@@ -231,11 +237,13 @@ void Player_Main() {
                     }
                 } else { //just restart
                     ESP_LOGI(TAG, "outside 3 second window, just restarting track");
+                    xEventGroupSetBits(Player_Status, PLAYER_STATUS_LOADING);
                     Player_StopTrack();
                     if (Player_StartTrack(&QueuePlayingFilename[0]) & PLAYER_ERR) {
                         failed = true;
                         failed_plays++;
                     }
+                    xEventGroupClearBits(Player_Status, PLAYER_STATUS_LOADING);
                     xEventGroupSetBits(Player_Status, PLAYER_STATUS_RUNNING);
                     xEventGroupClearBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
                 }
@@ -272,6 +280,7 @@ void Player_Main() {
         if ((xEventGroupGetBits(Player_Status) & PLAYER_STATUS_RUNNING) && (xEventGroupGetBits(Driver_CommandEvents) & DRIVER_EVENT_FINISHED)) { //still running, but driver reached end
             ESP_LOGI(TAG, "Driver finished, starting next track");
             xEventGroupClearBits(Player_Status, PLAYER_STATUS_PAUSED);
+            xEventGroupSetBits(Player_Status, PLAYER_STATUS_LOADING);
             if (Player_NextTrk(false)) {
                 ESP_LOGI(TAG, "next track proceeding");
                 if (Player_StartTrack(QueuePlayingFilename) & PLAYER_ERR) {
@@ -284,6 +293,7 @@ void Player_Main() {
                 xEventGroupSetBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
                 xEventGroupSetBits(Player_Status, PLAYER_STATUS_RAN_OUT);
             }
+            xEventGroupClearBits(Player_Status, PLAYER_STATUS_LOADING);
         }
 
         if (failed) {
