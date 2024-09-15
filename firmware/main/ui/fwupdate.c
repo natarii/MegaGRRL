@@ -16,6 +16,7 @@
 #include "esp_flash_partitions.h"
 #include "esp_partition.h"
 #include "esp_ota_ops.h"
+#include "spi_flash_mmap.h"
 
 static const char* TAG = "Ui_Fwupdate";
 
