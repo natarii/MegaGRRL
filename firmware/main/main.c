@@ -17,6 +17,7 @@
 #include "esp_partition.h"
 #include "esp_ota_ops.h"
 #include "bootloader_random.h"
+#include "spi_flash_mmap.h"
 
 #include "driver.h"
 #include "taskmgr.h"
