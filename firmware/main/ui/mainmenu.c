@@ -211,7 +211,7 @@ void Ui_MainMenu_Key(KeyEvent_t event) {
                         } else {
                             modal_show_simple(TAG, "SD Card Error", "There was an error accessing the SD card.\nPlease check that the card is inserted and try again.", LV_SYMBOL_OK" OK");
                         }
-                        return false;
+                        return;
                     }
                     //card is back up
                     Ui_FileBrowser_Setup(); //could be a new card
