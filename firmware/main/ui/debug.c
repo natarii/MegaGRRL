@@ -15,7 +15,7 @@
 static const char* TAG = "Ui_Debug";
 
 static IRAM_ATTR lv_obj_t *container;
-lv_style_t containerstyle;
+static lv_style_t containerstyle;
 static IRAM_ATTR lv_obj_t *tasklabel;
 static lv_style_t tasklabel_style;
 static IRAM_ATTR lv_obj_t *driverbuflabel;

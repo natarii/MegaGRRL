@@ -30,7 +30,7 @@ LV_IMG_DECLARE(img_lcdsad);
 LV_IMG_DECLARE(img_lcdhappy);
 
 static IRAM_ATTR lv_obj_t *container;
-lv_style_t containerstyle;
+static lv_style_t containerstyle;
 char *fwupdate_file;
 IRAM_ATTR lv_obj_t *fwupdate_ta;
 lv_style_t fwupdate_ta_style;
