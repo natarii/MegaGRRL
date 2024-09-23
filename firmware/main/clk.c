@@ -19,13 +19,20 @@ static SemaphoreHandle_t mutex = NULL;
 
 #include "soc/efuse_reg.h"
 #include "soc/rtc.h"
-#include "driver/i2s.h"
+#include "driver/i2s_std.h"
 #include "freertos/task.h"
 #define APLL_MIN_FREQ                     (250000000)
 #define APLL_MAX_FREQ                     (500000000)
 #define APLL_I2S_MIN_RATE                 (10675)
 #include "soc/dport_reg.h"
-static i2s_dev_t* I2S[I2S_NUM_MAX] = {&I2S0, &I2S1};
+#include "esp_private/periph_ctrl.h"
+#include "rom/gpio.h"
+#include "hal/gpio_ll.h"
+#include "hal/i2s_hal.h"
+#include "hal/regi2c_ctrl.h"
+#include "soc/regi2c_bbpll.h"
+#include "soc/regi2c_apll.h"
+static i2s_dev_t* I2S[2] = {&I2S0, &I2S1};
 //these two functions are ripped out of the espressif i2s driver:
 static float i2s_apll_get_fi2s(int bits_per_sample, int sdm0, int sdm1, int sdm2, int odir)
 {
@@ -143,17 +150,26 @@ static void setup_i2s(uint32_t startup_f) {
     I2S[0]->int_ena.out_dscr_err = 0;
 
     int sdm0=0, sdm1=0, sdm2=0, odir=0;
+    ESP_LOGI(TAG, "setup_i2s: calc");
     i2s_apll_calculate_fi2s(startup_f*2, 1, &sdm0, &sdm1, &sdm2, &odir);
     //double fi2s_rate = i2s_apll_get_fi2s(1, sdm0, sdm1, sdm2, odir);
 
     //in case it wasn't already set by LEDC:
+    ESP_LOGI(TAG, "setup_i2s: pin func sel");
     PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[PIN_CLK_FM], PIN_FUNC_GPIO);
+    ESP_LOGI(TAG, "setup_i2s: gpio dir");
     gpio_set_direction(PIN_CLK_FM, GPIO_MODE_DEF_OUTPUT);
 
-    rtc_clk_apll_enable(true, sdm0, sdm1, sdm2, odir);
+    ESP_LOGI(TAG, "setup_i2s: apll en");
+    rtc_clk_apll_enable(true);
+
+    ESP_LOGI(TAG, "setup_i2s: apll coeff set");
+    rtc_clk_apll_coeff_set(odir, sdm0, sdm1, sdm2);
 
     I2S[0]->out_link.start = 1;
     I2S[0]->conf.tx_start = 1;
+
+    ESP_LOGI(TAG, "setup_i2s: out");
 }
 
 static void setup_ledc(uint8_t ch, uint32_t startup_f) {
@@ -169,6 +185,7 @@ static void setup_ledc(uint8_t ch, uint32_t startup_f) {
         .gpio_num = Clk_GPIOs[ch],
         .speed_mode = LEDC_HIGH_SPEED_MODE,
         .timer_sel = ch,
+        .intr_type = LEDC_INTR_DISABLE,
     };
     if (!Clk_ffinstalled) {
         ledc_fade_func_install(0);
@@ -182,7 +199,8 @@ static void setup_ledc(uint8_t ch, uint32_t startup_f) {
 static void set_freq_i2s(uint32_t f) {
     int sdm0=0, sdm1=0, sdm2=0, odir=0;
     i2s_apll_calculate_fi2s(f*2, 1, &sdm0, &sdm1, &sdm2, &odir);
-    rtc_clk_apll_enable(true, sdm0, sdm1, sdm2, odir);
+    rtc_clk_apll_enable(true);
+    rtc_clk_apll_coeff_set(odir, sdm0, sdm1, sdm2);
 }
 
 static void set_freq_ledc(uint8_t ch, uint32_t f) {
@@ -204,7 +222,10 @@ static bool test_i2s_freq(uint32_t f) {
     }
     int sdm0=0, sdm1=0, sdm2=0, odir=0;
     esp_err_t ret = i2s_apll_calculate_fi2s(f*2, 1, &sdm0, &sdm1, &sdm2, &odir);
-    if (ret != ESP_OK) return false;
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "i2s_apll_calculate_fi2s not ok: %s", esp_err_to_name(ret));
+        return false;
+    }
     ESP_LOGI(TAG, "apll conf: sdm0 %d, sdm1 %d, sdm2 %d, odir %d", sdm0, sdm1, sdm2, odir);
     double fi2s_rate = i2s_apll_get_fi2s(1, sdm0, sdm1, sdm2, odir);
     double err = (((double)(f*2) / fi2s_rate) - 1.0) * 100.0;
