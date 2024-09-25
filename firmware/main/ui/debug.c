@@ -27,11 +27,11 @@ static IRAM_ATTR lv_obj_t *driverbuf;
 static IRAM_ATTR lv_obj_t *driverbufpcm;
 static IRAM_ATTR lv_obj_t *ds[DACSTREAM_PRE_COUNT];
 static char tasklabel_buf[(50*TASK_COUNT)+50];
-static TaskStatus_t taskstatus[TASK_COUNT+6]; //6 = IDLE0, IDLE1, Tmr Svc, ipc0, ipc1, esp_timer
+static TaskStatus_t taskstatus[TASK_COUNT+5]; //5 = IDLE0, IDLE1, Tmr Svc, ipc0, ipc1.
 static const char *taskblacklist[6] = { "IDLE0", "IDLE1", "Tmr Svc", "ipc0", "ipc1", "esp_timer" };
 static IRAM_ATTR uint32_t timer = 0;
 static IRAM_ATTR uint32_t taskstimer = 0;
-static IRAM_ATTR uint32_t tasklastruntime[TASK_COUNT+6];
+static IRAM_ATTR uint32_t tasklastruntime[TASK_COUNT+5];
 static IRAM_ATTR uint32_t tasklasttrt = 0;
 static char heapbuf[100] = "";
 static char drvbuf[100] = "";
@@ -42,6 +42,7 @@ static IRAM_ATTR lv_obj_t *samplelabel2;
 static bool fast = false;
 
 static int comp(const void *a, const void *b) {
+    if (a == NULL || b == NULL) return 0;
     const TaskStatus_t *tsa = a, *tsb = b;
     return strcmp(tsa->pcTaskName, tsb->pcTaskName);
 }
@@ -90,9 +91,9 @@ static void drawtasks() {
     bp += strlen(&tasklabel_buf[0]);
 
     uint32_t trt;
-    uxTaskGetSystemState(&taskstatus[0], TASK_COUNT+6, &trt);
-    qsort(taskstatus, TASK_COUNT+6, sizeof(TaskStatus_t), comp);
-    for (uint8_t i=0;i<TASK_COUNT+6;i++) {
+    uxTaskGetSystemState(&taskstatus[0], TASK_COUNT+5, &trt);
+    qsort(taskstatus, TASK_COUNT+5, sizeof(TaskStatus_t), comp);
+    for (uint8_t i=0;i<TASK_COUNT+5;i++) {
         uint8_t blacklisted = false;
         for (uint8_t q=0;q<6;q++) {
             if (strcmp(taskstatus[i].pcTaskName, taskblacklist[q]) == 0) {
@@ -211,6 +212,14 @@ void Ui_Debug_Setup(lv_obj_t *uiscreen) {
     Ui_SoftBar_Update(2, true, LV_SYMBOL_OK" Done", false);
 
     LcdDma_Mutex_Give();
+
+    //do an initial print to serial
+    char *buf = calloc(1024, 1);
+    if (buf != NULL) {
+        vTaskList(buf);
+        ESP_LOGW(TAG, "vTaskList\n%s", buf);
+        free(buf);
+    }
 
     timer = xthal_get_ccount();
 
