@@ -97,8 +97,8 @@ const static char* unvgztmp = "/sd/.mega/unvgz.tmp";
 
 static IRAM_ATTR uint32_t failed_plays = 0;
 
-static uint32_t Player_StartTrack(char *FilePath);
-static bool Player_StopTrack();
+static uint32_t Player_StartTrack(char *FilePath, bool same_file);
+static bool Player_StopTrack(bool leave_files_open);
 
 #define PLAYER_ERR (1<<0) //flag for any failure
 #define PLAYER_UNSUPPORTED_CHIPS (1<<1) //unsupported chips present (synth type)
@@ -120,7 +120,7 @@ static void file_error(bool writing) {
 }
 
 static bool Player_NextTrk(bool UserSpecified) { //returns true if there is now a track playing
-    Player_StopTrack();
+    Player_StopTrack(false);
     if (!UserSpecified && Player_RepeatMode == REPEAT_ONE) {
         //nothing to do - just start the same track again
     } else {
@@ -141,7 +141,7 @@ static bool Player_NextTrk(bool UserSpecified) { //returns true if there is now 
 }
 
 static bool Player_PrevTrk(bool UserSpecified) { //returns true if there is now a track playing
-    Player_StopTrack();
+    Player_StopTrack(false);
     if (!UserSpecified && Player_RepeatMode == REPEAT_ONE) {
         //nothing to do - just start the same track again
     } else {
@@ -177,7 +177,7 @@ void Player_Main() {
                     xEventGroupSetBits(Player_Status, PLAYER_STATUS_RUNNING); //do this now, Player_StartTrack could take longer than the timeout of the task waiting for this event.
                     xEventGroupSetBits(Player_Status, PLAYER_STATUS_LOADING);
                     QueueSetupEntry(false, true);
-                    if (Player_StartTrack(&QueuePlayingFilename[0]) & PLAYER_ERR) {
+                    if (Player_StartTrack(&QueuePlayingFilename[0], false) & PLAYER_ERR) {
                         failed = true;
                         failed_plays++;
                     }
@@ -189,7 +189,7 @@ void Player_Main() {
                 ESP_LOGI(TAG, "control: stop requested");
                 if (xEventGroupGetBits(Player_Status) & PLAYER_STATUS_RUNNING) {
                     ESP_LOGI(TAG, "player running, stopping track");
-                    Player_StopTrack();
+                    Player_StopTrack(false);
                 }
                 xEventGroupClearBits(Player_Status, PLAYER_STATUS_RUNNING);
                 xEventGroupClearBits(Player_Status, PLAYER_STATUS_PAUSED);
@@ -203,7 +203,7 @@ void Player_Main() {
                     xEventGroupSetBits(Player_Status, PLAYER_STATUS_RUNNING);
                     xEventGroupClearBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
                     xEventGroupSetBits(Player_Status, PLAYER_STATUS_LOADING);
-                    if (Player_StartTrack(QueuePlayingFilename) & PLAYER_ERR) {
+                    if (Player_StartTrack(QueuePlayingFilename, false) & PLAYER_ERR) {
                         failed = true;
                         failed_plays++;
                     }
@@ -225,7 +225,7 @@ void Player_Main() {
                         xEventGroupSetBits(Player_Status, PLAYER_STATUS_RUNNING);
                         xEventGroupClearBits(Player_Status, PLAYER_STATUS_NOT_RUNNING);
                         xEventGroupSetBits(Player_Status, PLAYER_STATUS_LOADING);
-                        if (Player_StartTrack(QueuePlayingFilename) & PLAYER_ERR) {
+                        if (Player_StartTrack(QueuePlayingFilename, false) & PLAYER_ERR) {
                             failed = true;
                             failed_plays++;
                         }
@@ -238,8 +238,8 @@ void Player_Main() {
                 } else { //just restart
                     ESP_LOGI(TAG, "outside 3 second window, just restarting track");
                     xEventGroupSetBits(Player_Status, PLAYER_STATUS_LOADING);
-                    Player_StopTrack();
-                    if (Player_StartTrack(&QueuePlayingFilename[0]) & PLAYER_ERR) {
+                    Player_StopTrack(true);
+                    if (Player_StartTrack(&QueuePlayingFilename[0], true) & PLAYER_ERR) {
                         failed = true;
                         failed_plays++;
                     }
@@ -283,7 +283,7 @@ void Player_Main() {
             xEventGroupSetBits(Player_Status, PLAYER_STATUS_LOADING);
             if (Player_NextTrk(false)) {
                 ESP_LOGI(TAG, "next track proceeding");
-                if (Player_StartTrack(QueuePlayingFilename) & PLAYER_ERR) {
+                if (Player_StartTrack(QueuePlayingFilename, false) & PLAYER_ERR) {
                     failed = true;
                     failed_plays++;
                 }
@@ -485,72 +485,76 @@ static tinfl_status Player_Unvgz(char *FilePath, bool ReplaceOriginalFile) {
         ESP_LOGI(TAG, "Chip at %08x", offset);\
     }
 
-static uint32_t Player_StartTrack(char *FilePath) {
+static uint32_t Player_StartTrack(char *FilePath, bool same_file) {
     const char *OpenFilePath = FilePath;
 
-    ESP_LOGI(TAG, "Checking file type of %s", FilePath);
-    FILE *test = fopen(FilePath, "r");
-    //note that errors here could be the user's fault - for example, a playlist specifying non-existent files
-    if (!test) {
-        if (*(FilePath+(strlen(FilePath)-1)) == 'z' || *(FilePath+(strlen(FilePath)-1)) == 'Z') {
-            ESP_LOGW(TAG, "vgz doesn't exist, let's try vgm");
-            *(FilePath+(strlen(FilePath)-1)) -= 0x0d;
-            test = fopen(FilePath, "r");
-            if (!test) {
-                ESP_LOGE(TAG, "vgm doesn't exist either");
+    if (!same_file) {
+        ESP_LOGI(TAG, "Checking file type of %s", FilePath);
+        FILE *test = fopen(FilePath, "r");
+        //note that errors here could be the user's fault - for example, a playlist specifying non-existent files
+        if (!test) {
+            if (*(FilePath+(strlen(FilePath)-1)) == 'z' || *(FilePath+(strlen(FilePath)-1)) == 'Z') {
+                ESP_LOGW(TAG, "vgz doesn't exist, let's try vgm");
+                *(FilePath+(strlen(FilePath)-1)) -= 0x0d;
+                test = fopen(FilePath, "r");
+                if (!test) {
+                    ESP_LOGE(TAG, "vgm doesn't exist either");
+                    return PLAYER_ERR;
+                }
+            } else {
+                ESP_LOGE(TAG, "file doesn't exist");
                 return PLAYER_ERR;
             }
-        } else {
-            ESP_LOGE(TAG, "file doesn't exist");
-            return PLAYER_ERR;
         }
-    }
 
-    uint16_t magic = 0;
-    fseek(test, 0, SEEK_SET);
-    fread(&magic, 2, 1, test);
-    fclose(test);
-    if (magic == 0x8b1f) {
-        ESP_LOGI(TAG, "Compressed");
-        Ui_StatusBar_SetExtract(true);
-        tinfl_status u = Player_Unvgz(FilePath, Player_UnvgzReplaceOriginal);
-        if (u != TINFL_STATUS_DONE) {
-            //do this silly 0x12345678 thing to avoid blowing away any modal that was popped up in Player_Unvgz. yeah, i don't like it either...
-            if (u != 0x12345678) modal_show_simple(TAG, "VGZ Extraction Failed", "An error occurred while extracting this VGZ file. The file may be corrupt.", LV_SYMBOL_OK " OK");
+        uint16_t magic = 0;
+        fseek(test, 0, SEEK_SET);
+        fread(&magic, 2, 1, test);
+        fclose(test);
+        if (magic == 0x8b1f) {
+            ESP_LOGI(TAG, "Compressed");
+            Ui_StatusBar_SetExtract(true);
+            tinfl_status u = Player_Unvgz(FilePath, Player_UnvgzReplaceOriginal);
+            if (u != TINFL_STATUS_DONE) {
+                //do this silly 0x12345678 thing to avoid blowing away any modal that was popped up in Player_Unvgz. yeah, i don't like it either...
+                if (u != 0x12345678) modal_show_simple(TAG, "VGZ Extraction Failed", "An error occurred while extracting this VGZ file. The file may be corrupt.", LV_SYMBOL_OK " OK");
 
-            //get the last track's info off of nowplaying
-            Player_Gd3_Title[0] = 0;
-            Player_Gd3_Game[0] = 0;
-            Player_Gd3_Author[0] = 0;
-            Player_Info.TotalSamples = 0;
-            Player_Info.LoopOffset = 0;
-            Player_Info.LoopSamples = 0;
-            Ui_NowPlaying_DataAvail = true;
+                //get the last track's info off of nowplaying
+                Player_Gd3_Title[0] = 0;
+                Player_Gd3_Game[0] = 0;
+                Player_Gd3_Author[0] = 0;
+                Player_Info.TotalSamples = 0;
+                Player_Info.LoopOffset = 0;
+                Player_Info.LoopSamples = 0;
+                Ui_NowPlaying_DataAvail = true;
 
-            Ui_StatusBar_SetExtract(false); //we won't make it to the one below
+                Ui_StatusBar_SetExtract(false); //we won't make it to the one below
 
-            return PLAYER_ERR;
-        }
-        if (Player_UnvgzReplaceOriginal) {
-            if (*(FilePath+(strlen(FilePath)-1)) == 'z' || *(FilePath+(strlen(FilePath)-1)) == 'Z') {
-                *(FilePath+(strlen(FilePath)-1)) -= 0x0d;
+                return PLAYER_ERR;
             }
+            if (Player_UnvgzReplaceOriginal) {
+                if (*(FilePath+(strlen(FilePath)-1)) == 'z' || *(FilePath+(strlen(FilePath)-1)) == 'Z') {
+                    *(FilePath+(strlen(FilePath)-1)) -= 0x0d;
+                }
+            } else {
+                OpenFilePath = unvgztmp;
+            }
+            Ui_StatusBar_SetExtract(false);
+        } else if (magic == 0x6756) {
+            ESP_LOGI(TAG, "Uncompressed");
         } else {
-            OpenFilePath = unvgztmp;
+            ESP_LOGI(TAG, "Unknown");
+            return PLAYER_ERR;
         }
-        Ui_StatusBar_SetExtract(false);
-    } else if (magic == 0x6756) {
-        ESP_LOGI(TAG, "Uncompressed");
+        ESP_LOGI(TAG, "opening files");
+        Player_VgmFile = fopen(OpenFilePath, "r");
+        Player_PcmFile = fopen(OpenFilePath, "r");
+        Player_DsFindFile = fopen(OpenFilePath, "r");
+        Player_DsFillFile = fopen(OpenFilePath, "r");
+        Driver_Opna_PcmUploadFile = fopen(OpenFilePath, "r");
     } else {
-        ESP_LOGI(TAG, "Unknown");
-        return PLAYER_ERR;
+        ESP_LOGI(TAG, "same file as last time, not reopening files");
     }
-    ESP_LOGI(TAG, "opening files");
-    Player_VgmFile = fopen(OpenFilePath, "r");
-    Player_PcmFile = fopen(OpenFilePath, "r");
-    Player_DsFindFile = fopen(OpenFilePath, "r");
-    Player_DsFillFile = fopen(OpenFilePath, "r");
-    Driver_Opna_PcmUploadFile = fopen(OpenFilePath, "r");
     if (!Player_VgmFile || !Player_PcmFile || !Player_DsFillFile || !Player_DsFindFile || !Driver_Opna_PcmUploadFile) {
         file_error(false);
         if (Player_VgmFile) fclose(Player_VgmFile);
@@ -1003,7 +1007,7 @@ static uint32_t Player_StartTrack(char *FilePath) {
     return 0;
 }
 
-static bool Player_StopTrack() {
+static bool Player_StopTrack(bool leave_files_open) {
     Ui_NowPlaying_DataAvail = false;
 
     ESP_LOGI(TAG, "Requesting driver stop...");
@@ -1049,11 +1053,13 @@ static bool Player_StopTrack() {
     }
     xEventGroupClearBits(Driver_CommandEvents, DRIVER_EVENT_RESET_ACK);
 
-    fclose(Player_VgmFile);
-    fclose(Player_PcmFile);
-    fclose(Player_DsFindFile);
-    fclose(Player_DsFillFile);
-    fclose(Driver_Opna_PcmUploadFile);
+    if (!leave_files_open) {
+        fclose(Player_VgmFile);
+        fclose(Player_PcmFile);
+        fclose(Player_DsFindFile);
+        fclose(Player_DsFillFile);
+        fclose(Driver_Opna_PcmUploadFile);
+    }
 
     return true;
 }
