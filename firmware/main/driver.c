@@ -56,6 +56,8 @@ uint8_t Driver_PcmBuf[DACSTREAM_BUF_SIZE*DACSTREAM_PRE_COUNT];
 volatile IRAM_ATTR uint32_t Driver_CpuPeriod = 0;
 volatile IRAM_ATTR uint32_t Driver_CpuUsageVgm = 0;
 volatile IRAM_ATTR uint32_t Driver_CpuUsageDs = 0;
+volatile bool Driver_WroteFm = false;
+volatile bool Driver_WroteDcsg = false;
 
 volatile bool Driver_AssumeSegaDcsg = true;
 volatile bool Driver_MitigateVgmTrim = true;
@@ -316,6 +318,8 @@ void Driver_DcsgOut(uint8_t Data) {
     Driver_Output();
     portEXIT_CRITICAL(&mux);
 
+    Driver_WroteDcsg = true;
+
     //channel led stuff
     if (Driver_NoLeds) return;
     uint8_t ch = 6; //dcsg ch offset in array
@@ -428,6 +432,8 @@ void Driver_FmOutopl3(uint8_t Port, uint8_t Register, uint8_t Value) {
     Driver_SrBuf[SR_CONTROL] |= SR_BIT_FM_CS; // /cs high
     Driver_Output();
     Driver_Sleep(20);
+
+    Driver_WroteFm = true;
 }
 
 void Driver_FmOutopll(uint8_t Register, uint8_t Value) {
@@ -453,6 +459,8 @@ void Driver_FmOutopll(uint8_t Register, uint8_t Value) {
     Driver_SrBuf[SR_CONTROL] |= SR_BIT_DCSG_CS; // /cs high
     Driver_Output();
     Driver_Sleep(20);
+
+    Driver_WroteFm = true;
 }
 
 void Driver_FmOutopn(uint8_t Device, uint8_t Register, uint8_t Value) {
@@ -478,6 +486,8 @@ void Driver_FmOutopn(uint8_t Device, uint8_t Register, uint8_t Value) {
     Driver_SrBuf[SR_CONTROL] |= csbit; // /cs high
     Driver_Output();
     Driver_Sleep(20);
+
+    Driver_WroteFm = true;
 }
 
 void Driver_FmOutopna(uint8_t Port, uint8_t Register, uint8_t Value) {
@@ -503,6 +513,8 @@ void Driver_FmOutopna(uint8_t Port, uint8_t Register, uint8_t Value) {
     Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; // /wr high
     Driver_SrBuf[SR_CONTROL] |= SR_BIT_FM_CS; // /cs high
     Driver_Output();
+
+    Driver_WroteFm = true;
 
     if (!Driver_NoLeds) {
         uint8_t ch = 0;
@@ -663,6 +675,8 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
     } else {
         return; //no led update
     }
+
+    Driver_WroteFm = true;
 
     //channel led stuff
     if (Driver_NoLeds) return;

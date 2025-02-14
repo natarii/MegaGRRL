@@ -129,6 +129,12 @@ static void displayvalue(char *buf, bool def) {
                         case USERLED_SRC_DRIVERCPU:
                             strcpy(buf, "Driver CPU");
                             break;
+                        case USERLED_SRC_FM_WRITE:
+                            strcpy(buf, "FM Chip Write");
+                            break;
+                        case USERLED_SRC_DCSG_WRITE:
+                            strcpy(buf, "DCSG Chip Write");
+                            break;
                         default:
                             break;
                     }

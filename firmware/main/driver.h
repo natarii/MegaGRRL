@@ -53,6 +53,8 @@ extern uint8_t DacStreamId;
 extern volatile IRAM_ATTR uint32_t Driver_CpuPeriod;
 extern volatile IRAM_ATTR uint32_t Driver_CpuUsageVgm;
 extern volatile IRAM_ATTR uint32_t Driver_CpuUsageDs;
+extern volatile bool Driver_WroteFm;
+extern volatile bool Driver_WroteDcsg;
 extern volatile bool Driver_MitigateVgmTrim;
 extern volatile bool Driver_FirstWait;
 extern volatile uint8_t Driver_FmMask;
