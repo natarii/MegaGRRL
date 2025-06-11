@@ -12,7 +12,7 @@
 #include "gd3.h"
 #include "mallocs.h"
 #include "ui/nowplaying.h"
-#include "rom/miniz.h"
+#include "miniz.h"
 #include "ui/statusbar.h"
 #include "ui/modal.h"
 #include <rom/crc.h>

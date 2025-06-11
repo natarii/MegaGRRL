@@ -1,0 +1,1 @@
+idf_component_register(SRCS miniz/miniz.c INCLUDE_DIRS miniz)
