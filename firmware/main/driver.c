@@ -233,6 +233,16 @@ bool Driver_Setup() {
 
     Driver_ResetChips(true);
 
+
+#if 0
+    ESP_LOGE(TAG, "benchmarking driver output func");
+    for (uint32_t i=0;i<1000000;i++) {
+        Driver_Output();
+    }
+    ESP_LOGE(TAG, "end benchmarking driver output func");
+    // ~1us with loop
+#endif
+
     /*ESP_LOGW(TAG, "Benchmarking output");
     uint32_t s = xthal_get_ccount();
     for (uint8_t i=0;i<255;i++) {
