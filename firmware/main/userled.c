@@ -87,11 +87,19 @@ void UserLedMgr_Main() {
                     Driver_CpuUsageDs = 0;
                     Driver_CpuUsageVgm = 0;
                     break;
+                case USERLED_SRC_FM_WRITE:
+                    LedDrv_States[7+4+led] = Driver_WroteFm?255:0;
+                    break;
+                case USERLED_SRC_DCSG_WRITE:
+                    LedDrv_States[7+4+led] = Driver_WroteDcsg?255:0;
+                    break;
                 default:
                     break;
             }
             if (LedDrv_States[7+4+led]) LedDrv_States_ULatch[led] = LedDrv_States[7+4+led];
         }
+        Driver_WroteFm = false;
+        Driver_WroteDcsg = false;
     }
 }
 
