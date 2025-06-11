@@ -141,15 +141,15 @@ void Ui_Muting_Setup(lv_obj_t *uiscreen) {
 }
 
 void Ui_Muting_ToggleAll() {
-    bool anyon = false;
+    bool allon = true;
     for (uint8_t i=0;i<11;i++) {
-        if (ch_en(i)) {
-            anyon = true;
+        if (!ch_en(i)) {
+            allon = false;
             break;
         }
     }
     for (uint8_t i=0;i<11;i++) {
-        ch_set(i, !anyon);
+        ch_set(i, !allon);
     }
     if (xEventGroupGetBits(Driver_CommandEvents) & DRIVER_EVENT_RUNNING) xEventGroupSetBits(Driver_CommandEvents, DRIVER_EVENT_UPDATE_MUTING);
     drawlist();
