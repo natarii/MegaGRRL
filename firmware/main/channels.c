@@ -30,6 +30,7 @@ bool ChannelMgr_Setup() {
 
 void ChannelMgr_Main() {
     while (1) {
+        uint8_t newstates[10];
         for (uint8_t i=0;i<6+4;i++) { //fm, dcsg
             uint8_t chstate = ChannelMgr_States[i];
 
@@ -58,19 +59,19 @@ void ChannelMgr_Main() {
             uint8_t ch6mask = (ChannelMgr_States[5] & CHSTATE_DAC)?(1<<6):(1<<5);
             
             if (i < 5 && (Driver_FmMask & (1<<i)) == 0) {
-                LedDrv_States[i] = 0;
+                newstates[i] = 0;
             } else if (i == 5 && (Driver_FmMask & ch6mask) == 0) {
-                LedDrv_States[5] = 0;
+                newstates[5] = 0;
             } else {
                 switch (ChannelMgr_LedStates[i]) {
                     case LEDSTATE_BRIGHT:
-                    LedDrv_States[i] = 255;
+                        newstates[i] = 255;
                         break;
                     case LEDSTATE_ON:
-                    LedDrv_States[i] = 96;
+                        newstates[i] = 96;
                         break;
                     case LEDSTATE_OFF:
-                    LedDrv_States[i] = 0;
+                        newstates[i] = 0;
                         break;
                     default:
                         break;
@@ -86,10 +87,13 @@ void ChannelMgr_Main() {
             avg <<= 1;
             if (avg > 255) avg = 255;
         }
-        LedDrv_States[6+4] = avg;
         if (!I2cMgr_Seize(false, pdMS_TO_TICKS(1000))) {
             ESP_LOGE(TAG, "Couldn't seize bus !!");
             return;
+        }
+        LedDrv_States[6+4] = avg;
+        for (uint8_t i=0;i<10;i++) {
+            LedDrv_States[i] = newstates[i];
         }
         LedDrv_Update();
         I2cMgr_Release(false);

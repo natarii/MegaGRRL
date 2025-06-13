@@ -113,14 +113,6 @@ bool LedDrv_Update() {
     //we will expect whoever is calling this to take/give the i2c mutex themself.
 
     for (uint8_t i=0;i<16;i++) {
-        if (i>=11 && i<=13) {
-            //handle user leds differently
-            //don't scale brightness
-            //handle pulse stretching "latch"
-            led_pwm[led_channel_assignment[i]] = LedDrv_States_ULatch[i-11];
-            if (!LedDrv_States[i]) LedDrv_States_ULatch[i-11] = 0;
-            continue;
-        }
         led_pwm[led_channel_assignment[i]] = led_curve_lut[LedDrv_States[i]];
     }
 
