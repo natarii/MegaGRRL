@@ -693,7 +693,7 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
         Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; // /wr high
         Driver_SrBuf[SR_CONTROL] |= SR_BIT_FM_CS; // /cs high
         Driver_Output();
-        Driver_Sleep(5);
+        Driver_Sleep(8);
         opn2_regs_dedup[(Port<<8)|Register] = Value;
     } else {
         return; //no led update
