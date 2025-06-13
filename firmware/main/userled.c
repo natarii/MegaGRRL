@@ -30,76 +30,94 @@ bool UserLedMgr_Setup() {
 }
 
 void UserLedMgr_Main() {
+    uint32_t last_states = 0;
+    uint32_t time_cleared_writes = 0;
     while (1) {
-        xTaskNotifyWait(0,0xffffffff, NULL, pdMS_TO_TICKS(50));
+        xTaskNotifyWait(0,0xffffffff, NULL, pdMS_TO_TICKS(25));
 
         EventBits_t playerevents;
+        uint32_t new_states = 0;
         for (uint8_t led=0;led<3;led++) {
             bool set = false;
             switch (UserLedMgr_Source[led]) {
                 case USERLED_SRC_NONE:
-                    LedDrv_States[7+4+led] = 0;
+                    //nothing to do
                     break;
                 case USERLED_SRC_DISK_ALL:
                     for (uint8_t i=0;i<DISKSTATE_COUNT;i++) {
                         if (UserLedMgr_DiskState[i]) {
                             set = true;
+                            new_states |= (0xff << (led*8));
                             break;
                         }
                     }
-                    LedDrv_States[7+4+led] = set?255:0;
                     break;
                 case USERLED_SRC_DISK_DSALL:
                     for (uint8_t i=1;i<DISKSTATE_COUNT;i++) {
                         if (UserLedMgr_DiskState[i]) {
-                            set = true;
+                            new_states |= (0xff << (led*8));
                             break;
                         }
                     }
-                    LedDrv_States[7+4+led] = set?255:0;
                     break;
                 case USERLED_SRC_DISK_DSFIND:
-                    LedDrv_States[7+4+led] = UserLedMgr_DiskState[DISKSTATE_DACSTREAM_FIND]?255:0;
+                    if (UserLedMgr_DiskState[DISKSTATE_DACSTREAM_FIND]) new_states |= (0xff << (led*8));
                     break;
                 case USERLED_SRC_DISK_DSFILL:
-                    LedDrv_States[7+4+led] = UserLedMgr_DiskState[DISKSTATE_DACSTREAM_FILL]?255:0;
+                    if (UserLedMgr_DiskState[DISKSTATE_DACSTREAM_FILL]) new_states |= (0xff << (led*8));
                     break;
                 case USERLED_SRC_DISK_VGM:
-                    LedDrv_States[7+4+led] = UserLedMgr_DiskState[DISKSTATE_VGM]?255:0;
+                    if (UserLedMgr_DiskState[DISKSTATE_VGM]) new_states |= (0xff << (led*8));
                     break;
                 case USERLED_SRC_PLAYPAUSE:
                     playerevents = xEventGroupGetBits(Player_Status);
                     if (playerevents & PLAYER_STATUS_PAUSED) {
-                        LedDrv_States[7+4+led] = 16;
+                        new_states |= (16 << (led*8));
                     } else if (playerevents & PLAYER_STATUS_RUNNING) {
-                        LedDrv_States[7+4+led] = 255;
+                        new_states |= (255 << (led*8));
                     } else {
-                        LedDrv_States[7+4+led] = 0;
+                        //nothing to do
                     }
                     break;
                 case USERLED_SRC_DRIVERCPU:
                     if (Driver_CpuPeriod && Driver_CpuUsageDs+Driver_CpuUsageVgm) {
-                        LedDrv_States[7+4+led] = map(Driver_CpuUsageDs+Driver_CpuUsageVgm, 0, Driver_CpuPeriod, 2, 255);
+                        uint16_t usage = map(Driver_CpuUsageDs+Driver_CpuUsageVgm, 0, Driver_CpuPeriod, 2, 255);
+                        if (usage > 255) usage = 255;
+                        new_states |= (usage << (led*8));
                     } else {
-                        LedDrv_States[7+4+led] = 0;
+                        //nothing to do
                     }
                     Driver_CpuPeriod = 0;
                     Driver_CpuUsageDs = 0;
                     Driver_CpuUsageVgm = 0;
                     break;
                 case USERLED_SRC_FM_WRITE:
-                    LedDrv_States[7+4+led] = Driver_WroteFm?255:0;
+                    if (Driver_WroteFm) new_states |= (0xff << (led*8));
                     break;
                 case USERLED_SRC_DCSG_WRITE:
-                    LedDrv_States[7+4+led] = Driver_WroteDcsg?255:0;
+                    if (Driver_WroteDcsg) new_states |= (0xff << (led*8));
                     break;
                 default:
                     break;
             }
-            if (LedDrv_States[7+4+led]) LedDrv_States_ULatch[led] = LedDrv_States[7+4+led];
         }
-        Driver_WroteFm = false;
-        Driver_WroteDcsg = false;
+        if (new_states != last_states) {
+            if (!I2cMgr_Seize(false, pdMS_TO_TICKS(1000))) {
+                ESP_LOGE(TAG, "Couldn't seize bus !!");
+                return;
+            }
+            for (uint8_t i=0;i<3;i++) {
+                LedDrv_States[11+i] = (new_states >> (i*8)) & 0xff;
+            }
+            LedDrv_Update();
+            I2cMgr_Release(false);
+            last_states = new_states;
+        }
+        if (esp_timer_get_time() - time_cleared_writes > 25000) {
+            Driver_WroteFm = false;
+            Driver_WroteDcsg = false;
+            time_cleared_writes = esp_timer_get_time();
+        }
     }
 }
 
