@@ -79,7 +79,7 @@
 
 
 #define TFT_CMD_PIXFMT	0x3A
-#define TFT_CMD_DELAY	0x80
+#define TFT_CMD_DELAY	0xFF
 
 extern volatile bool LcdDma_AltMode;
 extern volatile bool LcdDma_Screenshot;
