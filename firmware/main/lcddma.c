@@ -51,48 +51,67 @@ spi_device_interface_config_t LcdDma_SpiDeviceConfig = {
 };
 spi_device_handle_t LcdDma_SpiDevice;
 
-//this is awful and based on loboris library init format
-static DRAM_ATTR uint8_t ILI9341_init[] = {
-  24,                   					        // 24 commands in list
-  TFT_CMD_SWRESET, TFT_CMD_DELAY,					//  1: Software reset, no args, w/delay
-  120,	                                            //5ms until next command, 120 required until sleep out. the overhead of sending all the other params probably accounts for a good chunk of the 120...
-  TFT_CMD_POWERA, 5, 0x39, 0x2C, 0x00, 0x34, 0x02,
-  TFT_CMD_POWERB, 3, 0x00, 0XC1, 0X30,
-  0xEF, 3, 0x03, 0x80, 0x02,
-  TFT_CMD_DTCA, 3, 0x85, 0x00, 0x78,
-  TFT_CMD_DTCB, 2, 0x00, 0x00,
-  TFT_CMD_POWER_SEQ, 4, 0x64, 0x03, 0X12, 0X81,
-  TFT_CMD_PRC, 1, 0x20,
-  TFT_CMD_PWCTR1, 1, 0x23,							//Power control VRH[5:0]
-  TFT_CMD_PWCTR2, 1, 0x10,							//Power control SAP[2:0];BT[3:0]
-  TFT_CMD_VMCTR1, 2, 0x3e, 0x28,					//VCM control
-  TFT_CMD_VMCTR2, 1, 0x86,							//VCM control2
-  TFT_MADCTL, 1,									// Memory Access Control (orientation)
-  #if defined LCD_IS_ILI9341_STANDARD
-  0b01011100,
-  #elif defined LCD_IS_ILI9341_INV
-  0b01011100,
-  #elif defined LCD_IS_ST7789_TYPE_A
-  0b11110100,
-  #endif
-  TFT_CMD_PIXFMT, 1, 0x55,
-  #if defined LCD_IS_ILI9341_INV
-  TFT_INVON, 0,
-  #else
-  TFT_INVOFF, 0,
-  #endif
-  TFT_CMD_FRMCTR1, 2, 0x00, 0x18,
-  TFT_CMD_DFUNCTR, 4, 0x08, 0x82, 0x27, 0x00,		// Display Function Control
-  TFT_PTLAR, 4, 0x00, 0x00, 0x01, 0x3F,
-  TFT_CMD_SLPOUT, TFT_CMD_DELAY,					//  Sleep out
-  15,			 									//datasheet specifies only 5ms required, but this is long enough to hide the initial draw
-  TFT_CMD_3GAMMA_EN, 1, 0x00,						// 3Gamma Function: Disable (0x02), Enable (0x03)
-  TFT_CMD_GAMMASET, 1, 0x01,						//Gamma curve selected (0x01, 0x02, 0x04, 0x08)
-  TFT_CMD_GMCTRP1, 15,   							//Positive Gamma Correction
-  0x0F, 0x31, 0x2B, 0x0C, 0x0E, 0x08, 0x4E, 0xF1, 0x37, 0x07, 0x10, 0x03, 0x0E, 0x09, 0x00,
-  TFT_CMD_GMCTRN1, 15,   							//Negative Gamma Correction
-  0x00, 0x0E, 0x14, 0x03, 0x11, 0x07, 0x31, 0xC1, 0x48, 0x08, 0x0F, 0x0C, 0x31, 0x36, 0x0F,
-  TFT_DISPON, 0
+
+static DRAM_ATTR uint8_t ili9341_compatible_init[] = {
+    TFT_CMD_SWRESET, 0,
+    TFT_CMD_DELAY, 120,
+    TFT_CMD_POWERA, 5, 0x39, 0x2C, 0x00, 0x34, 0x02,
+    TFT_CMD_POWERB, 3, 0x00, 0XC1, 0X30,
+    0xEF, 3, 0x03, 0x80, 0x02, // ?
+    TFT_CMD_DTCA, 3, 0x85, 0x00, 0x78,
+    TFT_CMD_DTCB, 2, 0x00, 0x00,
+    TFT_CMD_POWER_SEQ, 4, 0x64, 0x03, 0X12, 0X81,
+    TFT_CMD_PRC, 1, 0x20,
+
+#if defined LCD_IS_QDTECH_MSP322x
+    TFT_CMD_PWCTR1, 1, 0x13,
+    TFT_CMD_PWCTR2, 1, 0x13,
+    TFT_CMD_VMCTR1, 2, 0x1c, 0x35,
+    TFT_CMD_VMCTR2, 1, 0xc8,
+#else
+    TFT_CMD_PWCTR1, 1, 0x23,
+    TFT_CMD_PWCTR2, 1, 0x10,
+    TFT_CMD_VMCTR1, 2, 0x3e, 0x28,
+    TFT_CMD_VMCTR2, 1, 0x86,
+#endif
+
+#if defined LCD_IS_ILI9341_INV
+    TFT_MADCTL, 1, 0b01011100,
+#elif defined LCD_IS_ST7789_TYPE_A
+    TFT_MADCTL, 1, 0b11110100,
+#else
+    TFT_MADCTL, 1, 0b01011100,
+#endif
+
+    TFT_CMD_PIXFMT, 1, 0x55,
+
+#if defined LCD_IS_ILI9341_INV || defined LCD_IS_QDTECH_MSP322x
+    TFT_INVON, 0,
+#else
+    TFT_INVOFF, 0,
+#endif
+
+#if defined LCD_IS_QDTECH_MSP322x
+    TFT_CMD_FRMCTR1, 2, 0x00, 0x1b,
+#else
+    TFT_CMD_FRMCTR1, 2, 0x00, 0x18,
+#endif
+
+    TFT_CMD_DFUNCTR, 4, 0x08, 0x82, 0x27, 0x00,
+    TFT_PTLAR, 4, 0x00, 0x00, 0x01, 0x3F,
+    TFT_CMD_SLPOUT, 0,
+    TFT_CMD_DELAY, 15,
+    TFT_CMD_3GAMMA_EN, 1, 0x00,
+    TFT_CMD_GAMMASET, 1, 0x01,
+#if defined LCD_IS_QDTECH_MSP322x
+    TFT_CMD_GMCTRP1, 15, 0x0f, 0x35, 0x31, 0x0b, 0x0e, 0x06, 0x49, 0xa7, 0x33, 0x07, 0x0f, 0x03, 0x0c, 0x0a, 0x00,
+    TFT_CMD_GMCTRN1, 15, 0x00, 0x0a, 0x0f, 0x04, 0x11, 0x08, 0x36, 0x58, 0x4d, 0x07, 0x10, 0x0c, 0x32, 0x34, 0x0f,
+#else
+    TFT_CMD_GMCTRP1, 15, 0x0F, 0x31, 0x2B, 0x0C, 0x0E, 0x08, 0x4E, 0xF1, 0x37, 0x07, 0x10, 0x03, 0x0E, 0x09, 0x00,
+    TFT_CMD_GMCTRN1, 15, 0x00, 0x0E, 0x14, 0x03, 0x11, 0x07, 0x31, 0xC1, 0x48, 0x08, 0x0F, 0x0C, 0x31, 0x36, 0x0F,
+#endif
+    
+    TFT_DISPON, 0,
 };
 
 void LcdDma_Cmd(uint8_t cmd) {
@@ -229,21 +248,23 @@ bool LcdDma_Setup() {
     }
 
     //lcd init
-    uint16_t idx = 1;
-    while (idx < sizeof(ILI9341_init)) {
-        uint8_t cmd = ILI9341_init[idx++];
-        uint8_t params = ILI9341_init[idx++];
-        uint8_t params2 = params & 0b01111111;
-        ESP_LOGD(TAG, "send command %02x, %d params, delay %d", cmd, params2, (params >> 7));
-        LcdDma_Cmd(cmd);
-        if (params2 > 0) {
-            LcdDma_Data(&ILI9341_init[idx], params2);
-            idx += params2;
-        }
-        if (params & TFT_CMD_DELAY) {
-            vTaskDelay(pdMS_TO_TICKS(ILI9341_init[idx++]));
+    uint16_t idx = 0;
+    while (idx < sizeof(ili9341_compatible_init)) {
+        uint8_t cmd = ili9341_compatible_init[idx++];
+
+        if (cmd == TFT_CMD_DELAY) {
+            //special command
+            ESP_LOGD(TAG, "lcd init delay");
+            vTaskDelay(pdMS_TO_TICKS(ili9341_compatible_init[idx++]));
         } else {
-            //vTaskDelay(pdMS_TO_TICKS(50));
+            LcdDma_Cmd(cmd);
+            ESP_LOGD(TAG, "lcd init cmd 0x%02x", cmd);
+            uint8_t param_count = ili9341_compatible_init[idx++];
+            if (param_count) {
+                ESP_LOGD(TAG, "lcd init %d params", param_count);
+                LcdDma_Data(&ili9341_compatible_init[idx], param_count);
+                idx += param_count;
+            }
         }
     }
 

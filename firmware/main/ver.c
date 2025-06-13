@@ -7,6 +7,8 @@
 #define LCD_NAME "ILI9341 (INV)"
 #elif defined LCD_IS_ST7789_TYPE_A
 #define LCD_NAME "ST7789 (A)"
+#elif defined LCD_IS_QDTECH_MSP322x
+#define LCD_NAME "QDtech MSP322x"
 #else
 #define LCD_NAME "UNK"
 #endif
