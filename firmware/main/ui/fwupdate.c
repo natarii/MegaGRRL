@@ -16,6 +16,7 @@
 #include "esp_flash_partitions.h"
 #include "esp_partition.h"
 #include "esp_ota_ops.h"
+#include "spi_flash_mmap.h"
 
 static const char* TAG = "Ui_Fwupdate";
 
@@ -29,7 +30,7 @@ LV_IMG_DECLARE(img_lcdsad);
 LV_IMG_DECLARE(img_lcdhappy);
 
 static IRAM_ATTR lv_obj_t *container;
-lv_style_t containerstyle;
+static lv_style_t containerstyle;
 char *fwupdate_file;
 IRAM_ATTR lv_obj_t *fwupdate_ta;
 lv_style_t fwupdate_ta_style;

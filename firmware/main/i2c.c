@@ -18,6 +18,7 @@ bool I2cMgr_Setup() {
     config.scl_pullup_en = GPIO_PULLUP_DISABLE;
     config.sda_pullup_en = GPIO_PULLUP_DISABLE;
     config.master.clk_speed = 400000;
+    config.clk_flags = 0;
     esp_err_t ret;
     ret = i2c_param_config(I2C_NUM_0, &config);
     if (ret != ESP_OK) {
@@ -70,7 +71,7 @@ bool I2cMgr_Release(bool IsIsr) {
 
 uint8_t I2cMgr_Clear() {
     gpio_config_t cfg;
-    cfg.intr_type = GPIO_PIN_INTR_DISABLE;
+    cfg.intr_type = GPIO_INTR_DISABLE;
     cfg.mode = GPIO_MODE_INPUT_OUTPUT_OD;
     cfg.pin_bit_mask = (1<<PIN_I2C_CLK) | (1<<PIN_I2C_DATA);
     cfg.pull_down_en = 0;
@@ -78,14 +79,14 @@ uint8_t I2cMgr_Clear() {
     gpio_config(&cfg);
     gpio_set_level(PIN_I2C_DATA, 1);
     gpio_set_level(PIN_I2C_CLK, 1);
-    ets_delay_us(10000);
+    esp_rom_delay_us(10000);
     for (uint8_t i=0;i<9;i++) {
         gpio_set_level(PIN_I2C_CLK, 0);
-        ets_delay_us(4);
+        esp_rom_delay_us(4);
         gpio_set_level(PIN_I2C_CLK, 1);
-        ets_delay_us(4);
+        esp_rom_delay_us(4);
     }
-    ets_delay_us(10000);
+    esp_rom_delay_us(10000);
     if (!gpio_get_level(PIN_I2C_DATA)) {
         ESP_LOGE(TAG, "I2C SDA appears to be stuck low");
         return 1;
@@ -95,7 +96,7 @@ uint8_t I2cMgr_Clear() {
         return 2;
     }
     gpio_set_level(PIN_I2C_CLK, 0);
-    ets_delay_us(10000);
+    esp_rom_delay_us(10000);
     if (!gpio_get_level(PIN_I2C_DATA)) {
         ESP_LOGE(TAG, "I2C SCL & SDA appear to be shorted");
         return 3;

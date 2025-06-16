@@ -8,6 +8,7 @@
 #include "player.h"
 #include "ui.h"
 #include "sdcard.h"
+#include "esp_random.h"
 
 static const char* TAG = "Queue";
 
