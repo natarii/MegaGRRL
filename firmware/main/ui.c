@@ -26,6 +26,33 @@
 
 static const char* TAG = "Ui";
 
+typedef void (*ui_setup_func_t)(lv_obj_t *screen);
+typedef void (*ui_destroy_func_t)(void);
+typedef void (*ui_key_func_t)(KeyEvent_t event);
+typedef void (*ui_tick_func_t)(void);
+
+typedef struct {
+    ui_setup_func_t setup;
+    ui_destroy_func_t destroy;
+    ui_key_func_t key;
+    ui_tick_func_t tick;
+} ui_screen_handler_t;
+
+static const ui_screen_handler_t screen_handlers[UISCREEN_COUNT] = {
+    [UISCREEN_INIT] = {NULL, NULL, NULL, NULL},
+    [UISCREEN_MAINMENU] = {Ui_MainMenu_Setup, Ui_MainMenu_Destroy, Ui_MainMenu_Key, NULL},
+    [UISCREEN_FILEBROWSER] = {Ui_FileBrowser_Activate, Ui_FileBrowser_Destroy, Ui_FileBrowser_Key, NULL},
+    [UISCREEN_NOWPLAYING] = {Ui_NowPlaying_Setup, Ui_NowPlaying_Destroy, Ui_NowPlaying_Key, Ui_NowPlaying_Tick},
+    [UISCREEN_OPTIONS_CATS] = {Ui_Options_Cats_Setup, Ui_Options_Cats_Destroy, Ui_Options_Cats_Key, NULL},
+    [UISCREEN_OPTIONS_OPTS] = {Ui_Options_Opts_Setup, Ui_Options_Opts_Destroy, Ui_Options_Opts_Key, NULL},
+    [UISCREEN_MUTING] = {Ui_Muting_Setup, Ui_Muting_Destroy, Ui_Muting_Key, NULL},
+    [UISCREEN_ABOUT] = {Ui_About_Setup, Ui_About_Destroy, Ui_About_Key, Ui_About_Tick},
+    [UISCREEN_FWUPDATE] = {Ui_Fwupdate_Setup, Ui_Fwupdate_Destroy, Ui_Fwupdate_Key, NULL},
+    [UISCREEN_DEBUG] = {Ui_Debug_Setup, Ui_Debug_Destroy, Ui_Debug_Key, Ui_Debug_Tick},
+    [UISCREEN_SHUFFLEALL] = {Ui_ShuffleAll_Setup, Ui_ShuffleAll_Destroy, Ui_ShuffleAll_Key, NULL},
+    [UISCREEN_EASTEREGG] = {Ui_EasterEgg_Setup, Ui_EasterEgg_Destroy, Ui_EasterEgg_Key, NULL},
+};
+
 QueueHandle_t Ui_KeyQueue = NULL;
 StaticQueue_t Ui_KeyStaticQueue;
 static uint8_t Ui_KeyQueueBuf[UI_KEYQUEUE_SIZE*sizeof(KeyEvent_t)];
@@ -112,7 +139,6 @@ bool Ui_Setup() {
 }
 
 void Ui_Main() {
-    //todo: clean up this disaster
     ESP_LOGI(TAG, "Task start");
     KeyMgr_TargetTask = Taskmgr_Handles[TASK_UI]; //can't do this in early setup, because handle isn't known yet
     while (1) {
@@ -139,42 +165,8 @@ void Ui_Main() {
             } else if (modal_visible) {
                 Ui_Modal_Key(event);
             } else {
-                switch (Ui_Screen) {
-                    case UISCREEN_FILEBROWSER:
-                        Ui_FileBrowser_Key(event);
-                        break;
-                    case UISCREEN_NOWPLAYING:
-                        Ui_NowPlaying_Key(event);
-                        break;
-                    case UISCREEN_MAINMENU:
-                        Ui_MainMenu_Key(event);
-                        break;
-                    case UISCREEN_MUTING:
-                        Ui_Muting_Key(event);
-                        break;
-                    case UISCREEN_ABOUT:
-                        Ui_About_Key(event);
-                        break;
-                    case UISCREEN_OPTIONS_CATS:
-                        Ui_Options_Cats_Key(event);
-                        break;
-                    case UISCREEN_OPTIONS_OPTS:
-                        Ui_Options_Opts_Key(event);
-                        break;
-                    case UISCREEN_FWUPDATE:
-                        Ui_Fwupdate_Key(event);
-                        break;
-                    case UISCREEN_DEBUG:
-                        Ui_Debug_Key(event);
-                        break;
-                    case UISCREEN_SHUFFLEALL:
-                        Ui_ShuffleAll_Key(event);
-                        break;
-                    case UISCREEN_EASTEREGG:
-                        Ui_EasterEgg_Key(event);
-                        break;
-                    default:
-                        break;
+                if (screen_handlers[Ui_Screen].key) {
+                    screen_handlers[Ui_Screen].key(event);
                 }
                 if (Ui_Screen != Ui_Screen_Last) break;
             }
@@ -212,102 +204,20 @@ void Ui_Main() {
             UiScreen_t scr = Ui_Screen;
             ESP_LOGI(TAG, "screen %d -> %d", Ui_Screen_Last, Ui_Screen);
             ESP_LOGI(TAG, "destroying old");
-            switch (Ui_Screen_Last) {
-                case UISCREEN_INIT:
-                    break;
-                case UISCREEN_FILEBROWSER:
-                    Ui_FileBrowser_Destroy();
-                    break;
-                case UISCREEN_MAINMENU:
-                    Ui_MainMenu_Destroy();
-                    break;
-                case UISCREEN_NOWPLAYING:
-                    Ui_NowPlaying_Destroy();
-                    break;
-                case UISCREEN_MUTING:
-                    Ui_Muting_Destroy();
-                    break;
-                case UISCREEN_ABOUT:
-                    Ui_About_Destroy();
-                    break;
-                case UISCREEN_OPTIONS_CATS:
-                    Ui_Options_Cats_Destroy();
-                    break;
-                case UISCREEN_OPTIONS_OPTS:
-                    Ui_Options_Opts_Destroy();
-                    break;
-                case UISCREEN_FWUPDATE:
-                    Ui_Fwupdate_Destroy();
-                    break;
-                case UISCREEN_DEBUG:
-                    Ui_Debug_Destroy();
-                    break;
-                case UISCREEN_SHUFFLEALL:
-                    Ui_ShuffleAll_Destroy();
-                    break;
-                case UISCREEN_EASTEREGG:
-                    Ui_EasterEgg_Destroy();
-                    break;
-                default:
-                    break;
+            if (screen_handlers[Ui_Screen_Last].destroy) {
+                screen_handlers[Ui_Screen_Last].destroy();
             }
             ESP_LOGI(TAG, "creating new");
-            switch (Ui_Screen) {
-                case UISCREEN_FILEBROWSER:
-                    Ui_FileBrowser_Activate(uiscreen);
-                    break;
-                case UISCREEN_NOWPLAYING:
-                    Ui_NowPlaying_Setup(uiscreen);
-                    break;
-                case UISCREEN_MAINMENU:
-                    Ui_MainMenu_Setup(uiscreen);
-                    break;
-                case UISCREEN_MUTING:
-                    Ui_Muting_Setup(uiscreen);
-                    break;
-                case UISCREEN_ABOUT:
-                    Ui_About_Setup(uiscreen);
-                    break;
-                case UISCREEN_OPTIONS_CATS:
-                    Ui_Options_Cats_Setup(uiscreen);
-                    break;
-                case UISCREEN_OPTIONS_OPTS:
-                    Ui_Options_Opts_Setup(uiscreen);
-                    break;
-                case UISCREEN_FWUPDATE:
-                    Ui_Fwupdate_Setup(uiscreen);
-                    break;
-                case UISCREEN_DEBUG:
-                    Ui_Debug_Setup(uiscreen);
-                    break;
-                case UISCREEN_SHUFFLEALL:
-                    Ui_ShuffleAll_Setup(uiscreen);
-                    break;
-                case UISCREEN_EASTEREGG:
-                    Ui_EasterEgg_Setup(uiscreen);
-                    break;
-                default:
-                    break;
+            if (screen_handlers[Ui_Screen].setup) {
+                screen_handlers[Ui_Screen].setup(uiscreen);
             }
             Ui_Screen_Last = scr; //one of the setups might have changed the actual Ui_Screen var, so use this backup. we should really have a function to change screen, not just setting a var...
         }
+
         Ui_StatusBar_Tick();
-        Ui_FileBrowser_Tick();
-        switch (Ui_Screen) {
-            case UISCREEN_NOWPLAYING:
-                Ui_NowPlaying_Tick();
-                break;
-            /*case UISCREEN_MAINMENU:
-                Ui_MainMenu_Tick();
-                break;*/
-            case UISCREEN_ABOUT:
-                Ui_About_Tick();
-                break;
-            case UISCREEN_DEBUG:
-                Ui_Debug_Tick();
-                break;
-            default:
-                break;
+
+        if (screen_handlers[Ui_Screen].tick) {
+            screen_handlers[Ui_Screen].tick();
         }
     }
 }
