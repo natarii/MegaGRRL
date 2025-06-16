@@ -324,7 +324,7 @@ static void updatescrollbar() {
     LcdDma_Mutex_Give();
 }
 
-bool Ui_FileBrowser_Activate(lv_obj_t *uiscreen) {
+void Ui_FileBrowser_Activate(lv_obj_t *uiscreen) {
 
     LcdDma_Mutex_Take(pdMS_TO_TICKS(1000));
 
@@ -457,8 +457,6 @@ bool Ui_FileBrowser_Activate(lv_obj_t *uiscreen) {
         lv_obj_set_hidden(files[i], false);
     }
     LcdDma_Mutex_Give();
-
-    return true;
 }
 
 void Ui_FileBrowser_Destroy() {
@@ -824,8 +822,4 @@ void Ui_FileBrowser_Key(KeyEvent_t event) {
             updatescrollbar();
         }
     }
-}
-
-void Ui_FileBrowser_Tick() {
-    //unused atm
 }

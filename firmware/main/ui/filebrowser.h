@@ -17,10 +17,9 @@ extern volatile bool Ui_FileBrowser_DirsBeforeFiles;
 extern volatile bool Ui_FileBrowser_Narrow;
 
 void Ui_FileBrowser_Setup();
-bool Ui_FileBrowser_Activate(lv_obj_t *uiscreen);
+void Ui_FileBrowser_Activate(lv_obj_t *uiscreen);
 void Ui_FileBrowser_Destroy();
 void Ui_FileBrowser_Key(KeyEvent_t event);
-void Ui_FileBrowser_Tick();
 void Ui_FileBrowser_InvalidateDirEntry();
 void Ui_FileBrowser_Reset();
 
