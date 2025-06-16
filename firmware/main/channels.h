@@ -9,12 +9,14 @@ enum ChannelStates {
     CHSTATE_PARAM = 0x02,
     CHSTATE_DAC = 0x04,
     CHSTATE_KON_PS = 0x08,
+    CHSTATE_FIXED_ON = 0x10,
 };
 
 typedef enum {
     LEDSTATE_OFF,
     LEDSTATE_BRIGHT,
     LEDSTATE_ON,
+    LEDSTATE_PERMABRIGHT,
     LEDSTATE_COUNT
 } ChannelLedState_t;
 

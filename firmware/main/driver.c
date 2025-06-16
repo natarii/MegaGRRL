@@ -1644,6 +1644,17 @@ void Driver_Main() {
                     uint32_t pcmoff = Loader_VgmDataBlocks[Driver_Opna_PcmUploadId].StartAddress;
                     uint32_t pcmsize = Loader_VgmDataBlocks[Driver_Opna_PcmUploadId].Size-8;
 
+                    uint8_t progress = Driver_Opna_PcmUploadId % 4;
+                    uint8_t block = Driver_Opna_PcmUploadId / 4;
+                    for (uint8_t i=0;i<4;i++) {
+                        bool on = false;
+                        if (block & 1) {
+                            on = true;
+                        }
+                        if (progress >= i) on = !on;
+                        ChannelMgr_States[6+i] = on ? CHSTATE_FIXED_ON : 0;
+                    }
+
                     //TODO ALLOW FOR CHUNKS BIGGER THAN 64KBYTE
                     pcmoff /= 4;
                     Driver_FmOutopna(1,0x02,pcmoff&0xff);   //start L
@@ -1661,10 +1672,10 @@ void Driver_Main() {
                         fread(&b, 1, 1, Driver_Opna_PcmUploadFile);
                         Driver_Opna_UploadByte(b);
                         for (uint8_t j=0;j<=map(i,0,pcmsize,0,6);j++) {
-                            ChannelMgr_States[j] |= CHSTATE_PARAM | CHSTATE_KON | CHSTATE_KON_PS;
+                            ChannelMgr_States[j] = CHSTATE_FIXED_ON;
                         }
                     }
-                    for (uint8_t j=0;j<6;j++) {
+                    for (uint8_t j=0;j<10;j++) {
                         ChannelMgr_States[j] = 0;
                     }
                     Driver_FmOutopna(1,0x00,0x01);          //ADPCM reg0 reset

@@ -43,6 +43,8 @@ void ChannelMgr_Main() {
             } else if ((chstate & CHSTATE_PARAM) && (chstate & CHSTATE_KON)) { //param rising edge
                 ChannelMgr_BrTime[i] = xthal_get_ccount();
                 ChannelMgr_LedStates[i] = LEDSTATE_BRIGHT;
+            } else if (chstate & CHSTATE_FIXED_ON) {
+                ChannelMgr_LedStates[i] = LEDSTATE_PERMABRIGHT;
             } else if ((chstate & CHSTATE_KON) == 0) {
                 ChannelMgr_LedStates[i] = LEDSTATE_OFF;
             }
@@ -64,6 +66,7 @@ void ChannelMgr_Main() {
                 newstates[5] = 0;
             } else {
                 switch (ChannelMgr_LedStates[i]) {
+                    case LEDSTATE_PERMABRIGHT:
                     case LEDSTATE_BRIGHT:
                         newstates[i] = 255;
                         break;
