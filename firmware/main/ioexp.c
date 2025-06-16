@@ -111,7 +111,7 @@ bool IoExp_Setup() {
 
     ESP_LOGI(TAG, "Configuring interrupt...");
     gpio_config_t intconf;
-    intconf.intr_type = GPIO_PIN_INTR_POSEDGE;
+    intconf.intr_type = GPIO_INTR_POSEDGE;
     intconf.mode = GPIO_MODE_INPUT;
     intconf.pull_down_en = 0;
     intconf.pull_up_en = 0;

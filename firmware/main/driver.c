@@ -15,6 +15,7 @@
 #include "loader.h"
 #include "player.h"
 #include "clk.h"
+#include "hal/spi_ll.h"
 
 static const char* TAG = "Driver";
 
@@ -160,8 +161,12 @@ static bool reset_flag = false;
 void Driver_ResetChips(bool force);
 void Driver_Sleep(uint32_t us);
 
-void Driver_Output() { //output data to shift registers
-    disp_spi_transfer_data(Driver_SpiDevice, (uint8_t*)&Driver_SrBuf, NULL, 2, 0);
+static spi_dev_t *spihw;
+static inline void Driver_Output() { //output data to shift registers
+    //based on http://esp32.io/viewtopic.php?p=6271&sid=c5defe04bb681fac2ae514139f01cb49#p6271
+    spihw->data_buf[0] = Driver_SrBuf[0] | (Driver_SrBuf[1]<<8);
+    spihw->cmd.usr = 1;
+    while (spihw->cmd.usr);
 }
 
 static uint32_t map(uint32_t x, uint32_t in_min, uint32_t in_max, uint32_t out_min, uint32_t out_max) {
@@ -171,7 +176,7 @@ static uint32_t map(uint32_t x, uint32_t in_min, uint32_t in_max, uint32_t out_m
 bool Driver_Setup() {
     ESP_LOGI(TAG, "Setting up");
 
-    vPortCPUInitializeMutex(&mux);
+    spinlock_initialize(&mux);
 
     ESP_LOGI(TAG, "working around dram0 size - allocating commandstream buffer...");
     Driver_CommandStreamBuf = heap_caps_malloc(DRIVER_QUEUE_SIZE, MALLOC_CAP_8BIT);
@@ -215,10 +220,28 @@ bool Driver_Setup() {
     txn.rx_buffer = NULL;
     spi_device_transmit(Driver_SpiDevice, &txn);
 
+    //now spi ll config
+    spihw = SPI_LL_GET_HW(VSPI_HOST);
+    spihw->user.usr_mosi_highpart = 0;
+    spihw->mosi_dlen.usr_mosi_dbitlen = 16 - 1;
+    spihw->miso_dlen.usr_miso_dbitlen = 0;
+    spihw->user.usr_mosi = 1;
+    spihw->user.usr_miso = 0;
+
     //and now output initial values
     Driver_Output();
 
     Driver_ResetChips(true);
+
+
+#if 0
+    ESP_LOGE(TAG, "benchmarking driver output func");
+    for (uint32_t i=0;i<1000000;i++) {
+        Driver_Output();
+    }
+    ESP_LOGE(TAG, "end benchmarking driver output func");
+    // ~1us with loop
+#endif
 
     /*ESP_LOGW(TAG, "Benchmarking output");
     uint32_t s = xthal_get_ccount();
@@ -237,7 +260,7 @@ bool Driver_Setup() {
 
 void Driver_ModDetect() {
     gpio_config_t det;
-    det.intr_type = GPIO_PIN_INTR_DISABLE;
+    det.intr_type = GPIO_INTR_DISABLE;
     det.mode = GPIO_MODE_INPUT;
     det.pull_down_en = 0;
     det.pull_up_en = 1;
@@ -670,7 +693,7 @@ void Driver_FmOut(uint8_t Port, uint8_t Register, uint8_t Value) {
         Driver_SrBuf[SR_CONTROL] |= SR_BIT_WR; // /wr high
         Driver_SrBuf[SR_CONTROL] |= SR_BIT_FM_CS; // /cs high
         Driver_Output();
-        Driver_Sleep(5);
+        Driver_Sleep(8);
         opn2_regs_dedup[(Port<<8)|Register] = Value;
     } else {
         return; //no led update
